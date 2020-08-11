@@ -1,4 +1,5 @@
 # shellcheck shell=bash
+# interactive shell ie. login
 
 # do not overwrite files on > redirection
 set -o noclobber

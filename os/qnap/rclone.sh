@@ -1,4 +1,7 @@
 #!/bin/sh
+#this will need to be in the profile.
+RCLONE_CONFIG=/share/CACHEDEV1_DATA/custom/.config/rclone/rclone.conf
+export RCLONE_CONFIG
 
 cd /share/CACHEDEV1_DATA/custom/
 
