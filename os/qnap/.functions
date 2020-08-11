@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 _clean_share () {
     FOLDER="/share/CACHEDEV1_DATA/"
 

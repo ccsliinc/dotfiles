@@ -23,22 +23,24 @@ ln -s /usr/share/terminfo/x/xterm-xfree86 /usr/share/terminfo/x/xterm-color
 
 # every system boot the system copies the files back
 # move files to custom location
-mv -f /root/.bashrc /share/CACHEDEV1_DATA/custom/
-mv -f /root/.bash_profile /share/CACHEDEV1_DATA/custom/
-mv -f /root/.profile /share/CACHEDEV1_DATA/custom/
+# mv -f /root/.bashrc /share/CACHEDEV1_DATA/custom/
+# mv -f /root/.bash_profile /share/CACHEDEV1_DATA/custom/
+# mv -f /root/.profile /share/CACHEDEV1_DATA/custom/
 
+rm -f /root/.bashrc
+rm -f /root/.bash_profile
 rm -f /root/.bash_history
 
 # link files back in root directory
 ln -svf /share/CACHEDEV1_DATA/custom/.* /root/
+ln -svf /share/CACHEDEV1_DATA/custom/.dotfiles/os/qnap/docker/ /root/docker
 #ln -s /share/CACHEDEV1_DATA/custom/.bashrc /root/.bashrc
 #ln -s /share/CACHEDEV1_DATA/custom/.profile /root/.profile
 #ln -s /share/CACHEDEV1_DATA/custom/.bash_profile /root/.bash_profile
 #ln -s /share/CACHEDEV1_DATA/custom/.bash_history /root/.bash_history
 
-echo 'source /share/CACHEDEV1_DATA/custom/.bash_profile' >> /share/CACHEDEV1_DATA/custom/.profile
-echo 'source /share/CACHEDEV1_DATA/custom/.profile_custom' >> /share/CACHEDEV1_DATA/custom/.profile
+echo 'source /share/CACHEDEV1_DATA/custom/.profile' >> /root/.profile
+#echo 'source /share/CACHEDEV1_DATA/custom/.profile_custom' >> /share/CACHEDEV1_DATA/custom/.profile
 
 # symlink custom folder for ease of access
-ln -s /share/CACHEDEV1_DATA/custom/ /root/custom
-
+ln -s /share/CACHEDEV1_DATA/custom /root/custom

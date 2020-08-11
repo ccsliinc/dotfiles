@@ -1,1 +1,24 @@
+# shellcheck shell=bash
 export RCLONE_CONFIG=/share/CACHEDEV1_DATA/custom/.config/rclone/rclone.conf
+
+# .bashrc & .bash_profile
+export PATH=\
+/bin:\
+/sbin:\
+/usr/bin:\
+/usr/sbin:\
+/usr/bin/X11:\
+/usr/local/bin:\
+/root/docker
+
+
+# .bashrc
+USER=$(id -un); export USER
+export LOGNAME=$USER
+HOSTNAME=$(/bin/hostname); export HOSTNAME
+#export HISTSIZE=1000
+#export HISTFILESIZE=1000
+export PAGER='/bin/more '
+export EDITOR='/bin/vi'
+export INPUTRC=/etc/inputrc
+export DMALLOC_OPTIONS=debug=0x34f47d83,inter=100,log=logfile
