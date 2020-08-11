@@ -9,7 +9,8 @@ export PATH=\
 /usr/sbin:\
 /usr/bin/X11:\
 /usr/local/bin:\
-/root/docker
+/root/docker:\
+/opt/bin
 
 
 # .bashrc
