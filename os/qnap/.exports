@@ -1,0 +1,1 @@
+export RCLONE_CONFIG=/share/CACHEDEV1_DATA/custom/.config/rclone/rclone.conf

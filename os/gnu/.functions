@@ -1,0 +1,3 @@
+function _fix_permissions() {
+	find . -type f -exec chmod 664 {} \; && find . -type d -exec chmod 775 {} \; && chown -R "$1":psacln *
+}
