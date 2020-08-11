@@ -7,7 +7,7 @@
 ```bash
 mkdir /share/CACHEDEV1_DATA/custom
 cd /share/CACHEDEV1_DATA/custom
-git clone git@bitbucket.org:joepersonal/mac-home.git .dotfiles
+git clone --recursive tbd .dotfiles
 cd .dotfiles
 ./bootstrap.sh
 ```
