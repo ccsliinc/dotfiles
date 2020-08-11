@@ -1,9 +1,13 @@
+# shellcheck shell=bash
+
 # do not overwrite files on > redirection
 set -o noclobber
+
 # update window size to fix wrapping
 shopt -s checkwinsize
 
-source ~/.profile
+# shellcheck source=/dev/null
+source "$HOME/.profile"
 
 #############################
 # color the working directory

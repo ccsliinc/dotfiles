@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 
 _gen_cert () {
     if [ "$#" -ne 2 ]
@@ -10,16 +11,16 @@ _gen_cert () {
     IP=$2
 
     #cd ~/ssl
-    mkdir -p ~/ssl/$DOMAIN
-    cd ~/ssl/$DOMAIN
+    mkdir -p "$HOME/ssl/$DOMAIN"
+    cd "$HOME/ssl/$DOMAIN" || exit
     
-    openssl genrsa -out $DOMAIN.key 4096
+    openssl genrsa -out "$DOMAIN.key" 4096
     openssl req -new \
-        -key $DOMAIN.key \
-        -out $DOMAIN.csr \
+        -key "$DOMAIN.key" \
+        -out "$DOMAIN.csr" \
         -subj "/C=US/ST=New York/L=Amityville/O=Security/OU=IT Department/CN=$DOMAIN"
 
-    cat > $DOMAIN.ext << EOF
+    cat > "$DOMAIN.ext" << EOF
 authorityKeyIdentifier=keyid,issuer
 basicConstraints=CA:FALSE
 keyUsage = digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment
@@ -31,14 +32,14 @@ EOF
 
 
     openssl x509 -req \
-        -in $DOMAIN.csr \
+        -in "$DOMAIN.csr" \
         -CA ../myCA.pem \
         -CAkey ../myCA.key \
         -CAcreateserial \
-        -out $DOMAIN.crt \
+        -out "$DOMAIN.crt" \
         -days 365 \
         -sha256 \
-        -extfile $DOMAIN.ext
+        -extfile "$DOMAIN.ext"
 }
 
 _fix_mysql () {
@@ -76,55 +77,59 @@ unpack() {
 }
 
 packf() {
-	tar -cf - $* | gzip | b64e
+	tar -cf - "$*" | gzip | b64e
 }
 
 unpackf() {
 	b64d | tar -zxf -
 }
 
+# Dump all MySQL databases
+
 mydumpall() {
 	for DB in `echo show databases | mysql -B --skip-column-names $*`; do
-		echo $DB; mysqldump $DB $* > $DB.sql
+		echo "$DB"; mysqldump "$DB" "$*" > "$DB.sql"
 	done
 }
 
 #   mans:   Search manpage given in agument '1' for term given in argument '2' (case insensitive)
 #           displays paginated result with colored search terms and two lines surrounding each hit.            Example: mans mplayer codec
 #   --------------------------------------------------------------------
-    mans () {
-        man $1 | grep -iC2 --color=always $2 | less
-    }
+mans () {
+    man "$1" | grep -iC2 --color=always "$2" | less
+}
 
 #   showa: to remind yourself of an alias (given some part of it)
 #   ------------------------------------------------------------
-    showa () { /usr/bin/grep --color=always -i -a1 $@ ~/Library/init/bash/aliases.bash | grep -v '^\s*$' | less -FSRXc ; }
+showa () { /usr/bin/grep --color=always -i -a1 "$@" ~/Library/init/bash/aliases.bash | grep -v '^\s*$' | less -FSRXc ; }
 
 #   extract:  Extract most know archives with one command
 #   ---------------------------------------------------------
-    extract () {
-        if [ -f $1 ] ; then
-            case $1 in
-                *.tar.bz2)   tar xjf $1     ;;
-                *.tar.gz)    tar xzf $1     ;;
-                *.bz2)       bunzip2 $1     ;;
-                *.rar)       unrar e $1     ;;
-                *.gz)        gunzip $1      ;;
-                *.tar)       tar xf $1      ;;
-                *.tbz2)      tar xjf $1     ;;
-                *.tgz)       tar xzf $1     ;;
-                *.zip)       unzip $1       ;;
-                *.Z)         uncompress $1  ;;
-                *.7z)        7z x $1        ;;
-                *)     echo "'$1' cannot be extracted via extract()" ;;
-            esac
-        else
-            echo "'$1' is not a valid file"
-        fi
-    }
+extract () {
+    if [ -f $1 ] ; then
+        case $1 in
+            *.tar.bz2)   tar xjf $1     ;;
+            *.tar.gz)    tar xzf $1     ;;
+            *.bz2)       bunzip2 $1     ;;
+            *.rar)       unrar e $1     ;;
+            *.gz)        gunzip $1      ;;
+            *.tar)       tar xf $1      ;;
+            *.tbz2)      tar xjf $1     ;;
+            *.tgz)       tar xzf $1     ;;
+            *.zip)       unzip $1       ;;
+            *.Z)         uncompress $1  ;;
+            *.7z)        7z x $1        ;;
+            *)     echo "'$1' cannot be extracted via extract()" ;;
+        esac
+    else
+        echo "'$1' is not a valid file"
+    fi
+}
 
 
 # These should be the last 2 lines of the file
 # Don't make edits below this
-[[ -f ~/.dotfiles/os/${OS}/.functions ]] && source ~/.dotfiles/os/${OS}/.functions
-[[ -f ~/.functions.local ]] && source ~/.functions.local
+# shellcheck source=/dev/null
+[[ -f ~/.dotfiles/os/${OS}/.functions ]] && source "$HOME/.dotfiles/os/${OS}/.functions"
+# shellcheck source=/dev/null
+[[ -f ~/.functions.local ]] && source "$HOME/.functions.local"
