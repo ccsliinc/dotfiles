@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
 
+#opkg install bash
+#opkg install zsh
+
+#edit /etc/passwd and change shell
+
 # Mount boot partition
 mount "$(/sbin/hal_app --get_boot_pd port_id=0)6" /tmp/config
 
@@ -33,6 +38,13 @@ ln -sv /share/CACHEDEV1_DATA/custom/.dotfiles/.exports /share/CACHEDEV1_DATA/cus
 ln -sv /share/CACHEDEV1_DATA/custom/.dotfiles/.functions /share/CACHEDEV1_DATA/custom/.functions
 ln -sv /share/CACHEDEV1_DATA/custom/.dotfiles/.bashrc /share/CACHEDEV1_DATA/custom/.bashrc
 ln -sv /share/CACHEDEV1_DATA/custom/.dotfiles/.bash_profile /share/CACHEDEV1_DATA/custom/.bash_profile
+ln -sv /share/CACHEDEV1_DATA/custom/.dotfiles/.zshrc /share/CACHEDEV1_DATA/custom/.zshrc
+ln -sv /share/CACHEDEV1_DATA/custom/.dotfiles/.oh-my-zsh /share/CACHEDEV1_DATA/custom/.oh-my-zsh
+
+# Create empty files for persistence
+touch /share/CACHEDEV1_DATA/custom/.bash_history
+touch /share/CACHEDEV1_DATA/custom/.zsh_history
+touch /share/CACHEDEV1_DATA/custom/.viminfo
 
 # Run autorun 
 sh /share/CACHEDEV1_DATA/custom/.dotfiles/os/qnap/autorunmaster.sh
