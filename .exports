@@ -1,3 +1,5 @@
+# shellcheck shell=bash
+
 # OS Version
 if [[ "$OSTYPE" == *"darwin"* ]] ; then
     export OS="mac"
@@ -41,5 +43,7 @@ export LS_COLORS="no=00:fi=00:di=01;34:ln=01;36:pi=40;33:so=01;35:do=01;35\
 
 # These should be the last 2 lines of the file
 # Don't make edits below this
-[[ -f ~/.dotfiles/os/${OS}/.exports ]] && source ~/.dotfiles/os/${OS}/.exports
-[[ -f ~/.exports.local ]] && source ~/.exports.local
+# shellcheck source=/dev/null
+[[ -f ~/.dotfiles/os/${OS}/.exports ]] && source "$HOME/.dotfiles/os/${OS}/.exports"
+# shellcheck source=/dev/null
+[[ -f ~/.exports.local ]] && source "$HOME/.exports.local"
