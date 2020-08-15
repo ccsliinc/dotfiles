@@ -77,6 +77,8 @@ plugins=(
 source $ZSH/oh-my-zsh.sh
 source ~/.profile
 
+unsetopt nomatch
+
 # User configuration
 
 # export MANPATH="/usr/local/man:$MANPATH"
