@@ -26,3 +26,69 @@ _clean_share () {
         find $FOLDER -iname "Thumbs.db:encryptable" -type f;
     fi
 }
+
+_docker () {
+    
+    if ! command -v jq &> /dev/null; then
+        echo "jq command cannot be found please install."
+        return 1
+    fi
+
+    if [ "$#" -ne 1 ]; then
+        echo "Usage: Must supply a docker to update"
+        return 1
+    fi
+    DOCKER_FILE="~/.dotfiles/dockers.local"
+    DOCKER_FILE="dockers.local"
+    DOCKER=$1
+    DOCKER=$(jq ".dockers.$DOCKER" $DOCKER_FILE)
+
+    if [ -z "$DOCKER" ]; then
+        echo "Cannot find docker, please check dockers.local file."
+        return 1
+    else
+        IMAGE=$(echo "$DOCKER" | jq .image)
+        NAME=$(echo "$DOCKER" | jq .name)
+        NET=$(jq ".network" $DOCKER_FILE)
+        DOCKER_USERNAME=$(jq ".username" $DOCKER_FILE)
+        DOCKER_PASSWORD=$(jq ".password" $DOCKER_FILE)
+        DOCKER_HOST=$(jq ".host" $DOCKER_FILE)
+        DOCKER_PORT=$(jq ".port" $DOCKER_FILE)
+        IP=$(echo "$DOCKER" | jq .ip)
+        MAC=$(echo "$DOCKER" | jq .mac)
+        ENV=""
+        VOL=""
+        CMD="docker run -it -d \
+            ENV \
+            VOL \
+            --net=$NET --ip=$IP --mac-address=$MAC \
+            --restart=always \
+            --name $NAME \
+            $IMAGE"
+
+
+        for row in $(echo "$DOCKER" | jq -r '.env[] | @base64'); do
+            ENV="$ENV -e \"$(echo "${row}" | base64 --decode)\""
+        done
+
+        for row in $(echo "$DOCKER" | jq -r '.vol[] | @base64'); do
+            _jq() {
+                echo "${row}" | base64 --decode | jq -r "${1}"
+            }
+            VOL="$VOL -v \"$(_jq '.host'):$(_jq '.docker'):$(_jq '.bind')\""
+        done
+
+        CMD=${CMD/ENV/$ENV}
+        CMD=${CMD/VOL/$VOL}
+        CMD=$(echo "$CMD"| tr -s " ")
+
+        docker pull "$IMAGE"
+        docker stop "$NAME"
+        docker rm "$NAME"
+        eval "$CMD"
+
+        ID=$(docker inspect --format="{{.Id}}" "$NAME")
+        curl -sq -XPOST -c /tmp/cookies.txt -d "username=$DOCKER_USERNAME&password=$DOCKER_PASSWORD" http://$DOCKER_HOST:$DOCKER_PORT/containerstation/api/v1/login
+        curl -sq -XPUT -b cookies.txt http://$DOCKER_HOST:$DOCKER_PORT/containerstation/api/v1/container/docker/$ID/autostart/on
+    fi
+}

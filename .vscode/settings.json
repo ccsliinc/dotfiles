@@ -4,6 +4,7 @@
         ".exports": "shellscript",
         ".functions": "shellscript",
         ".*.local": "shellscript",
-        ".functions_*": "shellscript"
+        ".functions_*": "shellscript",
+        "dockers.local": "json"
     }
 }
