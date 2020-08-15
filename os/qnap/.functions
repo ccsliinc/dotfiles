@@ -73,7 +73,7 @@ _docker () {
 
         for row in $(echo "$DOCKER" | jq -r '.vol[] | @base64'); do
             _jq() {
-                echo "${row}" | base64 --decode | jq -r "${1}"
+                echo "${row}" | base64 -i --decode | jq -r "${1}"
             }
             VOL="$VOL -v \"$(_jq '.host'):$(_jq '.docker'):$(_jq '.bind')\""
         done
