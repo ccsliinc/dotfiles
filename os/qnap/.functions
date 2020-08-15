@@ -38,8 +38,7 @@ _docker () {
         echo "Usage: Must supply a docker to update"
         return 1
     fi
-    DOCKER_FILE="~/.dotfiles/dockers.local"
-    DOCKER_FILE="dockers.local"
+    DOCKER_FILE="~/dockers.local"
     DOCKER=$1
     DOCKER=$(jq ".dockers.$DOCKER" $DOCKER_FILE)
 
