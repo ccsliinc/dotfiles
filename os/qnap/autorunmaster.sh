@@ -33,7 +33,7 @@ rm -f /root/.bash_history
 
 # link files back in root directory
 ln -sv /share/CACHEDEV1_DATA/custom/.* /root/
-ln -svf /share/CACHEDEV1_DATA/custom/.dotfiles/os/qnap/docker/ /root/docker
+#ln -svf /share/CACHEDEV1_DATA/custom/.dotfiles/os/qnap/docker/ /root/docker
 ln -svf /share/CACHEDEV1_DATA/custom/dockers.local /root/dockers.local
 #ln -s /share/CACHEDEV1_DATA/custom/.bashrc /root/.bashrc
 #ln -s /share/CACHEDEV1_DATA/custom/.profile /root/.profile
