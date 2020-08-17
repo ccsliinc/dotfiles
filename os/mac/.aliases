@@ -1,3 +1,6 @@
+# shellcheck shell=bash
+if [ "$DEBUG" = "true" ]; then echo ".mac.aliases" ; fi
+
 alias ls='ls -haFG'
 alias ll='ls -FGlAhp'
 alias which='type -a'                       # which:        Find executables

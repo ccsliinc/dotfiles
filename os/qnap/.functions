@@ -47,13 +47,13 @@ _docker_image_check () {
     if [ "$digest" != "$local_digest" ] ; then
         echo "Update available. Executing update command..."
         #($COMMAND)
-        _docker "$COMMAND"
+        _docker_update "$COMMAND"
     else
         echo "Already up to date. Nothing to do."
     fi
 }
 
-_docker () {
+_docker_update () {
     
     if ! command -v jq &> /dev/null; then
         echo "jq command cannot be found please install."
@@ -66,7 +66,7 @@ _docker () {
     fi
     DOCKER_FILE="$HOME/dockers.local"
     DOCKER=$1
-    DOCKER=$(jq ".dockers.$DOCKER" $DOCKER_FILE)
+    DOCKER=$(jq ".dockers.$DOCKER" "$DOCKER_FILE")
 
     if [ -z "$DOCKER" ]; then
         echo "Cannot find docker, please check dockers.local file."
@@ -74,11 +74,11 @@ _docker () {
     else
         IMAGE=$(echo "$DOCKER" | jq -r .image)
         NAME=$(echo "$DOCKER" | jq -r .name)
-        NETWORK=$(jq -r ".network" $DOCKER_FILE)
-        DOCK_USERNAME=$(jq -r ".username" $DOCKER_FILE)
-        DOCK_PASSWORD=$(jq -r ".password" $DOCKER_FILE)
-        DOCK_HOST=$(jq -r ".host" $DOCKER_FILE)
-        DOCK_PORT=$(jq -r ".port" $DOCKER_FILE)
+        NETWORK=$(jq -r ".network" "$DOCKER_FILE")
+        DOCK_USERNAME=$(jq -r ".username" "$DOCKER_FILE")
+        DOCK_PASSWORD=$(jq -r ".password" "$DOCKER_FILE")
+        DOCK_HOST=$(jq -r ".host" "$DOCKER_FILE")
+        DOCK_PORT=$(jq -r ".port" "$DOCKER_FILE")
         IP=$(echo "$DOCKER" | jq -r .ip)
         MAC=$(echo "$DOCKER" | jq -r .mac)
         ENV=""
@@ -86,12 +86,12 @@ _docker () {
         NET=""
         EXTRA=""
         CMD="docker run -it -d \
-            ENV \
-            VOL \
-            NET \
+            ~ENV~ \
+            ~VOL~ \
+            ~NET~ \
             --restart=always \
             --name $NAME \
-            EXTRA \
+            ~EXTRA~ \
             $IMAGE"
 
         for row in $(echo "$DOCKER" | jq -r '.env[]? | @base64'); do
@@ -114,10 +114,10 @@ _docker () {
             NET="--net=$NETWORK --ip=$IP --mac-address=$MAC"
         fi
 
-        CMD=${CMD/ENV/$ENV}
-        CMD=${CMD/VOL/$VOL}
-        CMD=${CMD/EXTRA/$EXTRA}
-        CMD=${CMD/NET/$NET}
+        CMD=${CMD/~ENV~/$ENV}
+        CMD=${CMD/~VOL~/$VOL}
+        CMD=${CMD/~EXTRA~/$EXTRA}
+        CMD=${CMD/~NET~/$NET}
         CMD=$(echo "$CMD"| tr -s " ")
 
         eval docker pull "$IMAGE"
@@ -132,6 +132,15 @@ _docker () {
     fi
 }
 
-_check_all_dockers () {
-    _docker_image_check "pihole/pihole" pihole 
+_dockers_check () {
+    DOCKER_FILE="$HOME/dockers.local"
+    DOCKER=$(jq "." "$DOCKER_FILE")
+
+    for row in $(echo "$DOCKER" | jq -r '.dockers | keys[]'); do
+        if [ "$(jq -r ".dockers.$row.update" "$DOCKER_FILE")" = "true" ]; then
+            #_docker_image_check "pihole/pihole" pihole 
+            echo "$(jq -r ".dockers.$row.image" "$DOCKER_FILE")"
+            _docker_image_check "pihole/pihole" "$row"
+        fi
+    done
 }

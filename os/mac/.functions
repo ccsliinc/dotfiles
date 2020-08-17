@@ -1,3 +1,6 @@
+# shellcheck shell=bash
+if [ "$DEBUG" = "true" ]; then echo ".mac.functions" ; fi
+
 _eject_dock () {
 
     #diskutil unmount /dev/disk3
@@ -309,5 +312,5 @@ _destroy_valet_plus () {
 
     echo -e "${VP_RED}${VP_BOLD}REBOOT NOW BEFORE YOU RUN THE INSTALL${VP_NONE}"
 }
-
-source ~/.dotfiles/os/mac/.functions_docker
+# shellcheck source=.functions_docker
+source "$DOTFILESLOC/os/mac/.functions_docker"

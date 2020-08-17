@@ -1,3 +1,5 @@
+# shellcheck shell=bash
+if [ "$DEBUG" = "true" ]; then echo ".mac.profile" ; fi
 
 _update_brew
 

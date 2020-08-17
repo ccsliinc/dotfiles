@@ -1,2 +1,5 @@
+# shellcheck shell=bash
+if [ "$DEBUG" = "true" ]; then echo ".mac.exports" ; fi
+
 export PATH=~/.composer/vendor/bin:$PATH
 export BLOCKSIZE=1k

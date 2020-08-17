@@ -2,7 +2,9 @@
 # shellcheck disable=SC1091
 # non interactive shell ie. scripts
 
-source ".bash_profile"
+source ".dotfiles_location"
+# shellcheck source=common/.functions
+source "$DOTFILESLOC/common/.profile"
 
 # This should be the last line of the file
 # For local changes

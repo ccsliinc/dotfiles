@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # If you come from bash you might have to change your $PATH.
 # export PATH=$HOME/bin:/usr/local/bin:$PATH
 export PATH="/usr/local/sbin:$PATH"
@@ -74,8 +75,12 @@ plugins=(
   docker
 )
 
+# shellcheck source=/dev/null
 source $ZSH/oh-my-zsh.sh
-source ~/.profile
+# shellcheck source=/dev/null
+source ".dotfiles_location"
+# shellcheck source=/dev/null
+source "$DOTFILESLOC/common/.profile_interactive"
 
 unsetopt nomatch
 

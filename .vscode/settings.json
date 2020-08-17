@@ -3,6 +3,9 @@
         ".aliases": "shellscript",
         ".exports": "shellscript",
         ".functions": "shellscript",
+        ".shell_*": "shellscript",
+        ".dotfiles_location": "shellscript",
+        ".profile_*": "shellscript",
         ".*.local": "shellscript",
         ".functions_*": "shellscript",
         "dockers.local": "json"
