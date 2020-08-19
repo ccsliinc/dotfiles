@@ -44,4 +44,9 @@ touch /share/CACHEDEV1_DATA/custom/.viminfo
 # Run autorun 
 sh /share/CACHEDEV1_DATA/custom/.dotfiles/os/qnap/autorunmaster.sh
 
-echo 'edit /etc/passwd and change shell'
+if [[ -x /opt/bin/zsh ]]; then
+    usermod -s /opt/bin/zsh "$(whoami)"
+    echo 'Default shell changed to ZSH'
+else
+    echo 'edit /etc/passwd and change shell'
+fi
