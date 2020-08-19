@@ -1,0 +1,26 @@
+{
+    "dockers":{
+        "pihole" : { 
+            "image" : "pihole/pihole",
+            "name" : "Pi-hole",
+            "env": [
+                "TZ=America/New_York"
+            ],
+            "vol": [
+                "/share/Container/docker-appdata/pihole/etc-pihole:/etc/pihole",
+                "/share/Container/docker-appdata/pihole/etc-dnsmasq.d:/etc/dnsmasq.d"
+            ],
+            "ext": [
+                "--privileged"
+            ],
+            "ip": "10.0.0.10",
+            "mac": "00:00:00:00:00:)0",
+            "update": true
+        }
+    },
+    "network": "qnet-static-eth0-ffffff",
+    "username": "docker",
+    "password": "password",
+    "host": "localhost",
+    "port": 8080
+}
