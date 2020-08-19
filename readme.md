@@ -21,7 +21,7 @@ opkg upgrade      #upgrade all packages
 Once this is complete log into the QNAP via ssh from a command prompt and complete the following.
 
 ```bash
-mkdir /share/CACHEDEV1_DATA/custom
+mkdir -p /share/CACHEDEV1_DATA/custom
 cd /share/CACHEDEV1_DATA/custom
 git clone --recursive https://github.com/ccsliinc/dotfiles.git .dotfiles
 cd .dotfiles
