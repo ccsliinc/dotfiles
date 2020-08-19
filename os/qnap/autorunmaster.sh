@@ -23,7 +23,8 @@ rm -f /root/.bash_history
 ln -sv /share/CACHEDEV1_DATA/custom/.* /root/
 ln -svf /share/CACHEDEV1_DATA/custom/dockers.local /root/dockers.local
 
-echo 'source /share/CACHEDEV1_DATA/custom/.profile' >> /root/.profile
+echo 'source /share/CACHEDEV1_DATA/custom/.dotfiles_location' >> /root/.profile
+echo 'source $DOTFILESLOC/.profile' >> /root/.profile
 
 # symlink custom folder for ease of access
 ln -s /share/CACHEDEV1_DATA/custom /root/custom
