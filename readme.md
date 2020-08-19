@@ -4,13 +4,37 @@
 
 ### QNAP
 
+#### Intel
+
+Log into Web Interface and open the Control Panel App.  Click on Hardware or on the left menu select System -> Hardware.  On the general tab check the checkbox to select "Run user defined processes during startup" and click apply. This will allow the autorun.sh to be processed during system startup.
+
+Optional install https://www.qnapclub.eu/en/qpkg/556 Entware to the QNAP for command line utilities.  This will allow installation and usage of git and other command line utilities. If you would like to use git to install this repo, log into ssh and install git.  It will be located at /opt/bin/git.
+
+Make sure valid ssh keys are generated and added to github to allow pull.
+
+```bash
+opkg update       #update opkg package list
+opkg install git  #install git
+opkg upgrade      #upgrade all packages
+```
+
+Once this is complete log into the QNAP via ssh from a command prompt and complete the following.
+
 ```bash
 mkdir /share/CACHEDEV1_DATA/custom
 cd /share/CACHEDEV1_DATA/custom
-git clone --recursive tbd .dotfiles
+git clone --recursive https://github.com/ccsliinc/dotfiles.git .dotfiles
 cd .dotfiles
 ./bootstrap.sh
 ```
+
+#### Opkg
+- bash
+- git
+- grep
+- htop
+- jq
+- zsh
 
 ## Dockers
 

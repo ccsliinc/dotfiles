@@ -1,19 +1,26 @@
 #!/bin/bash
 
 PROMPT='[bootstrap]'
-source .exports
+source common/.profile_os
 
 # Initialize a few things
-init () {
-	echo "$PROMPT Making a Projects folder in $PATH_TO_PROJECTS if it doesn't already exist"
-	mkdir -p "$PATH_TO_PROJECTS"
-	echo "$PROMPT Making a Playground folder in $PATH_TO_PLAYGROUND if it doesn't already exist"
-	mkdir -p "$PATH_TO_PLAYGROUND"
-}
+# init () {
+# 	echo "$PROMPT Making a Projects folder in $PATH_TO_PROJECTS if it doesn't already exist"
+# 	mkdir -p "$PATH_TO_PROJECTS"
+# 	echo "$PROMPT Making a Playground folder in $PATH_TO_PLAYGROUND if it doesn't already exist"
+# 	mkdir -p "$PATH_TO_PLAYGROUND"
+# }
 
 # TODO : Delete symlinks to deleted files
 # Is this where rsync shines?
 # TODO - add support for -f and --force
+create_dotfilesloc () {
+	# Create file which holds exported variable of the location of this folder
+	echo "DOTFILESLOC=\"$PWD\"" > ".dotfiles_location"
+	echo "export DOTFILESLOC" >> ".dotfiles_location"
+	echo "export DEBUG=false" >> ".dotfiles_location"
+	echo "if [ \"\$DEBUG\" = \"true\" ]; then echo \".dotfiles_location\" ; fi" >> ".dotfiles_location"
+}
 
 link () {
 	echo "$PROMPT This utility will symlink the files in this repo to the home directory"
@@ -25,13 +32,15 @@ link () {
 		#	ln -sv "$PWD/$file" "$HOME"
 		#done
 		# TODO: source files here?
-		ln -svf ~/.dotfiles/.aliases ~
-		ln -svf ~/.dotfiles/.bash_profile ~
-		ln -svf ~/.dotfiles/.bashrc ~
-		ln -svf ~/.dotfiles/.exports ~
-		ln -svf ~/.dotfiles/.functions ~
-		ln -svf ~/.dotfiles/.profile ~
-		ln -svf ~/.dotfiles/.zshrc ~
+		if [[ "$OS" == "mac" ]] || [[ "$OS" == "gnu" ]]; then
+			ln -svf ~/.dotfiles/.aliases ~
+			ln -svf ~/.dotfiles/.bash_profile ~
+			ln -svf ~/.dotfiles/.bashrc ~
+			ln -svf ~/.dotfiles/.exports ~
+			ln -svf ~/.dotfiles/.functions ~
+			ln -svf ~/.dotfiles/.profile ~
+			ln -svf ~/.dotfiles/.zshrc ~
+		fi
 		echo "$PROMPT Symlinking complete"
 	else
 		echo "$PROMPT Symlinking cancelled by user"
@@ -41,7 +50,7 @@ link () {
 
 install_tools () {
 	## MacOS
-	if [[ "$OSTYPE" == *"darwin"* ]] ; then
+	if [[ "$OS" == "mac" ]]; then
 		echo "$PROMPT Detected macOS"
 		echo "$PROMPT This utility will install useful utilities using Homebrew"
 		echo "$PROMPT Proceed? (y/n)"
@@ -58,7 +67,7 @@ install_tools () {
 	fi
 
 	## GNU
-	if [[ "$OSTYPE" == *"linux-gnu"* ]] && [[ "$MACHTYPE" == *"x86_64-pc-linux-gnu"* ]] ; then
+	if [[ "$OS" == "gnu" ]]; then
 		echo "$PROMPT Detected Linux"
 		echo "$PROMPT This utility will install useful utilities using apt (this has been tested on Debian buster)"
 		echo "$PROMPT Proceed? (y/n)"
@@ -75,7 +84,7 @@ install_tools () {
 	fi
 
 	## QNAP
-	if [[ "$OSTYPE" == *"linux-gnu"* ]] && [[ "$MACHTYPE" == *"x86_64-QNAP-linux-gnu"* ]]; then
+	if [[ "$OS" == "qnap" ]]; then
 		echo "$PROMPT Detected QNAP"
 		echo "$PROMPT This utility will install useful utilities"
 		echo "$PROMPT Proceed? (y/n)"
@@ -93,7 +102,8 @@ install_tools () {
 
 }
 
-init
+# init
+create_dotfilesloc
 link
 install_tools
 

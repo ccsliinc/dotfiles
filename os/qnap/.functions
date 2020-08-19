@@ -110,8 +110,8 @@ _docker_update () {
             EXTRA="$EXTRA $(echo "${row}" | base64 -i --decode)"
         done
 
-        if [ -n "$IP" ]; then
-            NET="--net=$NETWORK --ip=$IP --mac-address=$MAC"
+        if [ "$IP" != "null" ]; then
+            NET="--net=$NETWORK --ip=$IP --mac-address=$MAC" 
         fi
 
         CMD=${CMD/~ENV~/$ENV}
@@ -126,9 +126,9 @@ _docker_update () {
         eval "$CMD"
 
         ID=$(eval docker inspect --format="{{.Id}}" "$NAME")
-        curl -sq -XPOST -c cookies.txt -d "username=$DOCK_USERNAME&password=$DOCK_PASSWORD" http://$DOCK_HOST:$DOCK_PORT/containerstation/api/v1/login
-        curl -sq -XPUT -b cookies.txt http://$DOCK_HOST:$DOCK_PORT/containerstation/api/v1/container/docker/$ID/autostart/on
-        rm -rf cookies.txt
+        curl -sq -XPOST -c /tmp/cookies.txt -d "username=$DOCK_USERNAME&password=$DOCK_PASSWORD" http://$DOCK_HOST:$DOCK_PORT/containerstation/api/v1/login
+        curl -sq -XPUT -b /tmp/cookies.txt http://$DOCK_HOST:$DOCK_PORT/containerstation/api/v1/container/docker/$ID/autostart/on
+        rm -rf /tmp/cookies.txt
     fi
 }
 
@@ -138,9 +138,7 @@ _dockers_check () {
 
     for row in $(echo "$DOCKER" | jq -r '.dockers | keys[]'); do
         if [ "$(jq -r ".dockers.$row.update" "$DOCKER_FILE")" = "true" ]; then
-            #_docker_image_check "pihole/pihole" pihole 
-            echo "$(jq -r ".dockers.$row.image" "$DOCKER_FILE")"
-            _docker_image_check "pihole/pihole" "$row"
+            _docker_image_check "$(jq -r ".dockers.$row.image" "$DOCKER_FILE")" "$row"
         fi
     done
 }

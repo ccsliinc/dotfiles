@@ -1,23 +1,17 @@
 #!/usr/bin/env bash
 
-#opkg install bash
-#opkg install zsh
-
 #edit /etc/passwd and change shell
 
 # Mount boot partition
 mount "$(/sbin/hal_app --get_boot_pd port_id=0)6" /tmp/config
 
 # Add autorun into the boot partition
-
 touch /tmp/config/autorun.sh
 
-{
-  echo #!/bin/sh
-  # start a single script
-  /share/CACHEDEV1_DATA/custom/autorunmaster.sh
-  # finish
-} > /tmp/config/autorun.sh
+echo '#!/bin/sh' > "/tmp/config/autorun.sh"
+echo "# start a single script" >> "/tmp/config/autorun.sh"
+echo "$PWD/os/qnap/autorunmaster.sh" >> "/tmp/config/autorun.sh"
+echo "# finish" >> "/tmp/config/autorun.sh"
 
 echo "Make sure you enable autorun in settings"
 echo "Control Panel -> System -> Hardware -> 'Run user defined scripts...'"
@@ -25,10 +19,15 @@ echo "Control Panel -> System -> Hardware -> 'Run user defined scripts...'"
 # Unmount boot partition
 umount /tmp/config
 
-#cp autorun.sh /tmp/config/
-#touch /tmp/config/autorun.sh
-#chmod +x /tmp/config/autorun.sh
-#$EDITOR /tmp/config/autorun.sh
+# install entware packages
+/opt/bin/opkg update
+/opt/bin/opkg install bash
+/opt/bin/opkg install git
+/opt/bin/opkg install grep
+/opt/bin/opkg install htop
+/opt/bin/opkg install jq
+/opt/bin/opkg install zsh
+
 
 # Link autorunmaster back to root of cusom folder
 ln -sv /share/CACHEDEV1_DATA/custom/.dotfiles/os/qnap/autorunmaster.sh /share/CACHEDEV1_DATA/custom/
