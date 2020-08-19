@@ -19,15 +19,19 @@ echo "Control Panel -> System -> Hardware -> 'Run user defined scripts...'"
 # Unmount boot partition
 umount /tmp/config
 
-# install entware packages
-/opt/bin/opkg update
-/opt/bin/opkg install bash
-/opt/bin/opkg install git
-/opt/bin/opkg install grep
-/opt/bin/opkg install htop
-/opt/bin/opkg install jq
-/opt/bin/opkg install zsh
-
+if [[ -x /opt/bin/zsh ]]; then
+    echo "Installing Entware Packages"
+    # install entware packages
+    /opt/bin/opkg update
+    /opt/bin/opkg install bash
+    /opt/bin/opkg install git
+    /opt/bin/opkg install grep
+    /opt/bin/opkg install htop
+    /opt/bin/opkg install jq
+    /opt/bin/opkg install zsh
+else
+    echo "Please install Entware"
+fi
 # Link autorunmaster back to root of cusom folder
 ln -sv /share/CACHEDEV1_DATA/custom/.dotfiles/os/qnap/autorunmaster.sh /share/CACHEDEV1_DATA/custom/
 ln -sv /share/CACHEDEV1_DATA/custom/.dotfiles/.dotfiles_location /share/CACHEDEV1_DATA/custom/.dotfiles_location
