@@ -30,10 +30,10 @@ _clean_share () {
 _docker_image_check () {
     IMAGE="$1"
     COMMAND="$2"
-
+    
     echo "Fetching Docker Hub token..."
     token=$(curl --silent "https://auth.docker.io/token?scope=repository:$IMAGE:pull&service=registry.docker.io" | jq -r '.token')
-
+    
     echo -n "Fetching remote digest... "
     digest=$(curl --silent -H "Accept: application/vnd.docker.distribution.manifest.v2+json" \
         -H "Authorization: Bearer $token" \
