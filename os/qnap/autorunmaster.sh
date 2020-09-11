@@ -11,6 +11,7 @@
 #fix for screen on QNAP
 touch /var/run/utmp
 touch /share/CACHEDEV1_DATA/custom/.bash_history
+touch /share/CACHEDEV1_DATA/custom/.zsh_history
 
 ln -s /usr/share/terminfo/x/xterm-xfree86 /usr/share/terminfo/x/xterm-256color
 ln -s /usr/share/terminfo/x/xterm-xfree86 /usr/share/terminfo/x/xterm-color
@@ -25,6 +26,7 @@ ln -svf /share/CACHEDEV1_DATA/custom/dockers.local /root/dockers.local
 
 echo 'source /share/CACHEDEV1_DATA/custom/.dotfiles_location' >> /root/.profile
 echo 'source $DOTFILESLOC/common/.profile' >> /root/.profile
+[ -f ~/.profile_nvidia ] && echo 'source $HOME/.profile_nvidia' >> /root/.profile
 
 # symlink custom folder for ease of access
 ln -s /share/CACHEDEV1_DATA/custom /root/custom
