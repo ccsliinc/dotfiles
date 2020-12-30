@@ -30,10 +30,10 @@ _clean_share () {
 _docker_image_check () {
     IMAGE="$1"
     COMMAND="$2"
-    
+
     echo "Fetching Docker Hub token..."
     token=$(curl --silent "https://auth.docker.io/token?scope=repository:$IMAGE:pull&service=registry.docker.io" | jq -r '.token')
-    
+
     echo -n "Fetching remote digest... "
     digest=$(curl --silent -H "Accept: application/vnd.docker.distribution.manifest.v2+json" \
         -H "Authorization: Bearer $token" \
@@ -54,7 +54,7 @@ _docker_image_check () {
 }
 
 _docker_update () {
-    
+
     if ! command -v jq &> /dev/null; then
         echo "jq command cannot be found please install."
         return 1
@@ -93,7 +93,13 @@ _docker_update () {
             --name $NAME \
             ~EXTRA~ \
             $IMAGE"
-
+        
+        for row in $(echo "$DOCKER" | jq -r '.prereq[]? | @base64'); do
+            TMPCMD=$(echo "${row}" | base64 -i --decode)
+            eval "$TMPCMD"
+            #echo "$CMD"
+        done
+        
         for row in $(echo "$DOCKER" | jq -r '.env[]? | @base64'); do
             ENV="$ENV -e \"$(echo "${row}" | base64 -i --decode)\""
         done
@@ -111,7 +117,7 @@ _docker_update () {
         done
 
         if [ "$IP" != "null" ]; then
-            NET="--net=$NETWORK --ip=$IP --mac-address=$MAC" 
+            NET="--net=$NETWORK --ip=$IP --mac-address=$MAC"
         fi
 
         CMD=${CMD/~ENV~/$ENV}
@@ -141,4 +147,17 @@ _dockers_check () {
             _docker_image_check "$(jq -r ".dockers.$row.image" "$DOCKER_FILE")" "$row"
         fi
     done
+}
+
+_fix_plex() {
+    docker stop Plex && docker rm Plex
+    docker volume remove plex_usr
+    docker volume prune -f
+    rm -rf /share/Container/docker-appdata/volume_overlays/plex
+    mkdir -p /share/Container/docker-appdata/volume_overlays/plex/upper /share/Container/docker-appdata/volume_overlays/plex/work
+    docker volume create plex_usr --driver local --opt "type=overlay" --opt "device=overlay" --opt "o=lowerdir=/share/CACHEDEV1_DATA/.qpkg/NVIDIA_GPU_DRV/usr,upperdir=/share/Container/docker-appdata/volume_overlays/plex/upper,workdir=/share/Container/docker-appdata/volume_overlays/plex/work"
+    docker stop plexprep && docker rm plexprep
+    docker run -it -v "plex_usr:/plex_usr" -v "/share/CACHEDEV1_DATA/.qpkg/NVIDIA_GPU_DRV/usr:/nvidia:ro" --name plexprep --entrypoint "/bin/bash" linuxserver/plex -x -c 'cp -Rv /usr/* /plex_usr/'
+    docker rm plexprep
+    _docker_update plex
 }

@@ -1,0 +1,13 @@
+CleanMyMacX
+CloudMounter*
+Diagrams
+ForkLift
+GoodTask
+IconJar*
+Jump Desktop*
+Keysmith*
+Mosaic*
+Shimo*
+SnippetsLab*
+SQLPro Studio*
+SSH Config Editor*

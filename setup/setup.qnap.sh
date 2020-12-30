@@ -29,6 +29,8 @@ if [[ -x /opt/bin/zsh ]]; then
     /opt/bin/opkg install htop
     /opt/bin/opkg install jq
     /opt/bin/opkg install zsh
+    /opt/bin/opkg install node
+    /opt/bin/opkg install node-npm
 else
     echo "Please install Entware"
 fi

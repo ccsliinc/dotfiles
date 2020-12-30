@@ -78,7 +78,7 @@ plugins=(
 # shellcheck source=/dev/null
 source $ZSH/oh-my-zsh.sh
 # shellcheck source=/dev/null
-source ".dotfiles_location"
+source "$HOME/.dotfiles_location"
 # shellcheck source=/dev/null
 source "$DOTFILESLOC/common/.profile_interactive"
 
