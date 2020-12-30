@@ -1,0 +1,11 @@
+"*":
+  "file-types":
+    ".aliases" : "source.shell"
+    ".exports": "source.shell"
+    ".functions": "source.shell"
+    ".shell_*": "source.shell"
+    ".dotfiles_location": "source.shell"
+    ".profile_*": "source.shell"
+    ".*.local": "source.shell"
+    ".functions_*": "source.shell"
+    "dockers.local": "source.json"
