@@ -36,6 +36,7 @@ _docker_image_check () {
 
     echo -n "Fetching remote digest... "
     if [[ "$IMAGE" == *":"* ]] ; then
+    IMAGE="$(cut -d ":" -f1 <<< "$IMAGE")"
     VER="$(cut -d ":" -f2 <<< "$IMAGE")"
     digest=$(curl --silent -H "Accept: application/vnd.docker.distribution.manifest.v2+json" \
         -H "Authorization: Bearer $token" \
