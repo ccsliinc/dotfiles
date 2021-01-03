@@ -19,6 +19,7 @@ ln -s /usr/share/terminfo/x/xterm-xfree86 /usr/share/terminfo/x/xterm-color
 rm -f /root/.bashrc
 rm -f /root/.bash_profile
 rm -f /root/.bash_history
+rm -f /root/.zsh_history
 
 # link files back in root directory
 ln -sv /share/CACHEDEV1_DATA/custom/.* /root/

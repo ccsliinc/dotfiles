@@ -8,6 +8,7 @@
         ".profile_*": "shellscript",
         ".*.local": "shellscript",
         ".functions_*": "shellscript",
-        "dockers.local": "json"
+        "dockers.local": "json",
+        "*.json.local": "json"
     }
 }
