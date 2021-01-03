@@ -30,18 +30,24 @@ _clean_share () {
 _docker_image_check () {
     IMAGE="$1"
     COMMAND="$2"
-
-    echo "Fetching Docker Hub token..."
-    token=$(curl --silent "https://auth.docker.io/token?scope=repository:$IMAGE:pull&service=registry.docker.io" | jq -r '.token')
-
-    echo -n "Fetching remote digest... "
     if [[ "$IMAGE" == *":"* ]] ; then
-    IMAGE="$(cut -d ":" -f1 <<< "$IMAGE")"
-    VER="$(cut -d ":" -f2 <<< "$IMAGE")"
-    digest=$(curl --silent -H "Accept: application/vnd.docker.distribution.manifest.v2+json" \
-        -H "Authorization: Bearer $token" \
-        "https://registry.hub.docker.com/v2/$IMAGE/manifests/$VER" | jq -r '.config.digest')
+
+        VER="$(cut -d ":" -f2 <<< "$IMAGE")"
+        IMAGE="$(cut -d ":" -f1 <<< "$IMAGE")"
+
+        echo "Fetching Docker Hub token..."
+        token=$(curl --silent "https://auth.docker.io/token?scope=repository:$IMAGE:pull&service=registry.docker.io" | jq -r '.token')
+
+        echo -n "Fetching remote digest... "
+        digest=$(curl --silent -H "Accept: application/vnd.docker.distribution.manifest.v2+json" \
+            -H "Authorization: Bearer $token" \
+            "https://registry.hub.docker.com/v2/$IMAGE/manifests/$VER" | jq -r '.config.digest')
     else
+        VER="latest"
+        echo "Fetching Docker Hub token..."
+        token=$(curl --silent "https://auth.docker.io/token?scope=repository:$IMAGE:pull&service=registry.docker.io" | jq -r '.token')
+        
+        echo -n "Fetching remote digest... "
         digest=$(curl --silent -H "Accept: application/vnd.docker.distribution.manifest.v2+json" \
         -H "Authorization: Bearer $token" \
         "https://registry.hub.docker.com/v2/$IMAGE/manifests/latest" | jq -r '.config.digest')
@@ -50,11 +56,7 @@ _docker_image_check () {
 
     echo -n "Fetching local digest...  "
     
-    if [[ "$IMAGE" == *":"* ]] ; then
-        local_digest=$(docker images -q --no-trunc "$IMAGE\:$VER")
-    else
-        local_digest=$(docker images -q --no-trunc "$IMAGE\:latest")
-    fi
+    local_digest=$(docker images -q --no-trunc "$IMAGE\:$VER")
 
     echo "$local_digest"
 
