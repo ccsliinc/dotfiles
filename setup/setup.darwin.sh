@@ -91,12 +91,12 @@ brew install zsh
 # This method of installation is
 # not officially supported, might install outdated version
 # Change font in terminal preferences
-brew tap caskroom/fonts
-brew cask install font-fira-code
+# brew tap caskroom/fonts
+# brew install font-fira-code
 
 # My favorite text editors
-brew cask install visual-studio-code
-brew cask install atom
+brew install visual-studio-code
+brew install atom
 
 # ---------------------------------------------
 # Terminal gimmicks xD

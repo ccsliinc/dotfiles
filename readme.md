@@ -1,3 +1,15 @@
+# Linux
+Log into ssh
+
+```bash
+sudo apt update
+sudo apt upgrade
+sudo apt install git
+git clone --recursive https://github.com/ccsliinc/dotfiles.git ~/.dotfiles
+sudo ~/.dotfiles/bootstrap.sh
+#git submodule update --init
+```
+
 # QNAP Custom Boot Files
 
 ## Setup
