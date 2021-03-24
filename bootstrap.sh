@@ -40,6 +40,8 @@ link () {
 			ln -svf ~/.dotfiles/.functions ~
 			ln -svf ~/.dotfiles/.profile ~
 			ln -svf ~/.dotfiles/.zshrc ~
+			ln -svf ~/.dotfiles/.oh-my-zsh ~
+			ln -svf ~/.dotfiles/.dotfiles_location ~
 		fi
 		echo "$PROMPT Symlinking complete"
 	else

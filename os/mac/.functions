@@ -88,6 +88,23 @@ _update_brew () {
     #now do diagnostics
     brew doctor
     brew missing
+
+    echo
+    echo "## iHomebrew Updates and Upgrades ##"
+    echo
+    ibrew update
+    ibrew upgrade
+    ibrew cleanup -s
+
+    echo
+    echo "## iHomebrew Diagnostics ##"
+    echo
+    #now do diagnostics
+    ibrew doctor
+    ibrew missing
+
+
+    #atom upgrade
     apm upgrade -c false
 
     echo
