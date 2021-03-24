@@ -1,0 +1,4 @@
+# shellcheck shell=bash
+if [ "$DEBUG" = "true" ]; then echo ".gnu.exports" ; fi
+
+export PATH="$DOTFILESLOC/os/gnu/scripts:$PATH"
