@@ -32,7 +32,7 @@ link () {
 		#	ln -sv "$PWD/$file" "$HOME"
 		#done
 		# TODO: source files here?
-		if [[ "$OS" == "mac" ]] || [[ "$OS" == "gnu" ]]; then
+		if [[ "$OS" == "mac" ]] || [[ "$OS" == "gnu" ]] || [[ "$OS" == "raspi" ]]; then
 			ln -svf ~/.dotfiles/.aliases ~
 			ln -svf ~/.dotfiles/.bash_profile ~
 			ln -svf ~/.dotfiles/.bashrc ~

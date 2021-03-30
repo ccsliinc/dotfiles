@@ -3,6 +3,8 @@
 # OS Version
 if [[ "$OSTYPE" == *"darwin"* ]] ; then
     export OS="mac"
+elif [[ "$OSTYPE" == *"linux-gnueabihf"* ]] && [[ "$MACHTYPE" == *"arm-unknown-linux-gnueabihf"* ]]; then
+    export OS="raspi"
 elif [[ "$OSTYPE" == *"linux-gnu"* ]] && [[ "$(uname -r)" == *"qnap"* ]]; then
     export OS="qnap"
 elif [[ "$OSTYPE" == *"linux-gnu"* ]] && [[ "$MACHTYPE" == *"x86_64-pc-linux-gnu"* ]] ; then
