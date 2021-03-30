@@ -6,7 +6,8 @@ sudo apt update
 sudo apt upgrade
 sudo apt install git
 git clone --recursive https://github.com/ccsliinc/dotfiles.git ~/.dotfiles
-sudo ~/.dotfiles/bootstrap.sh
+cd ~/.dotfiles
+./bootstrap.sh
 chsh
 #git submodule update --init
 ```
