@@ -60,7 +60,7 @@ install_tools () {
 
 		if [[ $resp = [yY] ]] ; then
 			echo "$PROMPT Installing useful stuff using brew. This may take a while..."
-			sh setup/setup.darwin.sh
+			sudo bash setup/setup.darwin.sh
 		else
 			echo "$PROMPT Brew installation cancelled by user"
 		fi
@@ -77,7 +77,7 @@ install_tools () {
 
 		if [[ $resp = [yY] ]] ; then
 			echo "$PROMPT Installing useful stuff using apt. This may take a while..."
-			sh setup/setup.linux-gnu.sh
+			sudo bash setup/setup.linux-gnu.sh
 		else
 			echo "$PROMPT Apt installation cancelled by user"
 		fi
@@ -94,7 +94,7 @@ install_tools () {
 
 		if [[ $resp = [yY] ]] ; then
 			echo "$PROMPT Installing useful stuff. This may take a while..."
-			sh setup/setup.qnap.sh
+			sudo bash setup/setup.qnap.sh
 		else
 			echo "$PROMPT Installation cancelled by user"
 		fi
@@ -102,6 +102,22 @@ install_tools () {
 		echo "$PROMPT Skipping installation because QNAP was not detected..."
 	fi
 
+	## RASPBERRY PI
+	if [[ "$OS" == "raspi" ]]; then
+		echo "$PROMPT Detected Raspberry Pi"
+		echo "$PROMPT This utility will install useful utilities"
+		echo "$PROMPT Proceed? (y/n)"
+		read -r resp
+
+		if [[ $resp = [yY] ]] ; then
+			echo "$PROMPT Installing useful stuff. This may take a while..."
+			sudo bash setup/setup.linux-raspi.sh
+		else
+			echo "$PROMPT Installation cancelled by user"
+		fi
+	else
+		echo "$PROMPT Skipping installation because Raspberry Pi was not detected..."
+	fi
 }
 
 # init
