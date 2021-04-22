@@ -19,7 +19,7 @@ echo "Control Panel -> System -> Hardware -> 'Run user defined scripts...'"
 # Unmount boot partition
 umount /tmp/config
 
-if [[ -x /opt/bin/zsh ]]; then
+if [[ -x /opt/bin/opkg ]]; then
     echo "Installing Entware Packages"
     # install entware packages
     /opt/bin/opkg update

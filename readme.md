@@ -2,13 +2,15 @@
 Log into ssh
 
 ```bash
-sudo apt update
-sudo apt upgrade
-sudo apt install git
+sudo apt update -y
+sudo apt upgrade -y
+sudo apt install git -y
 git clone --recursive https://github.com/ccsliinc/dotfiles.git ~/.dotfiles
 cd ~/.dotfiles
 ./bootstrap.sh
 chsh
+# change to /bin/zsh
+
 #git submodule update --init
 ```
 
@@ -28,7 +30,7 @@ Make sure valid ssh keys are generated and added to github to allow pull.
 
 ```bash
 opkg update       #update opkg package list
-opkg install git  #install git
+opkg install git git-http  #install git
 opkg upgrade      #upgrade all packages
 ```
 
@@ -43,6 +45,7 @@ cd .dotfiles
 ```
 
 #### Opkg
+
 - bash
 - git
 - grep
@@ -50,6 +53,17 @@ cd .dotfiles
 - jq
 - zsh
 
+#### Dockers
+
+ Create a docker network for our containers to run in. The ethernet interface is one less than the interface name which the ethernet cable is connected to.  Interface 4 = eth3
+ 
+ ```bash
+docker network create --driver=qnet --ipam-driver=qnet --ipam-opt=iface=eth3 --subnet 172.16.1.0/24 --gateway 172.16.1.1 qnet-static-eth3
+ ```
+
+
+
+### To Be Deleted
 ## Dockers
 
 ```bash

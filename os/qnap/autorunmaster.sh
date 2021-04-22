@@ -22,7 +22,7 @@ rm -f /root/.bash_history
 rm -f /root/.zsh_history
 
 # link files back in root directory
-ln -sv /share/CACHEDEV1_DATA/custom/.* /root/
+ln -svf /share/CACHEDEV1_DATA/custom/.* /root/
 ln -svf /share/CACHEDEV1_DATA/custom/dockers.local /root/dockers.local
 
 echo 'source /share/CACHEDEV1_DATA/custom/.dotfiles_location' >> /root/.profile

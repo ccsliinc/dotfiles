@@ -1,2 +1,4 @@
 # shellcheck shell=bash
+if [ "$DEBUG" = "true" ]; then echo ".raspi.aliases" ; fi
+
 alias _setup='raspi-config'
