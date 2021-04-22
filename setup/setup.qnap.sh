@@ -7,6 +7,7 @@ mount "$(/sbin/hal_app --get_boot_pd port_id=0)6" /tmp/config
 
 # Add autorun into the boot partition
 touch /tmp/config/autorun.sh
+chmod +x touch /tmp/config/autorun.sh
 
 echo '#!/bin/sh' > "/tmp/config/autorun.sh"
 echo "# start a single script" >> "/tmp/config/autorun.sh"
