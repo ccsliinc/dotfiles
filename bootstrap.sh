@@ -120,9 +120,23 @@ install_tools () {
 	fi
 }
 
-# init
-create_dotfilesloc
-link
-install_tools
+# Checklist
+echo "#####################################"
+echo "Detected System : $OS"
+echo "User : $(whoami)"
+echo "Current Directory : $(pwd)"
+echo "#####################################"
+echo ""
+echo "You should be running this without sudo from your .dotfiles directory"
+echo ""
+echo "$PROMPT Proceed? (y/n)"
+read -r resp
+
+if [[ $resp = [yY] ]] ; then
+	# init
+	create_dotfilesloc
+	link
+	install_tools
+fi
 
 #ln -s ~/.dotfiles/.zshrc .
