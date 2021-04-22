@@ -9,25 +9,29 @@
 # xterm file like xterm-color.
 
 #fix for screen on QNAP
-touch /var/run/utmp
-touch /share/CACHEDEV1_DATA/custom/.bash_history
-touch /share/CACHEDEV1_DATA/custom/.zsh_history
+if [ ! -f /root/.autorun ]; then
+    touch /var/run/utmp
+    touch /share/CACHEDEV1_DATA/custom/.bash_history
+    touch /share/CACHEDEV1_DATA/custom/.zsh_history
 
-ln -s /usr/share/terminfo/x/xterm-xfree86 /usr/share/terminfo/x/xterm-256color
-ln -s /usr/share/terminfo/x/xterm-xfree86 /usr/share/terminfo/x/xterm-color
+    ln -s /usr/share/terminfo/x/xterm-xfree86 /usr/share/terminfo/x/xterm-256color
+    ln -s /usr/share/terminfo/x/xterm-xfree86 /usr/share/terminfo/x/xterm-color
 
-rm -f /root/.bashrc
-rm -f /root/.bash_profile
-rm -f /root/.bash_history
-rm -f /root/.zsh_history
+    rm -f /root/.bashrc
+    rm -f /root/.bash_profile
+    rm -f /root/.bash_history
+    rm -f /root/.zsh_history
 
-# link files back in root directory
-ln -svf /share/CACHEDEV1_DATA/custom/.* /root/
-ln -svf /share/CACHEDEV1_DATA/custom/dockers.local /root/dockers.local
+    # link files back in root directory
+    ln -svf /share/CACHEDEV1_DATA/custom/.* /root/
+    ln -svf /share/CACHEDEV1_DATA/custom/dockers.local /root/dockers.local
 
-echo 'source /share/CACHEDEV1_DATA/custom/.dotfiles_location' >> /root/.profile
-echo 'source $DOTFILESLOC/common/.profile' >> /root/.profile
-[ -f ~/.profile_nvidia ] && echo 'source $HOME/.profile_nvidia' >> /root/.profile
+    echo 'source /share/CACHEDEV1_DATA/custom/.dotfiles_location' >> /root/.profile
+    echo 'source $DOTFILESLOC/common/.profile' >> /root/.profile
+    [ -f ~/.profile_nvidia ] && echo 'source $HOME/.profile_nvidia' >> /root/.profile
 
-# symlink custom folder for ease of access
-ln -s /share/CACHEDEV1_DATA/custom /root/custom
+    # symlink custom folder for ease of access
+    ln -s /share/CACHEDEV1_DATA/custom /root/custom
+
+    touch /root/.autorun
+fi
