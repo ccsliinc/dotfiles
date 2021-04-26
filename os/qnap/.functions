@@ -164,6 +164,9 @@ _dockers_check () {
             _docker_image_check "$(jq -r ".dockers.$row.image" "$DOCKER_FILE")" "$row"
         fi
     done
+
+    docker image prune -f -a
+    docker volume prune -f
 }
 
 _fix_plex() {

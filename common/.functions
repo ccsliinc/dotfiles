@@ -127,6 +127,9 @@ extract () {
     fi
 }
 
+_default_perms() {
+    find . -type f -exec chmod 664 {} \; && find . -type d -exec chmod 775 {} \;
+}
 
 # These should be the last 2 lines of the file
 # Don't make edits below this
