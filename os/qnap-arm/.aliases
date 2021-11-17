@@ -1,7 +1,0 @@
-# shellcheck shell=bash
-alias _custom='cd /share/CACHEDEV1_DATA/custom/'
-alias _share='cd /share/CACHEDEV1_DATA/'
-alias _rclone='rclone rcd --rc-web-gui --rc-addr=localhost:5573 --rc-user=admin --rc-pass=admin'
-alias docker='/share/CACHEDEV1_DATA/.qpkg/container-station/bin/docker'
-alias grep='grep'
-alias which='which'
