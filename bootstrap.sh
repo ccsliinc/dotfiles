@@ -86,7 +86,7 @@ install_tools () {
 	fi
 
 	## QNAP
-	if [[ "$OS" == "qnap" ]]; then
+	if [[ "$OS" == "qnap" ]] || [[ "$OS" == "qnap-arm" ]]; then
 		echo "$PROMPT Detected QNAP"
 		echo "$PROMPT This utility will install useful utilities"
 		echo "$PROMPT Proceed? (y/n)"
