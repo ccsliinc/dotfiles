@@ -8,7 +8,7 @@ elif [[ "$OSTYPE" == *"linux-gnueabihf"* ]] && [[ "$MACHTYPE" == *"arm-unknown-l
 elif [[ "$OSTYPE" == *"linux-gnu"* ]] && [[ "$(uname -r)" == *"qnap"* ]]; then
     export OS="qnap"
     export ARCH="intel"
-elif [[ "$OSTYPE" == *"linux-gnu"* ]] && [[ "$MACHTYPE" == *"aarch64-QNAP-linux-gnu"* ]] ; then
+elif [[ "$OSTYPE" == *"linux-gnu"* ]] && [[ "$CPUTYPE" == "aarch64" ]] ; then
     export OS="qnap"
     export ARCH="arm"
 elif [[ "$OSTYPE" == *"linux-gnu"* ]] && [[ "$MACHTYPE" == *"x86_64-pc-linux-gnu"* ]] ; then
