@@ -136,6 +136,8 @@ _docker_update () {
         CMD=${CMD/~NET~/$NET}
         CMD=$(echo "$CMD"| tr -s " ")
 
+        echo "$CMD"
+
         eval docker pull "$IMAGE"
         eval docker stop "$NAME"
         eval docker rm "$NAME"
@@ -148,10 +150,10 @@ _docker_update () {
 
         eval "$CMD"
 
-        ID=$(eval docker inspect --format="{{.Id}}" "$NAME")
-        curl -sq -XPOST -c /tmp/cookies.txt -d "username=$DOCK_USERNAME&password=$DOCK_PASSWORD" http://$DOCK_HOST:$DOCK_PORT/containerstation/api/v1/login
-        curl -sq -XPUT -b /tmp/cookies.txt http://$DOCK_HOST:$DOCK_PORT/containerstation/api/v1/container/docker/$ID/autostart/on
-        rm -rf /tmp/cookies.txt
+        # ID=$(eval docker inspect --format="{{.Id}}" "$NAME")
+        # curl -sq -XPOST -c /tmp/cookies.txt -d "username=$DOCK_USERNAME&password=$DOCK_PASSWORD" http://$DOCK_HOST:$DOCK_PORT/containerstation/api/v1/login
+        # curl -sq -XPUT -b /tmp/cookies.txt http://$DOCK_HOST:$DOCK_PORT/containerstation/api/v1/container/docker/$ID/autostart/on
+        # rm -rf /tmp/cookies.txt
     fi
 }
 
