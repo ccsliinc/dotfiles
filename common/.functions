@@ -2,14 +2,17 @@
 if [ "$DEBUG" = "true" ]; then echo ".functions" ; fi
 
 _gen_cert () {
-    if [ "$#" -ne 2 ]
+    if [ "$#" -lt 2 ]
     then
     echo "Usage: Must supply a domain and IP"
+    echo "Usage: _gen_cert my.office 8.8.8.8"
+    echo "_gen_cert my.office 8.8.8.8 domain.second etc..."
     return 1
     fi
     
     DOMAIN=$1
     IP=$2
+    ARGS=( "$@" )
 
     #cd ~/ssl
     mkdir -p "$HOME/ssl/$DOMAIN"
@@ -21,6 +24,8 @@ _gen_cert () {
         -out "$DOMAIN.csr" \
         -subj "/C=US/ST=New York/L=Amityville/O=Security/OU=IT Department/CN=$DOMAIN"
 
+    #echo "authorityKeyIdentifier=keyid,issuer" >> "$DOMAIN.ext"
+
     cat > "$DOMAIN.ext" << EOF
 authorityKeyIdentifier=keyid,issuer
 basicConstraints=CA:FALSE
@@ -30,7 +35,13 @@ subjectAltName = @alt_names
 DNS.1 = $DOMAIN
 IP.1 = $IP
 EOF
-
+    x=2
+    for ((i=3;i<=$#;i++)); do 
+        echo "DNS.$x = ${ARGS[i]}" >> "$DOMAIN.ext"
+        x=$((x+1))
+        #echo "DNS.${$i - 1} = ${!i}" >> "$DOMAIN.ext"
+        #cat >> "$DOMAIN.ext" < "DNS.$($i - 1) = ${!i}"
+    done
 
     openssl x509 -req \
         -in "$DOMAIN.csr" \
