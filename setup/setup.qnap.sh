@@ -3,9 +3,9 @@
 #edit /etc/passwd and change shell
 
 # Mount boot partition
-if [[ "$OS" == "qnap" ]]; then # Intel
+if [[ "$ARCH" == "intel" ]]; then # Intel
     mount "$(/sbin/hal_app --get_boot_pd port_id=0)6" /tmp/config
-elif [[ "$OS" == "qnap-arm" ]]; then # ARM
+elif [[ "$ARCH" == "arm" ]]; then # ARM
     ubiattach -m 6 -d 2
     /bin/mount -t ubifs ubi2:config /tmp/config
 fi
@@ -23,9 +23,9 @@ echo "Make sure you enable autorun in settings"
 echo "Control Panel -> System -> Hardware -> 'Run user defined scripts...'"
 
 # Unmount boot partition
-if [[ "$OS" == "qnap" ]]; then # Intel
+if [[ "$ARCH" == "intel" ]]; then # Intel
     umount /tmp/config
-elif [[ "$OS" == "qnap-arm" ]]; then # ARM
+elif [[ "$ARCH" == "arm" ]]; then # ARM
     umount /tmp/config
     ubidetach -m 6
 fi
