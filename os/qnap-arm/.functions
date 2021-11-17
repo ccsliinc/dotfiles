@@ -1,0 +1,185 @@
+# shellcheck shell=bash
+_clean_share () {
+    FOLDER="/share/CACHEDEV1_DATA/"
+
+    if [[ $# -eq 1 ]];then
+        while test $# -gt 0
+        do
+            case "$1" in
+                --[dD]elete) echo "Forced Update"
+                    find $FOLDER -iname "._*" -type f -delete;
+                    find $FOLDER -iname "__MACOSX" -type f -delete;
+                    find $FOLDER -iname ".DS_Store" -type f -delete;
+                    find $FOLDER -iname "Thumbs.db" -type f -delete;
+                    find $FOLDER -iname "Thumbs.db:encryptable" -type f -delete;
+                    return 1
+                    ;;
+            esac
+            shift
+        done
+    else
+        echo "nothing"
+        find $FOLDER -iname "._*" -type f;
+        find $FOLDER -iname "__MACOSX" -type f;
+        find $FOLDER -iname ".DS_Store" -type f
+        find $FOLDER -iname "Thumbs.db" -type f;
+        find $FOLDER -iname "Thumbs.db:encryptable" -type f;
+    fi
+}
+
+_docker_image_check () {
+    IMAGE="$1"
+    COMMAND="$2"
+    if [[ "$IMAGE" == *":"* ]] ; then
+
+        VER="$(cut -d ":" -f2 <<< "$IMAGE")"
+        IMAGE="$(cut -d ":" -f1 <<< "$IMAGE")"
+
+        echo "Fetching Docker Hub token..."
+        token=$(curl --silent "https://auth.docker.io/token?scope=repository:$IMAGE:pull&service=registry.docker.io" | jq -r '.token')
+
+        echo -n "Fetching remote digest... "
+        digest=$(curl --silent -H "Accept: application/vnd.docker.distribution.manifest.v2+json" \
+            -H "Authorization: Bearer $token" \
+            "https://registry.hub.docker.com/v2/$IMAGE/manifests/$VER" | jq -r '.config.digest')
+    else
+        VER="latest"
+        echo "Fetching Docker Hub token..."
+        token=$(curl --silent "https://auth.docker.io/token?scope=repository:$IMAGE:pull&service=registry.docker.io" | jq -r '.token')
+        
+        echo -n "Fetching remote digest... "
+        digest=$(curl --silent -H "Accept: application/vnd.docker.distribution.manifest.v2+json" \
+        -H "Authorization: Bearer $token" \
+        "https://registry.hub.docker.com/v2/$IMAGE/manifests/latest" | jq -r '.config.digest')
+    fi
+    echo "$digest"
+
+    echo -n "Fetching local digest...  "
+    
+    local_digest=$(docker images -q --no-trunc "$IMAGE\:$VER")
+
+    echo "$local_digest"
+
+    if [ "$digest" != "$local_digest" ] ; then
+        echo "Update available. Executing update command..."
+        #($COMMAND)
+        _docker_update "$COMMAND"
+    else
+        echo "Already up to date. Nothing to do."
+    fi
+}
+
+_docker_update () {
+
+    if ! command -v jq &> /dev/null; then
+        echo "jq command cannot be found please install."
+        return 1
+    fi
+
+    if [ "$#" -ne 1 ]; then
+        echo "Usage: Must supply a docker to update"
+        return 1
+    fi
+    DOCKER_FILE="$HOME/dockers.local"
+    DOCKER=$1
+    DOCKER=$(jq ".dockers.$DOCKER" "$DOCKER_FILE")
+
+    if [ -z "$DOCKER" ]; then
+        echo "Cannot find docker, please check dockers.local file."
+        return 1
+    else
+        IMAGE=$(echo "$DOCKER" | jq -r .image)
+        NAME=$(echo "$DOCKER" | jq -r .name)
+        NETWORK=$(jq -r ".network" "$DOCKER_FILE")
+        DOCK_USERNAME=$(jq -r ".username" "$DOCKER_FILE")
+        DOCK_PASSWORD=$(jq -r ".password" "$DOCKER_FILE")
+        DOCK_HOST=$(jq -r ".host" "$DOCKER_FILE")
+        DOCK_PORT=$(jq -r ".port" "$DOCKER_FILE")
+        IP=$(echo "$DOCKER" | jq -r .ip)
+        MAC=$(echo "$DOCKER" | jq -r .mac)
+        ENV=""
+        VOL=""
+        NET=""
+        EXTRA=""
+        CMD="docker run -it -d \
+            ~ENV~ \
+            ~VOL~ \
+            ~NET~ \
+            --restart=always \
+            --name $NAME \
+            ~EXTRA~ \
+            $IMAGE"
+                
+        for row in $(echo "$DOCKER" | jq -r '.env[]? | @base64'); do
+            ENV="$ENV -e \"$(echo "${row}" | base64 -i --decode)\""
+        done
+
+        for row in $(echo "$DOCKER" | jq -r '.vol[]? | @base64'); do
+            # _jq() {
+            #     echo "${row}" | base64 -i --decode | jq -r "${1}"
+            # }
+            # VOL="$VOL -v \"$(_jq '.host'):$(_jq '.docker'):$(_jq '.bind')\""
+            VOL="$VOL -v \"$(echo "${row}" | base64 -i --decode)\""
+        done
+
+        for row in $(echo "$DOCKER" | jq -r '.ext[]? | @base64'); do
+            EXTRA="$EXTRA $(echo "${row}" | base64 -i --decode)"
+        done
+
+        if [ "$IP" != "null" ]; then
+            NET="--net=$NETWORK --ip=$IP --mac-address=$MAC"
+        fi
+
+        CMD=${CMD/~ENV~/$ENV}
+        CMD=${CMD/~VOL~/$VOL}
+        CMD=${CMD/~EXTRA~/$EXTRA}
+        CMD=${CMD/~NET~/$NET}
+        CMD=$(echo "$CMD"| tr -s " ")
+
+        echo "$CMD"
+
+        eval docker pull "$IMAGE"
+        eval docker stop "$NAME"
+        eval docker rm "$NAME"
+
+        for row in $(echo "$DOCKER" | jq -r '.prereq[]? | @base64'); do
+            TMPCMD=$(echo "${row}" | base64 -i --decode)
+            eval "$TMPCMD"
+            #echo "$CMD"
+        done
+
+        eval "$CMD"
+
+        # ID=$(eval docker inspect --format="{{.Id}}" "$NAME")
+        # curl -sq -XPOST -c /tmp/cookies.txt -d "username=$DOCK_USERNAME&password=$DOCK_PASSWORD" http://$DOCK_HOST:$DOCK_PORT/containerstation/api/v1/login
+        # curl -sq -XPUT -b /tmp/cookies.txt http://$DOCK_HOST:$DOCK_PORT/containerstation/api/v1/container/docker/$ID/autostart/on
+        # rm -rf /tmp/cookies.txt
+    fi
+}
+
+_dockers_check () {
+    DOCKER_FILE="$HOME/dockers.local"
+    DOCKER=$(jq "." "$DOCKER_FILE")
+
+    for row in $(echo "$DOCKER" | jq -r '.dockers | keys[]'); do
+        if [ "$(jq -r ".dockers.$row.update" "$DOCKER_FILE")" = "true" ]; then
+            _docker_image_check "$(jq -r ".dockers.$row.image" "$DOCKER_FILE")" "$row"
+        fi
+    done
+
+    /share/CACHEDEV1_DATA/.qpkg/container-station/bin/docker image prune -f -a
+    /share/CACHEDEV1_DATA/.qpkg/container-station/bin/docker volume prune -f
+}
+
+_fix_plex() {
+    docker stop Plex && docker rm Plex
+    docker volume remove plex_usr
+    docker volume prune -f
+    rm -rf /share/Container/docker-appdata/volume_overlays/plex
+    mkdir -p /share/Container/docker-appdata/volume_overlays/plex/upper /share/Container/docker-appdata/volume_overlays/plex/work
+    docker volume create plex_usr --driver local --opt "type=overlay" --opt "device=overlay" --opt "o=lowerdir=/share/CACHEDEV1_DATA/.qpkg/NVIDIA_GPU_DRV/usr,upperdir=/share/Container/docker-appdata/volume_overlays/plex/upper,workdir=/share/Container/docker-appdata/volume_overlays/plex/work"
+    docker stop plexprep && docker rm plexprep
+    docker run -it -v "plex_usr:/plex_usr" -v "/share/CACHEDEV1_DATA/.qpkg/NVIDIA_GPU_DRV/usr:/nvidia:ro" --name plexprep --entrypoint "/bin/bash" linuxserver/plex -x -c 'cp -Rv /usr/* /plex_usr/'
+    docker rm plexprep
+    _docker_update plex
+}

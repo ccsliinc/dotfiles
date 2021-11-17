@@ -27,11 +27,15 @@ if [ ! -f /root/.autorun ]; then
     ln -svf /share/CACHEDEV1_DATA/custom/dockers.local /root/dockers.local
 
     echo 'source /share/CACHEDEV1_DATA/custom/.dotfiles_location' >> /root/.profile
-    echo 'source $DOTFILESLOC/common/.profile' >> /root/.profile
-    [ -f ~/.profile_nvidia ] && echo 'source $HOME/.profile_nvidia' >> /root/.profile
+    echo "source $DOTFILESLOC/common/.profile" >> /root/.profile
+    [ -f ~/.profile_nvidia ] && echo "source $HOME/.profile_nvidia" >> /root/.profile
 
     # symlink custom folder for ease of access
     ln -s /share/CACHEDEV1_DATA/custom /root/custom
 
     touch /root/.autorun
+fi
+
+if [ ! -f /share/CACHEDEV1_DATA/custom/dockers.local ]; then
+    ln -svf /share/CACHEDEV1_DATA/custom/dockers.local /root/dockers.local
 fi
