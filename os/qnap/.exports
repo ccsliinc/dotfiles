@@ -10,7 +10,8 @@ export PATH=\
 /usr/bin/X11:\
 /usr/local/bin:\
 /root/docker:\
-/opt/bin
+/opt/bin:\
+/share/CACHEDEV1_DATA/custom/.dotfiles/os/qnap/scripts
 
 
 # .bashrc

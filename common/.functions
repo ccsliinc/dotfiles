@@ -13,8 +13,10 @@ _gen_cert () {
     DOMAIN=$1
     IP=$2
     ARGS=( "$@" )
+    YEAR=$(date +%Y)
 
     #cd ~/ssl
+    mv ~/ssl/"$DOMAIN" ~/ssl/"$DOMAIN"."$YEAR"
     mkdir -p "$HOME/ssl/$DOMAIN"
     cd "$HOME/ssl/$DOMAIN" || exit
     
