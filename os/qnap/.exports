@@ -11,7 +11,8 @@ export PATH=\
 /usr/local/bin:\
 /root/docker:\
 /opt/bin:\
-/share/CACHEDEV1_DATA/custom/.dotfiles/os/qnap/scripts
+/share/CACHEDEV1_DATA/custom/.dotfiles/os/qnap/scripts:\
+/share/CACHEDEV1_DATA/.qpkg/container-station/bin
 
 
 # .bashrc
