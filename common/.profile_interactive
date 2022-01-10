@@ -13,6 +13,9 @@ source "$DOTFILESLOC/common/.aliases"
 # shellcheck source=.profile_motd
 source "$DOTFILESLOC/common/.profile_motd"
 
+# shellcheck source=.update_check
+source "$DOTFILESLOC/common/.update_check"
+
 # These should be the last 2 lines of the file
 # Don't make edits below this
 # shellcheck source=/dev/null
