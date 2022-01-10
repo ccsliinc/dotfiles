@@ -2,4 +2,4 @@
 if [ "$DEBUG" = "true" ]; then echo ".raspi.aliases" ; fi
 
 alias _setup='raspi-config'
-alias _update_raspi='screen sudo apt update -y && sudo apt upgrade -y && sudo apt autoremove -y'
+alias _update_raspi='screen bash -c " sudo apt update -y && sudo apt upgrade -y && sudo apt autoremove -y"'
