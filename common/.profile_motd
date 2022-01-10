@@ -62,9 +62,9 @@ if [ "$DEBUG" = "true" ]; then echo ".profile_motd" ; fi
     echo -en "$LGREEN"
     uptime
 
-    echo -en "Detected OS : $LWHITE"
+    echo -en "$LWHITE"
     echo
-    echo "$OS"
+    echo "Detected OS : $OS"
     echo 
     echo -en "$LBLUE"
     echo "_________________________________________________________________________"
