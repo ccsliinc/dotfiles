@@ -62,6 +62,10 @@ if [ "$DEBUG" = "true" ]; then echo ".profile_motd" ; fi
     echo -en "$LGREEN"
     uptime
 
+    echo -en "Detected OS : $LWHITE"
+    echo
+    echo "$OS"
+    echo 
     echo -en "$LBLUE"
     echo "_________________________________________________________________________"
     # change color to normal
