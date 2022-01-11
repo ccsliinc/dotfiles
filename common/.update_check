@@ -2,8 +2,11 @@
 
 cd "$DOTFILESLOC" || exit
 
-if [[ $(git status --porcelain) ]]; then
+git remote update
 
+STATUS=$(git status -sb)
+
+if [[ "$STATUS" == *"behindd"* ]]; then
     echo "Looks like profile is out of date!"
     REPLY=$(bash -c 'read -e -p "Do you want to update the profile? [y/N]" tmp; echo $tmp')
     if [[ ! $REPLY =~ ^[Yy]$ ]]
