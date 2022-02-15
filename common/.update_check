@@ -1,6 +1,6 @@
 # shellcheck shell=bash
 
-cd "$DOTFILESLOC" || exit
+cd "$DOTFILESLOC" &> /dev/null || exit
 
 git remote update
 
@@ -14,5 +14,8 @@ if [[ "$STATUS" == *"behindd"* ]]; then
         git pull
     fi
 fi
+
+#mv ~/.dotfiles/.dotfiles_location /home/.dotfiles_location
+#mv /home/.dotfiles_location ./
 
 cd ~ || exit
