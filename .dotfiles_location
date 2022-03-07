@@ -1,4 +1,0 @@
-DOTFILESLOC="/share/CACHEDEV1_DATA/custom/.dotfiles"
-export DOTFILESLOC
-export DEBUG=false
-if [ "$DEBUG" = "true" ]; then echo ".dotfiles_location" ; fi

@@ -33,12 +33,12 @@ link () {
 		#done
 		# TODO: source files here?
 		if [[ "$OS" == "mac" ]] || [[ "$OS" == "gnu" ]] || [[ "$OS" == "raspi" ]]; then
-			ln -svf ~/.dotfiles/.aliases ~
+			#ln -svf ~/.dotfiles/common/.aliases ~
 			ln -svf ~/.dotfiles/.bash_profile ~
 			ln -svf ~/.dotfiles/.bashrc ~
-			ln -svf ~/.dotfiles/.exports ~
-			ln -svf ~/.dotfiles/.functions ~
-			ln -svf ~/.dotfiles/.profile ~
+			#ln -svf ~/.dotfiles/common/.exports ~
+			#ln -svf ~/.dotfiles/common/.functions ~
+			#ln -svf ~/.dotfiles/common/.profile ~
 			ln -svf ~/.dotfiles/.zshrc ~
 			ln -svf ~/.dotfiles/.oh-my-zsh ~
 			ln -svf ~/.dotfiles/.dotfiles_location ~
