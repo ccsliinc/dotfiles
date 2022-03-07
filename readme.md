@@ -61,6 +61,12 @@ cd .dotfiles
 docker network create --driver=qnet --ipam-driver=qnet --ipam-opt=iface=eth3 --subnet 192.0.2.1/24 --gateway 192.0.2.1 qnet-static-eth3
  ```
 
+ #### Cron
+
+ - Edit your crontab file eg: vi /etc/config/crontab
+ - Make crontab see the changes: crontab /etc/config/crontab
+ - Restart the crontab service: /etc/init.d/crond.sh restart
+
 
 
 ### To Be Deleted

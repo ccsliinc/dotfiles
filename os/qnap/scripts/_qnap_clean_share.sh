@@ -13,13 +13,13 @@ if [[ $# -eq 1 ]];then
                 find $FOLDER -iname ".DS_Store" -type f -delete;
                 find $FOLDER -iname "Thumbs.db" -type f -delete;
                 find $FOLDER -iname "Thumbs.db:encryptable" -type f -delete;
-                return 1
+                exit 1
                 ;;
         esac
         shift
     done
 else
-    echo "nothing"
+    printf "%s\n\n" "Testing Mode"
     find $FOLDER -iname "._*" -type f;
     find $FOLDER -iname "__MACOSX" -type f;
     find $FOLDER -iname ".DS_Store" -type f

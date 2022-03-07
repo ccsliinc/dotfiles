@@ -50,10 +50,6 @@ alias cp='cp -iv'	# prompt before overwriting files
 alias rm='rm -iv'   # prompt before deleting files
 alias del='rm -iv'  # alternative for rm
 
-# SSH shortcuts # TODO Separate
-alias _ssh_rgb1="ssh rgb@192.0.2.1"
-alias _ssh_nix1="ssh root@host.example.invalid"
-
 # Auto-sudo (if not root)ß
 if [[ $UID != 0 ]] ; then
 	alias yum='sudo yum'
