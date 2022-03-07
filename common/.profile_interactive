@@ -10,6 +10,9 @@ source "$DOTFILESLOC/common/.exports"
 # shellcheck source=.aliases
 source "$DOTFILESLOC/common/.aliases"
 
+# shellcheck source=.update_check
+source "$DOTFILESLOC/common/.update_check"
+
 # shellcheck source=.profile_motd
 source "$DOTFILESLOC/common/.profile_motd"
 

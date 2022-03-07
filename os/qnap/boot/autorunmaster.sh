@@ -24,7 +24,7 @@ if [ ! -f /root/.autorun ]; then
 
     # link files back in root directory
     ln -svf /share/CACHEDEV1_DATA/custom/.* /root/
-    #ln -svf /share/CACHEDEV1_DATA/custom/dockers.local /root/dockers.local
+    ln -svf /share/CACHEDEV1_DATA/custom/dockers.local /root/dockers.local
 
     echo 'source /share/CACHEDEV1_DATA/custom/.dotfiles_location' >> /root/.profile
     echo "source $DOTFILESLOC/common/.profile" >> /root/.profile

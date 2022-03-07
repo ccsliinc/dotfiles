@@ -1,0 +1,21 @@
+# shellcheck shell=bash
+
+cd "$DOTFILESLOC" &> /dev/null || exit
+
+git remote update
+
+STATUS=$(git status -sb)
+
+if [[ "$STATUS" == *"behindd"* ]]; then
+    echo "Looks like profile is out of date!"
+    REPLY=$(bash -c 'read -e -p "Do you want to update the profile? [y/N]" tmp; echo $tmp')
+    if [[ ! $REPLY =~ ^[Yy]$ ]]
+    then
+        git pull
+    fi
+fi
+
+#mv ~/.dotfiles/.dotfiles_location /home/.dotfiles_location
+#mv /home/.dotfiles_location ./
+
+cd ~ || exit
