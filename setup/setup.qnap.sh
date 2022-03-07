@@ -16,7 +16,7 @@ chmod +x /tmp/config/autorun.sh
 
 echo '#!/bin/sh' > "/tmp/config/autorun.sh"
 echo "# start a single script" >> "/tmp/config/autorun.sh"
-echo "$PWD/os/qnap/autorunmaster.sh" >> "/tmp/config/autorun.sh"
+echo "$PWD/os/qnap/boot/autorunmaster.sh" >> "/tmp/config/autorun.sh"
 echo "# finish" >> "/tmp/config/autorun.sh"
 
 echo "Make sure you enable autorun in settings"
