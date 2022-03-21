@@ -70,12 +70,6 @@ docker network create --driver=qnet --ipam-driver=qnet --ipam-opt=iface=eth3 --s
 
 
 ### To Be Deleted
-## Dockers
-
-```bash
-cd docker
-sh dockercommand.sh
-```
 
 ### RClone Config
 
