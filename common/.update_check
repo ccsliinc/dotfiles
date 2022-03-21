@@ -22,9 +22,9 @@ if [[ "$STATUS" == *"behindd"* ]]; then
 fi
 
 
-if [ $LOCAL = $REMOTE ]; then
+if [ "$LOCAL" = "$REMOTE" ]; then
     echo "Up-to-date"
-elif [ $LOCAL = $BASE ]; then
+elif [ "$LOCAL" = "$BASE" ]; then
     echo "Need to pull"
     echo "Looks like profile is out of date!"
     REPLY=$(bash -c 'read -e -p "Do you want to update the profile? [y/N]" tmp; echo $tmp')
@@ -34,7 +34,7 @@ elif [ $LOCAL = $BASE ]; then
         echo "pull"
         git pull
     fi
-elif [ $REMOTE = $BASE ]; then
+elif [ "$REMOTE" = "$BASE" ]; then
     echo "Need to push"
 else
     echo "Diverged"
