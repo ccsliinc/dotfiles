@@ -11,7 +11,8 @@ source "$DOTFILESLOC/common/.exports"
 source "$DOTFILESLOC/common/.aliases"
 
 # shellcheck source=.update_check
-source "$DOTFILESLOC/common/.update_check"
+#source "$DOTFILESLOC/common/.update_check"
+sh "$DOTFILESLOC/common/scripts/profile_update_check.sh"
 
 # shellcheck source=.profile_motd
 source "$DOTFILESLOC/common/.profile_motd"
