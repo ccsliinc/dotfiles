@@ -1,3 +1,5 @@
+# shellcheck shell=bash
+
 function _fix_permissions() {
 	find . -type f -exec chmod 664 {} \; && find . -type d -exec chmod 775 {} \; && chown -R "$1":psacln *
 }
@@ -6,4 +8,8 @@ function _updateAndClean() {
 	apt update -y
 	apt upgrade -y
 	apt --purge autoremove -y
+}
+
+function _restart_nginx_varnish() {
+	sudo service nginx restart && sudo service varnish restart
 }
