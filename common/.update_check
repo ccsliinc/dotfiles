@@ -1,5 +1,8 @@
 # shellcheck shell=bash
 
+#BASEDIR=$(dirname "$0")
+CURDIR=${PWD}
+
 cd "$DOTFILESLOC" &> /dev/null || exit
 
 git remote update
@@ -43,4 +46,4 @@ fi
 #mv ~/.dotfiles/.dotfiles_location /home/.dotfiles_location
 #mv /home/.dotfiles_location ./
 
-cd ~ || exit
+cd "$CURDIR" || exit
