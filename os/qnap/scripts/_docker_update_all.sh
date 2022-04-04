@@ -8,6 +8,9 @@ if ! command -v jq &> /dev/null; then
     return 1
 fi
 
+echo "--------------------------------------------------------------------------"
+echo "Started : $(date)"
+echo "--------------------------------------------------------------------------"
 
 DOCKER_FILE="$HOME/dockers.local"
 DOCKER=$(jq "." "$DOCKER_FILE")
@@ -21,3 +24,7 @@ done
 
 docker image prune -f -a
 docker volume prune -f
+
+echo ""
+echo "Finished : $(date)"
+echo "--------------------------------------------------------------------------"
