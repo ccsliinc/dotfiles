@@ -11,5 +11,17 @@ function _updateAndClean() {
 }
 
 function _restart_nginx_varnish() {
+	php7.4 /opt/magento/www.precisiontools.com/bin/magento cache:clean
 	sudo service nginx restart && sudo service varnish restart
+}
+
+function _update_magento() {
+	#ERROR SQLSTATE[HY000]: General error: 1419 You do not have the SUPER privilege
+	#sudo mysql
+	#set global log_bin_trust_function_creators=1;
+
+	sudo rm -rf var/cache/* var/view_preprocessed/* generated/* pub/static/*
+	n98 setup:upgrade
+	n98 setup:di:compile
+	n98 setup:static-content:deploy en_US -f
 }
