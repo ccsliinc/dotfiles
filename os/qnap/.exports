@@ -13,6 +13,7 @@ export PATH=\
 /opt/bin:\
 /opt/sbin:\
 /share/CACHEDEV1_DATA/custom/.dotfiles/os/qnap/scripts:\
+/share/CACHEDEV1_DATA/custom/.dotfiles/os/qnap/bin:\
 /share/CACHEDEV1_DATA/.qpkg/container-station/bin
 
 
