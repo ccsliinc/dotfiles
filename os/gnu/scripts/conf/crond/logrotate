@@ -1,0 +1,4 @@
+SHELL=/bin/sh
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+
+30 * * * * www-data /usr/sbin/logrotate /opt/magento/www.precisiontools.com/conf/logrotate/www.precisiontools.com.conf --state /opt/magento/www.precisiontools.com/var/log/.logrot_state
