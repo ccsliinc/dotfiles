@@ -3,7 +3,7 @@
 RCLONE_CONFIG=/share/CACHEDEV1_DATA/custom/.config/rclone/rclone.conf
 export RCLONE_CONFIG
 
-cd /share/CACHEDEV1_DATA/custom/
+cd /share/CACHEDEV1_DATA/custom/ || exit
 
 mkdir -p /share/CACHEDEV1_DATA/custom/log/
 
