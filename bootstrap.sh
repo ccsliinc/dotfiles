@@ -94,7 +94,11 @@ install_tools () {
 
 		if [[ $resp = [yY] ]] ; then
 			echo "$PROMPT Installing useful stuff. This may take a while..."
-			sudo bash setup/setup.qnap.sh
+			if [[ $(whoami) != "admin" ]]; then
+				sudo bash setup/setup.qnap-nonadmin.sh
+			else
+				sudo bash setup/setup.qnap.sh
+			fi
 		else
 			echo "$PROMPT Installation cancelled by user"
 		fi
