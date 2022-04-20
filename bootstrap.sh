@@ -43,6 +43,19 @@ link () {
 			ln -svf ~/.dotfiles/.oh-my-zsh ~
 			ln -svf ~/.dotfiles/.dotfiles_location ~
 		fi
+
+		if [[ $(whoami) != "admin" ]] && [[ "$OS" == "qnap" ]]; then
+			#ln -svf ~/.dotfiles/common/.aliases ~
+			ln -svf ~/.dotfiles/.bash_profile ~
+			ln -svf ~/.dotfiles/.bashrc ~
+			#ln -svf ~/.dotfiles/common/.exports ~
+			#ln -svf ~/.dotfiles/common/.functions ~
+			#ln -svf ~/.dotfiles/common/.profile ~
+			ln -svf ~/.dotfiles/.zshrc ~
+			ln -svf ~/.dotfiles/.oh-my-zsh ~
+			ln -svf ~/.dotfiles/.dotfiles_location ~
+		fi
+		
 		echo "$PROMPT Symlinking complete"
 	else
 		echo "$PROMPT Symlinking cancelled by user"
