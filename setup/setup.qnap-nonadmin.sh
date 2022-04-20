@@ -22,3 +22,5 @@ if [[ -x /opt/bin/zsh ]]; then
 else
     echo 'edit /etc/passwd and change shell'
 fi
+
+echo "Make sure you add the line jsugamele ALL=(ALL) ALL to /usr/etc/sudoers"
