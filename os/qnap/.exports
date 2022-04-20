@@ -7,15 +7,12 @@ export PATH=\
 /sbin:\
 /usr/bin:\
 /usr/sbin:\
-/usr/bin/X11:\
 /usr/local/bin:\
-/root/docker:\
 /opt/bin:\
 /opt/sbin:\
-/share/CACHEDEV1_DATA/custom/.dotfiles/os/qnap/scripts:\
-/share/CACHEDEV1_DATA/custom/.dotfiles/os/qnap/bin:\
-/share/CACHEDEV1_DATA/.qpkg/container-station/bin:\
-/share/ZFS1_DATA/.qpkg/container-station/bin
+~/.dotfiles/os/qnap/scripts:\
+~/.dotfiles/os/qnap/bin:\
+$(getcfg SHARE_DEF defVolMP -f /etc/config/def_share.info)/.qpkg/container-station/bin
 
 
 # .bashrc
