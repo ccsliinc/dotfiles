@@ -5,6 +5,8 @@ if [[ "$OSTYPE" == *"darwin"* ]] ; then
     export OS="mac"
 elif [[ "$OSTYPE" == *"linux-gnueabihf"* ]] && [[ "$MACHTYPE" == *"arm"* ]]; then
     export OS="raspi"
+elif [[ "$(cat /proc/device-tree/model)" == "Raspberry Pi 4"* ]]; then
+    export OS="raspi"
 elif [[ "$OSTYPE" == *"linux-gnu"* ]] && [[ "$(uname -r)" == *"qnap"* ]]; then
     export OS="qnap"
     export ARCH="intel"

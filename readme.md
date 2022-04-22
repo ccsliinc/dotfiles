@@ -58,7 +58,7 @@ cd .dotfiles
  Create a docker network for our containers to run in. The ethernet interface is one less than the interface name which the ethernet cable is connected to.  Interface 4 = eth3
 
  ```bash
-docker network create --driver=qnet --ipam-driver=qnet --ipam-opt=iface=eth3 --subnet 192.0.2.1/24 --gateway 192.0.2.1 qnet-static-eth3
+docker network create --driver=qnet --ipam-driver=qnet --ipam-opt=iface=eth0 --subnet 192.0.2.1/24 --gateway 192.0.2.1 qnet-static-eth0
  ```
 
 #### Cron
