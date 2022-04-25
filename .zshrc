@@ -77,7 +77,7 @@ plugins=(
 
 # shellcheck source=/dev/null
 source $ZSH/oh-my-zsh.sh
-export DEBUG=true
+export DEBUG=false
 if [[ -d "$HOME/.dotfiles" ]]; then
     DOTFILESLOC="$HOME/.dotfiles"
     export DOTFILESLOC
