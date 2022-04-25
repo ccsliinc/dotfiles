@@ -1,6 +1,5 @@
 #!/bin/bash
 
-
 # Check for bash shell
 if [[ -z $BASH ]] || [[ "$BASH" != "/bin/bash" ]] ;then
 	echo 
@@ -9,9 +8,12 @@ if [[ -z $BASH ]] || [[ "$BASH" != "/bin/bash" ]] ;then
 	exit 1
 fi
 
-source ../profile/profile/.profile_os &> /dev/null
-source ../profile/shared/bash_colors.sh &> /dev/null
-source menus/main_menu.sh &> /dev/null
+# shellcheck source=../profile/profile/.profile_os
+source "$HOME/.dotfiles/profile/profile/.profile_os" &> /dev/null
+# shellcheck source=../profile/shared/bash_colors.sh
+source "$HOME/.dotfiles/profile/shared/bash_colors.sh" &> /dev/null
+# shellcheck source=/menus/main_menu.sh
+source "$HOME/.dotfiles/setup/menus/main_menu.sh" &> /dev/null
 
 # Check to make sure root is not running this script or sudo was used
 if [ "$EUID" -eq 0 ]; then

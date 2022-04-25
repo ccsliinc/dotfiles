@@ -95,4 +95,3 @@ IWhite='\033[0;97m'       # White
 
 # Bold High Intensity
 BIBlack='\033[1;90m'      # Black
-BIRed
