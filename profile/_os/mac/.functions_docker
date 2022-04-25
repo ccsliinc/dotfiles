@@ -1,0 +1,50 @@
+# shellcheck shell=bash
+if [ "$DEBUG" = "true" ]; then echo "$DOTFILESLOC/profile/_os/mac/.functions_docker" ; fi
+
+alias docker_stop_all='docker stop $(docker ps -aq)'
+alias docker_start_all='docker start $(docker ps -a -q -f status=exited)'
+alias docker_remove_all='docker rm $(docker ps -aq)'
+
+laradock_stop(){
+  cd ~/Development/Laravel/laradock
+  docker-compose stop
+}
+
+laradock_start(){
+  cd ~/Development/Laravel/laradock
+  docker-compose up -d nginx mysql
+}
+
+dclean() {
+    processes=`docker ps -q -f status=exited`
+    if [ -n "$processes" ]; then
+      docker rm $processes
+    fi
+
+    images=`docker images -q -f dangling=true`
+    if [ -n "$images" ]; then
+      docker rmi $images
+    fi
+}
+
+# remove laravel* containers
+# remove laravel_* images
+dcleanlaradockfunction()
+{
+	echo 'Removing ALL containers associated with laradock'
+	docker ps -a | awk '{ print $1,$2 }' | grep laradock | awk '{print $1}' | xargs -I {} docker rm {}
+
+	# remove ALL images associated with laradock_
+	# does NOT delete laradock/* which are hub images
+	echo 'Removing ALL images associated with laradock_'
+	docker images | awk '{print $1,$2,$3}' | grep laradock_ | awk '{print $3}' | xargs -I {} docker rmi {}
+
+	echo 'Listing all laradock docker hub images...'
+	docker images | grep laradock
+
+	echo 'dcleanlaradock completed'
+}
+# associate the above function with an alias
+# so can recall/lookup by typing 'alias'
+alias dcleanlaradock=dcleanlaradockfunction
+

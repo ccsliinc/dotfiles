@@ -1,4 +1,4 @@
-# shellcheck shell=bash
+# shellcheck shell=zsh
 # If you come from bash you might have to change your $PATH.
 # export PATH=$HOME/bin:/usr/local/bin:$PATH
 export PATH="/usr/local/sbin:$PATH"
@@ -66,21 +66,30 @@ ZSH_THEME="maran"
 # Example format: plugins=(rails git textmate ruby lighthouse)
 # Add wisely, as too many plugins slow down shell startup.
 plugins=(
-  git
-  git-extras
-  git-flow
-  colored-man-pages
-  colorize
-  github
-  docker
+    git
+    git-extras
+    git-flow
+    colored-man-pages
+    colorize
+    github
+    docker
 )
 
 # shellcheck source=/dev/null
 source $ZSH/oh-my-zsh.sh
-# shellcheck source=/dev/null
-source "$HOME/.dotfiles_location"
-# shellcheck source=/dev/null
-source "$DOTFILESLOC/common/.profile_interactive"
+export DEBUG=true
+if [[ -d "$HOME/.dotfiles" ]]; then
+    DOTFILESLOC="$HOME/.dotfiles"
+    export DOTFILESLOC
+elif [[ -f "$HOME/.dotfiles_location" ]]; then
+    source "$HOME/.dotfiles_location"
+else
+    echo "There is an error with your profile setup."
+    echo "Please run bootstrap again."
+    return 1
+fi 
+
+source "$HOME/.dotfiles/profile/.profile_interactive"
 
 unsetopt nomatch
 
@@ -122,3 +131,8 @@ unsetopt nomatch
 # tabtab source for slss package
 # uninstall by removing these lines or running `tabtab uninstall slss`
 [[ -f ~/.nvm/versions/node/v8.10.0/lib/node_modules/serverless/node_modules/tabtab/.completions/slss.zsh ]] && . ~/.nvm/versions/node/v8.10.0/lib/node_modules/serverless/node_modules/tabtab/.completions/slss.zsh
+
+# This should be the last line of the file
+# For local changes
+# Don't make edits below this
+[[ -f .zshrc.local ]] && source ".zshrc.local"

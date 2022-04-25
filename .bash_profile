@@ -2,8 +2,19 @@
 # interactive shell ie. login
 
 # shellcheck source=/dev/null
-source ".dotfiles_location"
-source "$DOTFILESLOC/common/.profile_interactive"
+
+if [[ -d "$HOME/.dotfiles" ]]; then
+    DOTFILESLOC="$HOME/.dotfiles"
+    export DOTFILESLOC
+elif [[ -f "$HOME/.dotfiles_location" ]]; then
+    source "$HOME/.dotfiles_location"
+else
+    echo "There is an error with your profile setup."
+    echo "Please run bootstrap again."
+    return 1
+fi 
+
+source "$DOTFILESLOC/profile/.profile_interactive"
 
 # do not overwrite files on > redirection
 set -o noclobber

@@ -1,50 +1,47 @@
-# Linux
-Log into ssh
+# Custom Cross Platform Profile
+
+Installation instructions for all platforms.
+
+## Linux & Raspberry Pi
+
+### Linux Profile Install
 
 ```bash
-sudo apt update -y
-sudo apt upgrade -y
+ssh user@ipadress
+
+sudo apt update -y && sudo apt upgrade -y
 sudo apt install git -y
-git clone --recursive https://github.com/ccsliinc/dotfiles.git ~/.dotfiles
-cd ~/.dotfiles
-./bootstrap.sh
-chsh
-# change to /bin/zsh
-
-#git submodule update --init
+git clone https://github.com/ccsliinc/dotfiles.git ~/.dotfiles
+~/.dotfiles/setup/bootstrap.sh
 ```
 
-# QNAP Custom Boot Files
+## Qnap
 
-## Setup
+### Prerequisits
 
-### QNAP
+1. Create a user other than admin (admin acount should be disabled).
+2. Enable home folder for all users.
+3. Install Entware package via the web interface
+   - <https://github.com/Entware/entware/wiki/Install-on-QNAP-NAS>
 
-#### Intel
-
-Log into Web Interface and open the Control Panel App.  Click on Hardware or on the left menu select System -> Hardware.  On the general tab check the checkbox to select "Run user defined processes during startup" and click apply. This will allow the autorun.sh to be processed during system startup.
-
-Optional install https://www.qnapclub.eu/en/qpkg/556 or https://github.com/Entware/entware/wiki/Install-on-QNAP-NAS Entware to the QNAP for command line utilities.  This will allow installation and usage of git and other command line utilities. If you would like to use git to install this repo, log into ssh and install git.  It will be located at /opt/bin/git.
-
-Make sure valid ssh keys are generated and added to github to allow pull.
+### QNAP Profile Install
 
 ```bash
-/opt/bin/opkg update       #update opkg package list
+/opt/bin/opkg update                #update opkg package list
 /opt/bin/opkg install git git-http  #install git
-/opt/bin/opkg upgrade      #upgrade all packages
+/opt/bin/opkg upgrade               #upgrade all packages
 ```
-
-Once this is complete log into the QNAP via ssh from a command prompt and complete the following.
 
 ```bash
-mkdir -p /share/CACHEDEV1_DATA/custom
-cd /share/CACHEDEV1_DATA/custom
-/opt/bin/git clone --recursive https://github.com/ccsliinc/dotfiles.git .dotfiles
-cd .dotfiles
-./bootstrap.sh
+sudo apt update -y && sudo apt upgrade -y
+sudo apt install git -y
+git clone https://github.com/ccsliinc/dotfiles.git ~/.dotfiles
+~/.dotfiles/setup/bootstrap.sh
 ```
 
-#### Opkg
+### Opkg
+
+>These are packages I use regularly.
 
 - bash
 - git
@@ -53,39 +50,18 @@ cd .dotfiles
 - jq
 - zsh
 
-#### Dockers
+### Dockers
 
- Create a docker network for our containers to run in. The ethernet interface is one less than the interface name which the ethernet cable is connected to.  Interface 4 = eth3
+>Create a docker network for our containers to run in. The ethernet interface is one less than the interface name which the ethernet cable is connected to.  Interface 4 = eth3
 
  ```bash
 docker network create --driver=qnet --ipam-driver=qnet --ipam-opt=iface=eth0 --subnet 10.0.17.0/24 --gateway 10.0.17.1 qnet-static-eth0
  ```
 
-#### Cron
+### Cron
+
+>Editing cron jobs is a 3 step process.  You must follow the steps provided or the schedule will not persist across reboots.
 
 - Edit your crontab file eg: vi /etc/config/crontab
 - Make crontab see the changes: crontab /etc/config/crontab
 - Restart the crontab service: /etc/init.d/crond.sh restart
-
-### To Be Deleted
-
-### RClone Config
-
-*This is used for SYNCing folders with RCLone, the crontab can be edited manually or use the script below to insert the line.  Make sure you restart the cron daemon once completed.*
-
-`vi /etc/config/crontab`
-
-`echo '0 */4 * * * /share/CACHEDEV1_DATA/custom/rclone.sh' >> /etc/config/crontab
-crontab /etc/config/crontab && /etc/init.d/crond.sh restart`
-
-### RClone Reference
-
-rclone
-rclone copy dropbox_joe:apps/"apps/wpmu dev snapshot" gdrive_webteam:snapshot_backups
-rclone lsd dropbox_joe:"apps/wpmu dev snapshot"
-rclone lsd gdrive_webteam:snapshot_backups
-
-#### Notes
-
-<https://natelandau.com/bash-scripting-utilities/>
-<https://natelandau.com/my-mac-osx-bash_profile/>

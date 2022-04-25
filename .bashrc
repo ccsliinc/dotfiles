@@ -2,9 +2,18 @@
 # shellcheck disable=SC1091
 # non interactive shell ie. scripts
 
-source ".dotfiles_location"
-# shellcheck source=common/.functions
-source "$DOTFILESLOC/common/.profile"
+if [[ -d "$HOME/.dotfiles" ]]; then
+    DOTFILESLOC="$HOME/.dotfiles"
+    export DOTFILESLOC
+elif [[ -f "$HOME/.dotfiles_location" ]]; then
+    source "$HOME/.dotfiles_location"
+else
+    echo "There is an error with your profile setup."
+    echo "Please run bootstrap again."
+    return 1
+fi 
+
+source "$DOTFILESLOC/profile/.profile"
 
 # This should be the last line of the file
 # For local changes

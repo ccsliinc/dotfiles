@@ -1,0 +1,43 @@
+# shellcheck shell=bash
+if [ "$DEBUG" = "true" ]; then echo "$DOTFILESLOC/profile/profile/.profile_motd" ; fi
+
+# shellcheck source=../shared/bash_colors.sh
+source "$DOTFILESLOC/profile/shared/bash_colors.sh"
+
+# Print out some stuff
+#############################
+    if [ "$DEBUG" != "true" ]; then clear ; fi
+    echo -en "$LBLUE"
+    echo "_________________________________________________________________________"
+    echo -en "$LCYAN"
+    date
+    echo -en "$NOCOLOR"
+
+    if [[ -x "$(command -v fortune)" ]] ; then
+        echo -en "$DPURPLE"
+        echo
+        fortune
+        echo
+    fi
+
+    echo -en "$LGREEN"
+    echo -e "Uptime: $(uptime)"
+    echo -e "$NOCOLOR"
+
+
+    echo -e "${LBLUE}Welcome to: ${LRED}$(hostname)${LBLUE}"
+    echo -e "$NOCOLOR"
+    
+    echo -en "$LWHITE"
+    echo -e "Model          : $MODEL"
+    echo -e "OS Version     : $OS_VERSION"
+    echo -e "Architecture   : $ARCH"
+    echo -e "Uname          : $(uname -s -r -m -p)"
+    echo -e "Shell          : $SHELL"
+    echo -e "$LYELLOW"
+    echo "Detected OS : $OS"
+    echo -en "$LBLUE"
+    echo "_________________________________________________________________________"
+    # change color to normal
+    echo -en "$NOCOLOR"
+    echo

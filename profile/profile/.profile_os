@@ -1,0 +1,69 @@
+# shellcheck shell=bash
+if [ "$DEBUG" = "true" ]; then echo "$DOTFILESLOC/profile/profile/.profile_os" ; fi
+
+# OS Version
+
+# MAC OSX
+if [[ "$OSTYPE" == *"darwin"* ]] ; then
+    OS="mac"
+    export OS
+    
+    MODEL=$(system_profiler SPHardwareDataType | grep "Model Identifier" | awk -F ":" '{print $NF}' | awk '{$1=$1};1')
+    export MODEL 
+    
+    OS_VERSION="$(system_profiler SPSoftwareDataType | grep 'System Version' | awk -F ":" '{print $NF}' | awk '{$1=$1};1')"
+    export OS_VERSION
+
+    ARCH=$(uname -m)
+    export ARCH
+
+    alias PM="brew install"
+
+# RaspberryPi
+elif [[ -f "cat /proc/device-tree/model" ]] && [[ "$(cat /proc/device-tree/model)" == "Raspberry Pi"* ]]; then
+    OS="raspi"
+    export OS
+    
+    MODEL=$(cat /proc/device-tree/model)
+    export MODEL
+
+    OS_VERSION=$(awk -F= '$1=="PRETTY_NAME" { print $2 ;}' /etc/os-release)
+    export OS_VERSION
+
+    ARCH=$(uname -m)
+    export ARCH
+
+    alias PM="sudo apt install -y"
+
+# QNAP
+elif [[ -x "/sbin/getcfg" ]]; then
+    OS="qnap"
+    export OS
+
+    MODEL=$(/sbin/getcfg system model)
+    export MODEL
+
+    OS_VERSION=$(awk -F= '$1=="PRETTY_NAME" { print $2 ;}' /etc/os-release)
+    export OS_VERSION
+
+    ARCH=$(uname -m)
+    export ARCH
+
+    alias PM="sudo opkg install"
+
+# GNU
+elif [[ "$OSTYPE" == *"linux-gnu"* ]]; then
+    OS="gnu"
+    export OS
+
+    MODEL=""
+    export MODEL
+
+    OS_VERSION=$(awk -F= '$1=="PRETTY_NAME" { print $2 ;}' /etc/os-release)
+    export OS_VERSION
+
+    ARCH=$(uname -m)
+    export ARCH
+
+    alias PM="sudo apt install -y"
+fi
