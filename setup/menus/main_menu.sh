@@ -52,9 +52,7 @@ Choose an option:  "
             mainmenu
             ;;
         7) # Fix OhMyZsh after git update
-            rm -f ~/.oh-my-zsh
-            bash "scripts/common/install_ohmyzsh.sh"
-            rm -f ~/.zshrc
+            bash "scripts/common/fix_ohmyzsh.sh"
             showSetup "Fixed OhMyZsh."
             mainmenu
             ;;

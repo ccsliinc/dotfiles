@@ -7,6 +7,8 @@ alias _ui_text='sudo systemctl set-default multi-user.target'
 alias _ui_graphical='sudo systemctl set-default graphical.target'
 alias _ui_graphic_start='sudo systemctl start display-manager.service'
 
+alias _bootstrap="$HOME/.dotfiles/setup/bootstrap.sh"
+
 alias v='vim -R -'
 alias vi='vim'
 
