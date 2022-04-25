@@ -1,4 +1,0 @@
-# shellcheck shell=bash
-if [ "$DEBUG" = "true" ]; then echo ".raspi.exports" ; fi
-
-export PATH="$DOTFILESLOC/os/raspi/scripts:$PATH"
