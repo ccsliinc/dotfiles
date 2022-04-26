@@ -141,7 +141,7 @@ showSetup(){
 # END ROW2
 
 # ROW3
-	if [[ $SHELL == "/bin/zsh" ]]; then 
+	if [[ $SHELL == *"/zsh" ]]; then 
 	printf "${LGREEN}%-22s : %-15s${NOCOLOR}" "Shell" "✔ Yes"
 	else
 	printf "${LRED}%-22s : %-15s${NOCOLOR}" "Shell" "⍻ No"
