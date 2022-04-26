@@ -56,7 +56,7 @@ Choose an option:  "
             showSetup "Fixed OhMyZsh."
             mainmenu
             ;;
-        0) # Exit
+        0 | q) # Exit
             #echo "Bye bye."
             exit 0
             ;;
