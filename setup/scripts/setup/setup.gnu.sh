@@ -36,17 +36,17 @@ apt install git -y
 
 # Docker for containerization
 # Official installation instructions: https://docs.docker.com/install/linux/docker-ce/ubuntu/
-apt install apt-transport-https ca-certificates curl software-properties-common -y
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
-add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
-apt update -y
-apt install docker-ce docker-ce-cli containerd.io -y
-echo "$PROMPT Verifying docker installation using a hello world container..."
-# Verify the installaiton
-docker run hello-world
+# apt install apt-transport-https ca-certificates curl software-properties-common -y
+# curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+# add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+# apt update -y
+# apt install docker-ce docker-ce-cli containerd.io -y
+# echo "$PROMPT Verifying docker installation using a hello world container..."
+# # Verify the installaiton
+# docker run hello-world
 
-# Docker Compose
-apt install docker-compose -y
+# # Docker Compose
+# apt install docker-compose -y
 
 # Vim B)
 apt install vim -y
