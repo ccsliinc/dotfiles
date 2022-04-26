@@ -6,7 +6,7 @@ source ~/.dotfiles/profile/profile/.profile_os
 read -r -d '' SUDO << EOF
 # Allow user $(whoami) execute any command without a
 # password prompt
-
+#$(whoami)   ALL=(ALL) NOPASSWD: ALL
 $(whoami)   ALL=(ALL:ALL) NOPASSWD: ALL
 EOF
 
