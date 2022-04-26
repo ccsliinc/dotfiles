@@ -34,6 +34,8 @@ apt install golang-go -y
 # Git, obviously
 apt install git -y
 
+apt install sysv-rc-conf -y
+
 # Docker for containerization
 # Official installation instructions: https://docs.docker.com/install/linux/docker-ce/ubuntu/
 # apt install apt-transport-https ca-certificates curl software-properties-common -y
