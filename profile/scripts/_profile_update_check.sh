@@ -35,7 +35,8 @@ elif [ "$LOCAL" = "$BASE" ]; then
         echo "no pull"
     then
         echo "pull"
-        git pull --recurse-submodules
+        git pull
+        exec zsh
     fi
 elif [ "$REMOTE" = "$BASE" ]; then
     echo "Need to push"
