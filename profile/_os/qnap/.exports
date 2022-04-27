@@ -10,8 +10,8 @@ export PATH=\
 /usr/local/bin:\
 /opt/bin:\
 /opt/sbin:\
-~/.dotfiles/os/qnap/scripts:\
-~/.dotfiles/os/qnap/bin:\
+~/.dotfiles/profile/_os/qnap/scripts:\
+~/.dotfiles/profile/_os/qnap/bin:\
 $(getcfg SHARE_DEF defVolMP -f /etc/config/def_share.info)/.qpkg/container-station/bin
 
 # .bashrc
