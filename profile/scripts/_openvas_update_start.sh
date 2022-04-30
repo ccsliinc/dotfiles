@@ -18,6 +18,7 @@ sudo sed -i 's/--port 9392/--port 9392 --no-redirect/g' /lib/systemd/system/gsad
 
 
 # Check GVM Setup
+sudo gvm-feed-update
 sudo gvm-check-setup
 
 #Change 127.0.0.1 to 0.0.0.0

@@ -20,7 +20,7 @@ if [[ "$OSTYPE" == *"darwin"* ]] ; then
     alias PM="brew install"
 
 # RaspberryPi
-elif [[ -f "cat /proc/device-tree/model" ]] && [[ "$(cat /proc/device-tree/model)" == "Raspberry Pi"* ]]; then
+elif [[ -f "/proc/device-tree/model" ]] && [[ "$(cat /proc/device-tree/model)" == "Raspberry Pi"* ]]; then
     OS="raspi"
     export OS
     
