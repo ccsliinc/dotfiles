@@ -68,11 +68,20 @@ ZSH_THEME="maran"
 plugins=(
     git
     git-extras
+    aliases
     git-flow
     colored-man-pages
     colorize
     github
+    laravel
+    sudo
+    tmux
+    screen
     docker
+    node
+    npm
+    n98-magerun
+    wp-cli
 )
 
 # shellcheck source=/dev/null
