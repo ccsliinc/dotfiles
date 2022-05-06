@@ -12,6 +12,7 @@ if [[ -x /opt/bin/opkg ]]; then
     /opt/bin/opkg install zsh
     /opt/bin/opkg install node
     /opt/bin/opkg install node-npm
+    /opt/bin/opkg install tmux
 else
     echo "Please install Entware"
 fi

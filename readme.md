@@ -62,6 +62,6 @@ docker network create --driver=qnet --ipam-driver=qnet --ipam-opt=iface=eth0 --s
 
 >Editing cron jobs is a 3 step process.  You must follow the steps provided or the schedule will not persist across reboots.
 
-- Edit your crontab file eg: vi /etc/config/crontab
-- Make crontab see the changes: crontab /etc/config/crontab
-- Restart the crontab service: /etc/init.d/crond.sh restart
+- Edit your crontab file eg: sudo vi /etc/config/crontab
+- Make crontab see the changes: sudo crontab /etc/config/crontab
+- Restart the crontab service: sudo /etc/init.d/crond.sh restart
