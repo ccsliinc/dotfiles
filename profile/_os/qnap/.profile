@@ -26,7 +26,7 @@ read -r -d '' SUDO << EOF
 $(whoami)   ALL=(ALL:ALL) NOPASSWD: ALL
 EOF
 
-    printf "Creating sudoers file"
+    printf "Creating sudoers file\n"
     sudo mkdir -p /usr/etc/sudoers.d
     echo "$SUDO" | sudo tee -a "/usr/etc/sudoers.d/$(whoami)_grant_root"
 fi
