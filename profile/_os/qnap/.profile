@@ -14,3 +14,19 @@ fi
 if [ ! -f /usr/share/terminfo/x/xterm-color ]; then
     sudo ln -s /usr/share/terminfo/x/xterm-xfree86 /usr/share/terminfo/x/xterm-color
 fi
+
+
+
+if [[ ! -f "/usr/etc/sudoers.d/$(whoami)_grant_root" ]]; then
+
+read -r -d '' SUDO << EOF
+# Allow user $(whoami) execute any command without a
+# password prompt
+#$(whoami)   ALL=(ALL) NOPASSWD: ALL
+$(whoami)   ALL=(ALL:ALL) NOPASSWD: ALL
+EOF
+
+    printf "Creating sudoers file"
+    sudo mkdir -p /usr/etc/sudoers.d
+    echo "$SUDO" | sudo tee -a "/usr/etc/sudoers.d/$(whoami)_grant_root"
+fi
