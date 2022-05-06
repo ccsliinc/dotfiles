@@ -1,5 +1,7 @@
 #!/bin/bash
-DEBUG=false
+if [[ -z "${DEBUG}" ]]; then
+    DEBUG=false
+fi
 
 if [[ "$DEBUG" == "true" ]] ; then printf "\n\t%s\n\n" "DEBUG MODE ON" ; fi
 

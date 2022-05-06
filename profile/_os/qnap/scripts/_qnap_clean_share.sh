@@ -1,5 +1,7 @@
 #!/bin/bash
-#DEBUG=true
+if [[ -z "${DEBUG}" ]]; then
+    DEBUG=false
+fi
 
 FOLDER="/share/CACHEDEV1_DATA/"
 
