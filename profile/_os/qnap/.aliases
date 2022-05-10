@@ -6,3 +6,4 @@ if [ "$DEBUG" = "true" ]; then echo "$DOTFILESLOC/profile/_os/qnap/.aliases" ; f
 alias _rclone='rclone rcd --rc-web-gui --rc-addr=localhost:5573 --rc-user=admin --rc-pass=admin'
 alias grep='grep'
 alias which='which'
+alias docker-cli="$DOTFILESLOC/profile/bin/docker-cli-linux-x64"
