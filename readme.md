@@ -27,15 +27,13 @@ git clone https://github.com/ccsliinc/dotfiles.git ~/.dotfiles
 ### QNAP Profile Install
 
 ```bash
-/opt/bin/opkg update                #update opkg package list
-/opt/bin/opkg install git git-http  #install git
-/opt/bin/opkg upgrade               #upgrade all packages
+sudo /opt/bin/opkg update                #update opkg package list
+sudo /opt/bin/opkg install git git-http  #install git
+sudo /opt/bin/opkg upgrade               #upgrade all packages
 ```
 
 ```bash
-sudo apt update -y && sudo apt upgrade -y
-sudo apt install git -y
-git clone https://github.com/ccsliinc/dotfiles.git ~/.dotfiles
+/opt/bin/git clone https://github.com/ccsliinc/dotfiles.git ~/.dotfiles
 ~/.dotfiles/setup/bootstrap.sh
 ```
 
@@ -55,7 +53,8 @@ git clone https://github.com/ccsliinc/dotfiles.git ~/.dotfiles
 >Create a docker network for our containers to run in. The ethernet interface is one less than the interface name which the ethernet cable is connected to.  Interface 4 = eth3
 
  ```bash
-docker network create --driver=qnet --ipam-driver=qnet --ipam-opt=iface=eth0 --subnet 10.0.17.0/24 --gateway 10.0.17.1 qnet-static-eth0
+#docker network create --driver=qnet --ipam-driver=qnet --ipam-opt=iface=eth0 --subnet 10.0.17.0/24 --gateway 10.0.17.1 qnet-static-eth0
+sudo docker network create -d qnet --ipam-driver=qnet --ipam-opt=iface=eth1 --subnet 10.0.1.0/24 --gateway 10.0.1.1 qnet-static-eth1 --opt=iface=eth1
  ```
 
 ### Cron
