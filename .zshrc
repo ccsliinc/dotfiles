@@ -82,6 +82,7 @@ plugins=(
     npm
     n98-magerun
     wp-cli
+    yarn
 )
 
 # shellcheck source=/dev/null
