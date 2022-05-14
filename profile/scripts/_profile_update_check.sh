@@ -5,7 +5,7 @@ CURDIR=${PWD}
 
 cd "$DOTFILESLOC" &> /dev/null || exit
 
-git remote update
+git remote update &> /dev/null
 
 STATUS=$(git status -sb)
 
@@ -15,14 +15,14 @@ REMOTE=$(git rev-parse "$UPSTREAM")
 BASE=$(git merge-base @ "$UPSTREAM")
 
 
-if [[ "$STATUS" == *"behindd"* ]]; then
-    echo "Looks like profile is out of date!"
-    REPLY=$(bash -c 'read -e -p "Do you want to update the profile? [y/N]" tmp; echo $tmp')
-    if [[ ! $REPLY =~ ^[Yy]$ ]]
-    then
-        git pull
-    fi
-fi
+# if [[ "$STATUS" == *"behindd"* ]]; then
+#     echo "Looks like profile is out of date!"
+#     REPLY=$(bash -c 'read -e -p "Do you want to update the profile? [y/N]" tmp; echo $tmp')
+#     if [[ ! $REPLY =~ ^[Yy]$ ]]
+#     then
+#         git pull
+#     fi
+# fi
 
 
 if [ "$LOCAL" = "$REMOTE" ]; then
