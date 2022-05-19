@@ -18,6 +18,10 @@ bash "$DOTFILESLOC/profile/scripts/_profile_update_check.sh"
 # shellcheck source=/dev/null
 [[ -f "$DOTFILESLOC/profile/_os/${OS}/.profile" ]] && source "$DOTFILESLOC/profile/_os/${OS}/.profile"
 
+# iTerm2 Integrations
+# shellcheck source=profile/.iterm2_shell_integration.zsh
+source "$DOTFILESLOC/profile/profile/.iterm2_shell_integration.zsh"
+
 # shellcheck source=profile/.profile_motd
 source "$DOTFILESLOC/profile/profile/.profile_motd"
 
