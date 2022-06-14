@@ -1,5 +1,5 @@
 #!/bin/bash
 
-ln -svf ~/.dotfiles/.bash_profile ~
-ln -svf ~/.dotfiles/.bashrc ~
-ln -svf ~/.dotfiles/.zshrc ~
+ln -sf ~/.dotfiles/.bash_profile ~
+ln -sf ~/.dotfiles/.bashrc ~
+ln -sf ~/.dotfiles/.zshrc ~

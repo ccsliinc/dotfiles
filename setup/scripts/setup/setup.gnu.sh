@@ -13,6 +13,7 @@ apt update -y
 # Upgrade any preinstalled packages
 apt upgrade -y
 
+apt install rclone -y
 
 # ---------------------------------------------
 # Programming Languages and Frameworks

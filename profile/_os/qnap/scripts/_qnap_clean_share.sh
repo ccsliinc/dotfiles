@@ -3,7 +3,7 @@ if [[ -z "${DEBUG}" ]]; then
     DEBUG=false
 fi
 
-FOLDER="/share/CACHEDEV1_DATA/"
+FOLDER="/share/CACHEDEV2_DATA/"
 
 if [[ $# -eq 1 ]];then
     while test $# -gt 0
