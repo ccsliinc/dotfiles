@@ -10,6 +10,7 @@ if [[ -x /opt/bin/opkg ]]; then
     /opt/bin/opkg install htop
     /opt/bin/opkg install jq
     /opt/bin/opkg install zsh
+    /opt/bin/opkg install nload
     /opt/bin/opkg install node
     /opt/bin/opkg install node-npm
     /opt/bin/opkg install tmux
