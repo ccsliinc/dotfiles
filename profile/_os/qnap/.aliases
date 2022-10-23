@@ -8,7 +8,7 @@ alias grep='grep'
 alias which='which'
 
 if [[ "$ARCH" == "armv7l" ]]; then
-    alias docker-cli="$DOTFILESLOC/profile/bin/docker-cli-linux-amd64"
+    alias docker-cli="$DOTFILESLOC/profile/bin/docker-cli-linux-arm64"
 else
     alias docker-cli="$DOTFILESLOC/profile/bin/docker-cli-linux-x64"
 fi

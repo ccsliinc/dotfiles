@@ -101,9 +101,16 @@ unpackf() {
 # Dump all MySQL databases
 
 mydumpall() {
-	for DB in `echo show databases | mysql -B --skip-column-names $*`; do
-		echo "$DB"; mysqldump "$DB" "$*" > "$DB.sql"
-	done
+
+    for DB in $( echo show databases | mysql -u root -B --skip-column-names "$@"); 
+    do
+        # echo "$DB"
+        echo "$DB"; mysqldump -u root "$DB" "$@" > "$DB.sql"
+    done
+	
+    # for DB in `echo show databases | mysql -B --skip-column-names $*`; do
+	# 	echo "$DB"; mysqldump "$DB" "$*" > "$DB.sql"
+	# done
 }
 
 #   mans:   Search manpage given in agument '1' for term given in argument '2' (case insensitive)

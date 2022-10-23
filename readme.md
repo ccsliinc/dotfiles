@@ -45,6 +45,7 @@ sudo /opt/bin/opkg upgrade               #upgrade all packages
 - git
 - grep
 - htop
+- nload - Realtime Network Load
 - jq
 - zsh
 

@@ -7,6 +7,8 @@ alias _ui_text='sudo systemctl set-default multi-user.target'
 alias _ui_graphical='sudo systemctl set-default graphical.target'
 alias _ui_graphic_start='sudo systemctl start display-manager.service'
 
+alias _apt_clean='sudo apt-get update && sudo apt-get autoclean && sudo apt-get clean && sudo apt-get autoremove'
+
 alias _bootstrap="$HOME/.dotfiles/setup/bootstrap.sh"
 
 alias _fix_perms_d_f="find ./ -type f -exec chmod 0664 {} \; && find ./ -type d -exec chmod 0775 {} \;"
@@ -22,9 +24,9 @@ alias vi='vim'
 alias psa='ps axf'
 alias psA='ps -Af'
 
-alias du='du -h'
-alias du1='du -h --max-depth=1'
-alias df='df -h'
+alias du='sudo du -h'
+alias du1='sudo du -h --max-depth=1'
+alias df='sudo df -h'
 
 alias rclone='rclone --progress'
 
