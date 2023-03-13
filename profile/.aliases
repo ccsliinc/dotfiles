@@ -17,6 +17,7 @@ alias _fix_perms_d_f="find ./ -type f -exec chmod 0664 {} \; && find ./ -type d 
 alias taill='tail -f $(ls -Art | tail -n 1)'
 alias vil='vi $(ls -Art | tail -n 1)'
 alias histg='history | grep '
+alias hg='history | grep '
 
 alias v='vim -R -'
 alias vi='vim'

@@ -28,7 +28,7 @@ if [[ $# -eq 1 ]] ; then
         esac
         shift
     done
-elif [[ $time_difference -gt 172800 ]]; then
+elif [[ $time_difference -gt 345600 ]]; then
     echo "Last Update Performed $(stat -f "%Sm" ~/.update_brew)"
     REPLY=$(bash -c 'read -e -p "Do you want to update brew? [y/N]" tmp; echo $tmp')
     #read -p "Do you want to update brew? [y/N]" -n 1 -r
