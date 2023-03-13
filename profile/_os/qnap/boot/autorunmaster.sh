@@ -39,3 +39,17 @@ fi
 if [ ! -f /share/CACHEDEV1_DATA/custom/dockers.local ]; then
     ln -svf /share/CACHEDEV1_DATA/custom/dockers.local /root/dockers.local
 fi
+
+if [[ ! -f "/usr/etc/sudoers.d/$(whoami)_grant_root" ]]; then
+
+read -r -d '' SUDO << EOF
+# Allow user $(whoami) execute any command without a
+# password prompt
+#$(whoami)   ALL=(ALL) NOPASSWD: ALL
+$(whoami)   ALL=(ALL:ALL) NOPASSWD: ALL
+EOF
+
+    printf "Creating sudoers file\n"
+    sudo mkdir -p /usr/etc/sudoers.d
+    echo "$SUDO" | sudo tee -a "/usr/etc/sudoers.d/$(whoami)_grant_root"
+fi

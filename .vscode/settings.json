@@ -10,5 +10,8 @@
         ".functions_*": "shellscript",
         "dockers.local": "json",
         "*.json.local": "json"
+    },
+    "yaml.schemas": {
+        "https://json.schemastore.org/prometheus.json": "file:///Users/jsugamele/.dotfiles/_reference.local/config/qnap-office/dockers/prometheus.yml"
     }
 }
