@@ -11,7 +11,7 @@ alias _apt_clean='sudo apt-get update && sudo apt-get autoclean && sudo apt-get 
 
 alias _bootstrap="$HOME/.dotfiles/setup/bootstrap.sh"
 
-alias _fix_perms_d_f="find ./ -type f -exec chmod 0664 {} \; && find ./ -type d -exec chmod 0775 {} \;"
+alias _fix_perms_d_f="sudo find ./ -type f -exec chmod 0664 {} \; && sudo find ./ -type d -exec chmod 0775 {} \;"
 
 #Viewing Latest Files
 alias taill='tail -f $(ls -Art | tail -n 1)'
