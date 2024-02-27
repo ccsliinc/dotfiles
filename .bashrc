@@ -19,3 +19,4 @@ source "$DOTFILESLOC/profile/.profile"
 # For local changes
 # Don't make edits below this
 [[ -f .bashrc.local ]] && source ".bashrc.local"
+. "$HOME/.cargo/env"
