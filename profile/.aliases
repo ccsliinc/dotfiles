@@ -26,7 +26,7 @@ alias psa='ps axf'
 alias psA='ps -Af'
 
 alias du='sudo du -h'
-alias du1='sudo du -h --max-depth=1'
+alias du1='sudo du -h --max-depth=1 |  sort -h'
 alias df='sudo df -h'
 
 alias rclone='rclone --progress'
