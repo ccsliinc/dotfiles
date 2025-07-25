@@ -1,6 +1,12 @@
 # shellcheck shell=bash
 if [ "$DEBUG" = "true" ]; then echo "$DOTFILESLOC/profile/.functions" ; fi
 
+_compose_update () {
+    docker compose pull
+    docker compose up -d --remove-orphans
+    docker image prune
+}
+
 _gen_cert () {
     if [ "$#" -lt 2 ]
     then

@@ -20,3 +20,6 @@ source "$DOTFILESLOC/profile/.profile"
 # Don't make edits below this
 [[ -f .bashrc.local ]] && source ".bashrc.local"
 . "$HOME/.cargo/env"
+
+# Added by LM Studio CLI (lms)
+export PATH="$PATH:/Users/jsugamele/.cache/lm-studio/bin"

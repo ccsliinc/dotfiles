@@ -13,3 +13,4 @@ alias DT='tee ~/Desktop/terminalOut.txt'    # DT:           Pipe content to file
 
 
 alias _kill_barracuda="kill $(ps aux | grep -9 'barracuda' | awk '{print $2}')"
+alias du1='du -d 1 -h'
