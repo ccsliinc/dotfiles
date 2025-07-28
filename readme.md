@@ -1,85 +1,160 @@
-# Custom Cross Platform Profile
+# Cross-Platform Dotfiles
 
-Installation instructions for all platforms.
+A modern, comprehensive dotfiles system supporting macOS, Linux, Raspberry Pi, and QNAP NAS platforms with automated setup, script discovery, and hierarchical configuration management.
 
-## Configuration
+## Features
 
-### Environment Variables (.env)
-Some functions require local configuration. Copy the sample environment file and customize:
+- 🚀 **Modern Interactive Setup** - Professional UI with progress tracking and system detection
+- 🔧 **40+ Utility Scripts** - Organized tools for system management, development, and maintenance
+- 🌐 **Cross-Platform Support** - Seamless operation across multiple operating systems
+- 📋 **Script Discovery** - Built-in commands to explore available aliases and functions
+- 🎨 **Modern Terminal UI** - Professional colors, formatting, and user experience
+- 📚 **Comprehensive Documentation** - Detailed README files for all platforms and components
 
+## Quick Start
+
+### macOS
 ```bash
-# Copy the sample .env file to your local files
-cp .env.sample _reference.local/local_files/mac/.env
-
-# Create symlink to home directory
-ln -sf ~/.dotfiles/_reference.local/local_files/mac/.env ~/.env
-
-# Edit the configuration as needed
-vi _reference.local/local_files/mac/.env
+git clone https://github.com/ccsliinc/dotfiles.git ~/.dotfiles
+~/.dotfiles/setup/bootstrap.sh
 ```
 
-**Note**: The `.env` file contains local configuration and is not committed to git.
-
-## Linux & Raspberry Pi
-
-### Linux Profile Install
-
+### Linux & Raspberry Pi
 ```bash
-ssh user@ipadress
-
 sudo apt update -y && sudo apt upgrade -y
 sudo apt install git -y
 git clone https://github.com/ccsliinc/dotfiles.git ~/.dotfiles
 ~/.dotfiles/setup/bootstrap.sh
 ```
 
-## Qnap
-
-### Prerequisits
-
-1. Create a user other than admin (admin acount should be disabled).
-2. Enable home folder for all users.
-3. Install Entware package via the web interface
-   - <https://github.com/Entware/entware/wiki/Install-on-QNAP-NAS>
-
-### QNAP Profile Install
-
+### QNAP NAS
 ```bash
-sudo /opt/bin/opkg update                #update opkg package list
-sudo /opt/bin/opkg install git git-http  #install git
-sudo /opt/bin/opkg upgrade               #upgrade all packages
-```
-
-```bash
+# Prerequisites: Install Entware via web interface
+sudo /opt/bin/opkg update
+sudo /opt/bin/opkg install git git-http
 /opt/bin/git clone https://github.com/ccsliinc/dotfiles.git ~/.dotfiles
 ~/.dotfiles/setup/bootstrap.sh
 ```
 
-### Opkg
+## Script Discovery
 
->These are packages I use regularly.
+Explore available tools with built-in discovery commands:
 
-- bash
-- git
-- grep
-- htop
-- nload - Realtime Network Load
-- jq
-- zsh
+```bash
+# List all aliases with examples and descriptions
+my-list-aliases
 
-### Dockers
+# List all functions with usage information  
+my-list-functions
+```
 
->Create a docker network for our containers to run in. The ethernet interface is one less than the interface name which the ethernet cable is connected to.  Interface 4 = eth3
+## Architecture
 
- ```bash
-#docker network create --driver=qnet --ipam-driver=qnet --ipam-opt=iface=eth0 --subnet 10.0.17.0/24 --gateway 10.0.17.1 qnet-static-eth0
-sudo docker network create -d qnet --ipam-driver=qnet --ipam-opt=iface=eth1 --subnet 10.0.1.0/24 --gateway 10.0.1.1 qnet-static-eth1 --opt=iface=eth1
- ```
+The system uses a hierarchical configuration approach:
 
-### Cron
+**Base** → **Platform** → **Local** overrides
 
->Editing cron jobs is a 3 step process.  You must follow the steps provided or the schedule will not persist across reboots.
+- `base/` - Core cross-platform configuration and 20+ universal scripts
+- `platforms/[os]/` - Platform-specific configurations and tools
+- `setup/` - Modern interactive installation and setup system
+- Root shell files (`.zshrc`, `.bashrc`, etc.) - Symlinked from home directory
 
-- Edit your crontab file eg: sudo vi /etc/config/crontab
-- Make crontab see the changes: sudo crontab /etc/config/crontab
-- Restart the crontab service: sudo /etc/init.d/crond.sh restart
+## Platform-Specific Scripts
+
+### Base Scripts (Universal)
+- `my-backup-wordpress` - WordPress backup with versioning
+- `my-gen-cert` - SSL certificate generation utility
+- `my-compose-update` - Docker Compose service updates
+- `my-extract` - Universal archive extraction
+- `my-hosts-edit` - Hosts file management
+- And 15+ more utilities...
+
+### Linux Server Tools
+- `my-setup-server-stack` - Complete LEMP stack installation
+- `my-fix-permissions-magento` - Magento permission fixes
+- `my-restart-nginx-varnish` - Service restart utilities
+- `my-install-webmin` - Webmin administration panel setup
+
+### macOS Development Tools  
+- `my-update-mac` - System and Homebrew updates
+- `my-destroy-valet-plus` - Laravel Valet cleanup
+- `my-clean-php-logs` - PHP log management
+
+### QNAP NAS Management
+- `my-docker-update` - Container update automation
+- `my-qnap-system-report` - System health reporting
+- `my-qnap-optimize-performance` - Performance tuning
+- `my-qnap-clean-share` - Storage cleanup utilities
+
+### Raspberry Pi IoT Tools
+- `my-setup-kiosk` - Kiosk mode configuration
+- `my-setup-unifi` - UniFi controller installation
+- `my-system-update` - Automated system maintenance
+
+## Setup System Features
+
+The modern bootstrap system provides:
+
+- 📊 **System Information Display** - Hardware, OS, and environment details
+- ✅ **Interactive Status Checks** - Verification of all components
+- 🎯 **Guided Installation** - Step-by-step setup with progress tracking
+- 🔧 **Automated Configuration** - Shell setup, symlinks, and permissions
+- 🎨 **Professional UI** - Modern colors, icons, and formatting
+
+## Development
+
+### Adding New Scripts
+
+1. Use the `my-` prefix for all new scripts
+2. Include standard headers:
+   ```bash
+   #!/bin/bash
+   # Purpose: Brief description of what the script does
+   # Usage: my-script-name [options] <arguments>
+   # Example: my-script-name --verbose /path/to/file
+   ```
+3. Ensure shellcheck compliance: `shellcheck your-script`
+4. Test across platforms where applicable
+
+### Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Follow existing code patterns and naming conventions
+4. Update documentation as needed
+5. Submit a pull request
+
+### Platform Support
+
+For detailed platform-specific information, see:
+- `platforms/mac/README.md` - macOS development setup
+- `platforms/linux/README.md` - Linux server configuration
+- `platforms/qnap/README.md` - QNAP NAS management
+- `platforms/raspi/README.md` - Raspberry Pi IoT setup
+
+## Project Structure
+
+```
+~/.dotfiles/
+├── base/                    # Core cross-platform configuration
+│   ├── scripts/            # Universal utility scripts (20+)
+│   ├── .aliases            # Common aliases
+│   ├── .exports            # Environment variables
+│   └── .functions          # Shell functions
+├── platforms/              # Platform-specific code
+│   ├── mac/               # macOS configuration
+│   ├── linux/             # Linux server setup
+│   ├── qnap/              # QNAP NAS tools
+│   ├── raspi/             # Raspberry Pi config
+│   └── _skeleton/         # Template for new platforms
+├── setup/                  # Installation and setup system
+│   ├── bootstrap.sh       # Main setup script
+│   └── scripts/           # Setup utilities
+└── Root shell configs     # .zshrc, .bashrc, .bash_profile
+```
+
+---
+
+**License**: MIT  
+**Maintainer**: [@ccsliinc](https://github.com/ccsliinc)  
+**Issues**: [GitHub Issues](https://github.com/ccsliinc/dotfiles/issues)
