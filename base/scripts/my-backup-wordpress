@@ -1,0 +1,200 @@
+#!/bin/bash
+# Function: my-backup-wordpress
+# Purpose: Backup and update WordPress using wp-cli
+# Usage: my-backup-wordpress [options]
+# Platform: All (requires wp-cli)
+# Dependencies: wp-cli, mysql/mysqldump
+# Author: Based on script by Paco Orozco <paco@pacoorozco.info>
+# Version: 2.0 (cleaned up and modernized)
+
+my_backup_wordpress() {
+    # Script configuration
+    local SCRIPT_NAME=$(basename "$0")
+    local VERSION='2.0'
+    
+    # Default values
+    local BACKUP_ONLY=false
+    local FORCE_UPDATE=false
+    local WORDPRESS_PATH="."
+    local BACKUP_DIR="./backups"
+    
+    # Colors for output
+    local RED='\033[0;31m'
+    local GREEN='\033[0;32m'
+    local YELLOW='\033[1;33m'
+    local NC='\033[0m' # No Color
+    
+    # Function to display usage
+    usage() {
+        cat << EOF
+Usage: $SCRIPT_NAME [OPTIONS]
+
+Backup and optionally update WordPress installations using wp-cli.
+
+OPTIONS:
+    -b, --backup-only       Only perform backup, skip update
+    -f, --force-update      Force update even if not needed
+    -p, --path PATH         WordPress installation path (default: current directory)
+    -d, --backup-dir DIR    Backup directory (default: ./backups)
+    -h, --help             Display this help message
+    -v, --version          Display version information
+
+EXAMPLES:
+    $SCRIPT_NAME                    # Backup and update current directory
+    $SCRIPT_NAME -b                 # Only backup, no update
+    $SCRIPT_NAME -p /var/www/html   # Backup and update specific path
+    
+EOF
+    }
+    
+    # Function to display messages
+    info() {
+        echo -e "${GREEN}[INFO]${NC} $1"
+    }
+    
+    warn() {
+        echo -e "${YELLOW}[WARN]${NC} $1"
+    }
+    
+    error() {
+        echo -e "${RED}[ERROR]${NC} $1"
+        exit 1
+    }
+    
+    # Check requirements
+    check_requirements() {
+        if ! command -v wp &> /dev/null; then
+            error "wp-cli is required but not installed. Visit https://wp-cli.org/"
+        fi
+        
+        if ! wp core is-installed --path="$WORDPRESS_PATH" 2>/dev/null; then
+            error "WordPress installation not found at: $WORDPRESS_PATH"
+        fi
+    }
+    
+    # Create backup
+    create_backup() {
+        info "Creating WordPress backup..."
+        
+        # Create backup directory
+        mkdir -p "$BACKUP_DIR"
+        
+        local timestamp=$(date +%Y%m%d_%H%M%S)
+        local backup_file="wordpress_backup_${timestamp}"
+        
+        # Database backup
+        info "Backing up database..."
+        wp db export "$BACKUP_DIR/${backup_file}.sql" --path="$WORDPRESS_PATH"
+        
+        # Files backup
+        info "Backing up files..."
+        tar -czf "$BACKUP_DIR/${backup_file}_files.tar.gz" \
+            --exclude="$BACKUP_DIR" \
+            --exclude="*.log" \
+            --exclude="wp-content/cache/*" \
+            -C "$WORDPRESS_PATH" .
+        
+        info "Backup completed: $BACKUP_DIR/${backup_file}*"
+    }
+    
+    # Check if updates are available
+    check_updates() {
+        local core_updates=$(wp core check-update --path="$WORDPRESS_PATH" --format=count 2>/dev/null || echo "0")
+        local plugin_updates=$(wp plugin list --update=available --path="$WORDPRESS_PATH" --format=count 2>/dev/null || echo "0")
+        local theme_updates=$(wp theme list --update=available --path="$WORDPRESS_PATH" --format=count 2>/dev/null || echo "0")
+        
+        local total_updates=$((core_updates + plugin_updates + theme_updates))
+        echo "$total_updates"
+    }
+    
+    # Perform WordPress updates
+    perform_updates() {
+        info "Checking for WordPress updates..."
+        
+        # Core updates
+        if wp core check-update --path="$WORDPRESS_PATH" &>/dev/null; then
+            info "Updating WordPress core..."
+            wp core update --path="$WORDPRESS_PATH"
+        fi
+        
+        # Plugin updates
+        local plugin_count=$(wp plugin list --update=available --path="$WORDPRESS_PATH" --format=count 2>/dev/null || echo "0")
+        if [[ $plugin_count -gt 0 ]]; then
+            info "Updating $plugin_count plugins..."
+            wp plugin update --all --path="$WORDPRESS_PATH"
+        fi
+        
+        # Theme updates
+        local theme_count=$(wp theme list --update=available --path="$WORDPRESS_PATH" --format=count 2>/dev/null || echo "0")
+        if [[ $theme_count -gt 0 ]]; then
+            info "Updating $theme_count themes..."
+            wp theme update --all --path="$WORDPRESS_PATH"
+        fi
+        
+        info "WordPress updates completed"
+    }
+    
+    # Parse command line arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -b|--backup-only)
+                BACKUP_ONLY=true
+                shift
+                ;;
+            -f|--force-update)
+                FORCE_UPDATE=true
+                shift
+                ;;
+            -p|--path)
+                WORDPRESS_PATH="$2"
+                shift 2
+                ;;
+            -d|--backup-dir)
+                BACKUP_DIR="$2"
+                shift 2
+                ;;
+            -h|--help)
+                usage
+                return 0
+                ;;
+            -v|--version)
+                echo "$SCRIPT_NAME version $VERSION"
+                return 0
+                ;;
+            *)
+                error "Unknown option: $1"
+                ;;
+        esac
+    done
+    
+    # Main execution
+    info "Starting WordPress backup and update process..."
+    info "WordPress path: $WORDPRESS_PATH"
+    info "Backup directory: $BACKUP_DIR"
+    
+    # Check requirements
+    check_requirements
+    
+    # Always create backup
+    create_backup
+    
+    # Handle updates
+    if [[ "$BACKUP_ONLY" == true ]]; then
+        info "Backup-only mode: Skipping updates"
+    else
+        local available_updates=$(check_updates)
+        
+        if [[ $available_updates -gt 0 ]] || [[ "$FORCE_UPDATE" == true ]]; then
+            perform_updates
+        else
+            info "No updates available"
+        fi
+    fi
+    
+    info "Process completed successfully!"
+}
+
+# Execute if called directly (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    my_backup_wordpress "$@"
+fi

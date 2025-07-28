@@ -1,0 +1,36 @@
+#!/bin/bash
+# Function: my-openvas-install
+# Purpose: Install and setup OpenVAS vulnerability scanner
+# Usage: my-openvas-install
+# Platform: Linux (requires apt package manager)
+# Dependencies: sudo, apt
+
+my_openvas_install() {
+    echo "Installing OpenVAS Vulnerability Scanner"
+    echo "========================================"
+    
+    echo "Installing required dependencies..."
+    sudo apt install -y libwacom-common
+    
+    echo "Installing OpenVAS..."
+    sudo apt install -y openvas
+    
+    echo "Running GVM setup (this may take a while)..."
+    sudo gvm-setup
+    
+    echo "Checking GVM setup..."
+    sudo gvm-check-setup
+    
+    echo ""
+    echo "Installation complete!"
+    echo "To create admin user, run:"
+    echo "  sudo runuser -u _gvm -- gvmd --get-users"
+    echo "  sudo runuser -u _gvm -- gvmd --user=admin --new-password=YOUR_PASSWORD"
+    echo ""
+    echo "Access OpenVAS at: https://localhost:9392"
+}
+
+# Execute if called directly (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    my_openvas_install "$@"
+fi
