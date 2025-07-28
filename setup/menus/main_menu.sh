@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# shellcheck source=../../base/core/.profile_os
-source "$HOME/.dotfiles/base/core/.profile_os" &> /dev/null
+# shellcheck source=../../base/.profile_os
+source "$HOME/.dotfiles/base/.profile_os" &> /dev/null
 
 mainmenu() {
     echo -ne "
@@ -13,7 +13,6 @@ ${DGREEN}MAIN MENU${NOCOLOR}
 4) Install OhMyZSH
 5) Change Shell
 6) Run All
-7) Fix OhMyZsh
 ${LRED}0) Exit${NOCOLOR}
 
 Choose an option:  "
@@ -52,11 +51,6 @@ Choose an option:  "
             bash "$HOME/.dotfiles/setup/scripts/common/install_ohmyzsh.sh"
             bash "$HOME/.dotfiles/setup/scripts/common/change_default_shell.sh"
             showSetup "All scripts completed."
-            mainmenu
-            ;;
-        7) # Fix OhMyZsh after git update
-            bash "$HOME/.dotfiles/setup/scripts/common/fix_ohmyzsh.sh"
-            showSetup "Fixed OhMyZsh."
             mainmenu
             ;;
         0 | q) # Exit

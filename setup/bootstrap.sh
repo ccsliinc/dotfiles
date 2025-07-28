@@ -8,8 +8,8 @@ if [[ -z $BASH ]] || [[ "$BASH" != "/bin/bash" ]] ;then
 	exit 1
 fi
 
-# shellcheck source=../base/core/.profile_os
-source "$HOME/.dotfiles/base/core/.profile_os" &> /dev/null
+# shellcheck source=../base/.profile_os
+source "$HOME/.dotfiles/base/.profile_os" &> /dev/null
 # shellcheck source=../base/shared/bash_colors.sh
 source "$HOME/.dotfiles/base/shared/bash_colors.sh" &> /dev/null
 # shellcheck source=/menus/main_menu.sh
@@ -52,7 +52,7 @@ checkOhMyZsh(){
 }
 
 checkDotFiles(){
-	if [ -d ~/.dotfiles ]; then
+	if [[ -d ~/.dotfiles && -d ~/.dotfiles/base && -d ~/.dotfiles/platforms ]]; then
 		return 0
 	else
 		return 1
@@ -123,7 +123,7 @@ showSetup(){
 # END ROW1
 
 # ROW2
-	if checkOhMyZsh; then
+	if checkDotFiles; then
 	printf "${LGREEN}%-22s : %-15s${NOCOLOR}" "Dotfiles Location " "✔ Yes"
 	else
 	printf "${LRED}%-22s : %-15s${NOCOLOR}" "Dotfiles Location " "⍻ No"
