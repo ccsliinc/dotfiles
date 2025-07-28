@@ -82,10 +82,12 @@ EOF
         fi
         
         echo -e "${CYAN}# $section${NC}"
-        echo ""
+        echo -e "${WHITE}$(printf "%-20s %-30s %s" "COMMAND" "EXAMPLE" "DESCRIPTION")${NC}"
+        echo -e "${WHITE}$(printf "%-20s %-30s %s" "-------" "-------" "-----------")${NC}"
         
-        # Collect all aliases and functions first
+        # Collect aliases and functions separately
         local aliases=()
+        local functions=()
         local current_comment=""
         
         while IFS= read -r line; do
@@ -120,30 +122,39 @@ EOF
                 alias_def="${alias_def#\"}"
                 alias_def="${alias_def%\"}"
                 
-                # Truncate long definitions
-                if [[ ${#alias_def} -gt 65 ]]; then
-                    alias_def="${alias_def:0:62}..."
-                fi
+                # Create example usage and description
+                local example="$alias_name"
+                local description=""
                 
-                # Use comment if available, otherwise show definition
                 if [[ -n "$current_comment" ]]; then
-                    aliases+=("$alias_name|$current_comment")
+                    description="$current_comment"
                     current_comment=""
                 else
-                    aliases+=("$alias_name|$alias_def")
+                    description="$alias_def"
                 fi
+                
+                # Truncate long descriptions
+                if [[ ${#description} -gt 40 ]]; then
+                    description="${description:0:37}..."
+                fi
+                
+                aliases+=("$alias_name|$example|$description")
             fi
             
             # Process function definitions
             if [[ "$line" =~ ^[[:space:]]*([a-zA-Z_][a-zA-Z0-9_]*)[[:space:]]*\(\) ]]; then
-                local func_name="${BASH_REMATCH[1]}()"
+                local func_name="${BASH_REMATCH[1]}"
+                local example="$func_name"
+                local description=""
                 
                 if [[ -n "$current_comment" ]]; then
-                    aliases+=("$func_name|$current_comment")
+                    description="$current_comment"
                     current_comment=""
                 else
-                    aliases+=("$func_name|Function")
+                    description="Function"
                 fi
+                
+                functions+=("$func_name|$example|$description")
             fi
             
             # Reset comment on non-comment lines that aren't aliases/functions
@@ -153,48 +164,34 @@ EOF
             
         done < "$file"
         
-        # Format in 3 columns
-        local total=${#aliases[@]}
-        if [[ $total -eq 0 ]]; then
-            echo ""
-            return
+        # Sort aliases and functions separately
+        if [[ ${#aliases[@]} -gt 0 ]]; then
+            IFS=$'\n' aliases=($(sort <<<"${aliases[*]}"))
+            for alias_info in "${aliases[@]}"; do
+                local cmd="${alias_info%%|*}"
+                local temp="${alias_info#*|}"
+                local example="${temp%%|*}"
+                local desc="${temp#*|}"
+                
+                printf "${GREEN}%-20s${NC} ${YELLOW}%-30s${NC} ${GRAY}%s${NC}\n" "$cmd" "$example" "$desc"
+            done
         fi
         
-        local rows=$(( (total + 2) / 3 ))  # Round up division
-        
-        for (( row=0; row<rows; row++ )); do
-            local col1_idx=$row
-            local col2_idx=$((row + rows))
-            local col3_idx=$((row + 2 * rows))
-            
-            local line_output=""
-            
-            # Column 1
-            if [[ $col1_idx -lt $total ]]; then
-                local alias_info="${aliases[$col1_idx]}"
-                local alias_name="${alias_info%|*}"
-                local alias_desc="${alias_info#*|}"
-                line_output+=$(printf "  ${GREEN}%-22s${NC} ${GRAY}%s${NC}" "$alias_name" "${alias_desc:0:45}")
+        # Add functions at the bottom if any exist
+        if [[ ${#functions[@]} -gt 0 ]]; then
+            if [[ ${#aliases[@]} -gt 0 ]]; then
+                echo ""
             fi
-            
-            # Column 2
-            if [[ $col2_idx -lt $total ]]; then
-                local alias_info="${aliases[$col2_idx]}"
-                local alias_name="${alias_info%|*}" 
-                local alias_desc="${alias_info#*|}"
-                line_output+=$(printf "  ${GREEN}%-22s${NC} ${GRAY}%s${NC}" "$alias_name" "${alias_desc:0:45}")
-            fi
-            
-            # Column 3
-            if [[ $col3_idx -lt $total ]]; then
-                local alias_info="${aliases[$col3_idx]}"
-                local alias_name="${alias_info%|*}"
-                local alias_desc="${alias_info#*|}"
-                line_output+=$(printf "  ${GREEN}%-22s${NC} ${GRAY}%s${NC}" "$alias_name" "${alias_desc:0:45}")
-            fi
-            
-            echo -e "$line_output"
-        done
+            IFS=$'\n' functions=($(sort <<<"${functions[*]}"))
+            for func_info in "${functions[@]}"; do
+                local cmd="${func_info%%|*}"
+                local temp="${func_info#*|}"
+                local example="${temp%%|*}"
+                local desc="${temp#*|}"
+                
+                printf "${MAGENTA}%-20s${NC} ${YELLOW}%-30s${NC} ${GRAY}%s${NC}\n" "$cmd" "$example" "$desc"
+            done
+        fi
         
         echo ""
     }
@@ -213,6 +210,90 @@ EOF
     if [[ "$show_platform" != true && -f ~/.aliases.local ]]; then
         extract_aliases ~/.aliases.local "Local Aliases (Personal)" >> "$temp_file"
     fi
+    
+    # Add my- scripts section
+    echo -e "${CYAN}# My- Scripts (Functions)${NC}" >> "$temp_file"
+    echo -e "${WHITE}$(printf "%-20s %-30s %s" "COMMAND" "EXAMPLE" "DESCRIPTION")${NC}" >> "$temp_file"
+    echo -e "${WHITE}$(printf "%-20s %-30s %s" "-------" "-------" "-----------")${NC}" >> "$temp_file"
+    
+    # Extract script info from base scripts
+    local script_functions=()
+    if [[ -d "$DOTFILESLOC/base/scripts" ]]; then
+        for script in "$DOTFILESLOC/base/scripts"/my-*; do
+            if [[ -f "$script" && -x "$script" ]]; then
+                local script_name=$(basename "$script")
+                local purpose=$(grep "^# Purpose:" "$script" 2>/dev/null | head -1 | sed 's/^# Purpose: *//')
+                local usage=$(grep "^# Usage:" "$script" 2>/dev/null | head -1 | sed 's/^# Usage: *//')
+                local example=$(grep "^# Example:" "$script" 2>/dev/null | head -1 | sed 's/^# Example: *//')
+                
+                # Use example if available, otherwise usage, otherwise just command name
+                local display_example="$script_name"
+                if [[ -n "$example" ]]; then
+                    display_example="$example"
+                elif [[ -n "$usage" ]]; then
+                    display_example="$usage"
+                fi
+                
+                # Use purpose if available
+                local description="Script function"
+                if [[ -n "$purpose" ]]; then
+                    description="$purpose"
+                    # Truncate long descriptions
+                    if [[ ${#description} -gt 40 ]]; then
+                        description="${description:0:37}..."
+                    fi
+                fi
+                
+                script_functions+=("$script_name|$display_example|$description")
+            fi
+        done
+    fi
+    
+    # Add platform-specific scripts if available
+    if [[ -n "$OS" && -d "$DOTFILESLOC/platforms/$OS/scripts" ]]; then
+        for script in "$DOTFILESLOC/platforms/$OS/scripts"/my-*; do
+            if [[ -f "$script" && -x "$script" ]]; then
+                local script_name=$(basename "$script")
+                local purpose=$(grep "^# Purpose:" "$script" 2>/dev/null | head -1 | sed 's/^# Purpose: *//')
+                local usage=$(grep "^# Usage:" "$script" 2>/dev/null | head -1 | sed 's/^# Usage: *//')
+                local example=$(grep "^# Example:" "$script" 2>/dev/null | head -1 | sed 's/^# Example: *//')
+                
+                # Use example if available, otherwise usage, otherwise just command name
+                local display_example="$script_name"
+                if [[ -n "$example" ]]; then
+                    display_example="$example"
+                elif [[ -n "$usage" ]]; then
+                    display_example="$usage"
+                fi
+                
+                # Use purpose if available
+                local description="Platform script"
+                if [[ -n "$purpose" ]]; then
+                    description="$purpose"
+                    # Truncate long descriptions
+                    if [[ ${#description} -gt 40 ]]; then
+                        description="${description:0:37}..."
+                    fi
+                fi
+                
+                script_functions+=("$script_name|$display_example|$description")
+            fi
+        done
+    fi
+    
+    # Sort and display script functions
+    if [[ ${#script_functions[@]} -gt 0 ]]; then
+        while IFS= read -r func_info; do
+            local cmd="${func_info%%|*}"
+            local temp="${func_info#*|}"
+            local example="${temp%%|*}"
+            local desc="${temp#*|}"
+            
+            printf "${MAGENTA}%-20s${NC} ${YELLOW}%-30s${NC} ${GRAY}%s${NC}\n" "$cmd" "$example" "$desc" >> "$temp_file"
+        done < <(printf '%s\n' "${script_functions[@]}" | sort)
+    fi
+    
+    echo "" >> "$temp_file"
     
     # Apply pattern filter and display
     if [[ -n "$pattern" ]]; then
