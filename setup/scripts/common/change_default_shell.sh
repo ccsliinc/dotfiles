@@ -17,8 +17,8 @@ exit_abnormal() {
     exit 1
 }
 
-# shellcheck source=../../../base/core/.profile_os
-source ~/.dotfiles/base/core/.profile_os
+# shellcheck source=../../../base/.profile
+source ~/.dotfiles/base/.profile
 
 if [[ $OS == "qnap" ]]; then
     shell="/opt/bin/zsh"
@@ -30,6 +30,7 @@ fi
 while getopts "hs:" flag; do
     case "${flag}" in
         h)  usage
+            exit 0
             ;;
         s)  shell=${OPTARG}
             ;;
@@ -41,7 +42,7 @@ while getopts "hs:" flag; do
     esac
 done
 
-echo $OS
+echo "$OS"
 
 
 # Check if shell exists.

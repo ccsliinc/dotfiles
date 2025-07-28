@@ -2,8 +2,6 @@
 
 brew install --cask \
 	angry-ip-scanner \
-	atom \
-	authy \
 	autodesk-fusion360 \
 	balenaetcher \
 	balsamiq-wireframes \
@@ -13,7 +11,6 @@ brew install --cask \
 	handbrake \
 	iterm2 \
 	jetbrains-toolbox \
-	lastpass \
 	launchpad-manager \
 	logmein-client \
 	microsoft-office \

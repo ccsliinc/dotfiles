@@ -80,8 +80,7 @@ brew install zsh
 # brew install font-fira-code
 
 # My favorite text editors
-brew install visual-studio-code
-brew install atom
+brew install --cask visual-studio-code
 
 # ---------------------------------------------
 # Terminal gimmicks xD
@@ -100,5 +99,4 @@ brew install lolcat
 # Remove outdated versions from the cellar
 brew cleanup
 
-# Install Atom sync
-apm install sync-settings
+# Atom editor discontinued - remove this section if not needed
