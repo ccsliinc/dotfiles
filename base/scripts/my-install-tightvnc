@@ -1,0 +1,101 @@
+#!/bin/bash
+# Function: my-install-tightvnc
+# Purpose: Install and configure TightVNC server for headless systems
+# Usage: my-install-tightvnc
+# Platform: Linux (Debian/Ubuntu-based systems)
+# Dependencies: sudo, apt
+# Reference: https://www.reddit.com/r/Kalilinux/comments/leqx11/tutorial_raspberry_pi_kali_20204_headless_install/
+
+my_install_tightvnc() {
+    echo "Installing and Configuring TightVNC Server"
+    echo "=========================================="
+    
+    echo "Updating system packages..."
+    sudo apt update && sudo apt dist-upgrade -y
+    
+    echo "Installing VNC packages..."
+    sudo apt install -y tightvncserver autocutsel dbus-x11
+    
+    echo "Starting VNC server for initial setup..."
+    vncserver :1
+    echo "Stopping VNC server..."
+    vncserver -kill :1
+    
+    echo "Creating X resources file..."
+    touch ~/.Xresources
+    
+    echo "Configuring VNC startup script..."
+    cat << EOF > "$HOME/.vnc/xstartup"
+#!/bin/sh
+xrdb \$HOME/.Xresources
+xsetroot -solid grey
+autocutsel -fork
+xhost + $(whoami)
+# Fix to make GNOME work
+export XKL_XMODMAP_DISABLE=1
+/etc/X11/Xsession
+EOF
+    
+    chmod +x ~/.vnc/xstartup
+    
+    echo "Creating VNC boot service..."
+    cat << 'EOF2' | sudo tee /etc/init.d/vncboot > /dev/null
+#!/bin/sh
+### BEGIN INIT INFO
+# Provides: vncboot
+# Required-Start: $remote_fs $syslog
+# Required-Stop: $remote_fs $syslog
+# Default-Start: 2 3 4 5
+# Default-Stop: 0 1 6
+# Short-Description: Start VNC Server at boot time
+# Description: Start VNC Server at boot time.
+### END INIT INFO
+
+USER="$(whoami)"
+HOME="/home/$(whoami)"
+
+export USER HOME
+
+case "$1" in
+    start)
+        echo "Starting VNCServer"
+        su -l $USER -c "/usr/bin/vncserver :1 -geometry 1280x720 -depth 16"
+        # For SSH connections only, use:
+        # su -l $USER -c "/usr/bin/vncserver :1 -geometry 1280x720 -depth 16 -localhost -nolisten tcp"
+    ;;
+    stop)
+        echo "Stopping VNCServer"
+        su -l $USER -c "/usr/bin/vncserver -kill :1"
+    ;;
+    *)
+        echo "Usage: /etc/init.d/vncboot {start|stop}"
+        exit 1
+    ;;
+esac
+
+exit 0
+EOF2
+    
+    echo "Setting up VNC service..."
+    sudo chmod 755 /etc/init.d/vncboot
+    sudo update-rc.d vncboot defaults
+    
+    echo "Starting VNC service..."
+    sudo service vncboot start
+    
+    echo "Checking VNC service status..."
+    sudo service vncboot status
+    
+    echo ""
+    echo "TightVNC installation complete!"
+    echo "VNC server is running on display :1 (port 5901)"
+    echo "Connect using: <your_ip>:5901"
+    echo ""
+    echo "To manage the service:"
+    echo "  sudo service vncboot start|stop|status"
+}
+
+# Execute if called directly (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    my_install_tightvnc "$@"
+fi

@@ -11,7 +11,7 @@ source "$DOTFILESLOC/base/.exports"
 source "$DOTFILESLOC/base/.aliases"
 
 # shellcheck source=.update_check
-bash "$DOTFILESLOC/base/scripts/_profile_update_check.sh"
+my-profile-update-check
 
 # These should be the last 2 lines of the file
 # Don't make edits below this

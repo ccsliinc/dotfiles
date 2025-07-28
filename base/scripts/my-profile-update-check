@@ -1,0 +1,53 @@
+#!/bin/bash
+# Function: my-profile-update-check
+# Purpose: Check if dotfiles repository has updates and offer to pull them
+# Usage: my-profile-update-check
+# Platform: All (requires git)
+# Dependencies: git
+
+my_profile_update_check() {
+    local CURDIR=${PWD}
+    
+    # Change to dotfiles directory
+    cd "$DOTFILESLOC" &> /dev/null || {
+        echo "Error: Could not change to dotfiles directory: $DOTFILESLOC"
+        return 1
+    }
+
+    # Update remote tracking information
+    git remote update &> /dev/null
+
+    # Get current branch status
+    local UPSTREAM=${1:-'@{u}'}
+    local LOCAL=$(git rev-parse @)
+    local REMOTE=$(git rev-parse "$UPSTREAM")
+    local BASE=$(git merge-base @ "$UPSTREAM")
+
+    # Check repository status
+    if [ "$LOCAL" = "$REMOTE" ]; then
+        echo "Dotfiles are up-to-date"
+    elif [ "$LOCAL" = "$BASE" ]; then
+        echo "Dotfiles update available!"
+        read -e -p "Do you want to update the profile? [y/N]: " -r REPLY
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            echo "Updating dotfiles..."
+            git pull
+            echo "Restarting shell to apply changes..."
+            exec "$SHELL"
+        else
+            echo "Update skipped."
+        fi
+    elif [ "$REMOTE" = "$BASE" ]; then
+        echo "Your dotfiles have local changes that need to be pushed"
+    else
+        echo "Dotfiles have diverged from remote repository"
+    fi
+
+    # Return to original directory
+    cd "$CURDIR" || return 1
+}
+
+# Execute if called directly (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    my_profile_update_check "$@"
+fi

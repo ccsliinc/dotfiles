@@ -1,0 +1,82 @@
+#!/bin/bash
+# Function: my-clean-mysql
+# Purpose: Interactive MySQL database cleanup and optimization
+# Usage: my-clean-mysql
+# Platform: All (requires MySQL/MariaDB)
+# Dependencies: mysql
+
+my_clean_mysql() {
+    echo "MySQL Database Cleanup Utility"
+    echo "==============================="
+    
+    # Get MySQL connection details
+    read -p "MySQL Host [localhost]: " MYSQL_HOST
+    MYSQL_HOST=${MYSQL_HOST:-localhost}
+    
+    read -p "MySQL User [root]: " MYSQL_USER  
+    MYSQL_USER=${MYSQL_USER:-root}
+    
+    read -sp "Enter the MySQL $MYSQL_USER password: " MYSQL_PASS
+    echo
+    
+    # Test connection
+    if ! mysql -h"$MYSQL_HOST" -u"$MYSQL_USER" -p"$MYSQL_PASS" -e "SELECT 1;" &>/dev/null; then
+        echo "Error: Could not connect to MySQL with provided credentials."
+        return 1
+    fi
+    
+    echo "Connected successfully to MySQL."
+    echo ""
+    echo "Available cleanup options:"
+    echo "1. Show database sizes"
+    echo "2. Optimize all tables" 
+    echo "3. Clean up binary logs"
+    echo "4. Show slow queries"
+    echo "5. Exit"
+    echo ""
+    
+    while true; do
+        read -p "Select option [1-5]: " choice
+        case $choice in
+            1)
+                echo "Database sizes:"
+                mysql -h"$MYSQL_HOST" -u"$MYSQL_USER" -p"$MYSQL_PASS" -e "
+                SELECT 
+                    table_schema AS 'Database',
+                    ROUND(SUM(data_length + index_length) / 1024 / 1024, 2) AS 'Size (MB)'
+                FROM information_schema.tables 
+                GROUP BY table_schema 
+                ORDER BY SUM(data_length + index_length) DESC;"
+                ;;
+            2)
+                echo "Optimizing all tables..."
+                mysql -h"$MYSQL_HOST" -u"$MYSQL_USER" -p"$MYSQL_PASS" -e "
+                SELECT CONCAT('OPTIMIZE TABLE ', table_schema, '.', table_name, ';') AS 'Run these commands:'
+                FROM information_schema.tables 
+                WHERE table_schema NOT IN ('information_schema', 'performance_schema', 'mysql', 'sys');"
+                ;;
+            3)
+                echo "Binary log cleanup commands:"
+                echo "PURGE BINARY LOGS BEFORE DATE_SUB(NOW(), INTERVAL 7 DAY);"
+                ;;
+            4)
+                echo "Enable slow query log first with:"
+                echo "SET GLOBAL slow_query_log = 'ON';"
+                echo "SET GLOBAL long_query_time = 2;"
+                ;;
+            5)
+                echo "Goodbye!"
+                break
+                ;;
+            *)
+                echo "Invalid option. Please select 1-5."
+                ;;
+        esac
+        echo ""
+    done
+}
+
+# Execute if called directly (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    my_clean_mysql "$@"
+fi

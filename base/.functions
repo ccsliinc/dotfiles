@@ -5,23 +5,65 @@ if [ "$DEBUG" = "true" ]; then echo "$DOTFILESLOC/base/.functions" ; fi
 # in base/scripts/ which are now available in PATH for tab completion.
 #
 # Function -> Script mapping:
-# _compose_update  -> my-compose-update
-# _gen_cert        -> my-gen-cert  
-# _fix_mysql       -> my-fix-mysql
-# _hosts_edit      -> my-hosts-edit
-# _default_perms   -> my-default-perms
-# localtime        -> my-localtime
-# gmtime           -> my-gmtime
-# pyhelp           -> my-pyhelp
-# b64e/b64d        -> my-b64e/my-b64d
-# pack/unpack      -> my-pack/my-unpack
-# packf/unpackf    -> my-packf/my-unpackf
-# mydumpall        -> my-mydumpall
-# mans             -> my-mans
-# showa            -> my-showa
-# extract          -> my-extract
+# _compose_update       -> my-compose-update
+# _gen_cert            -> my-gen-cert  
+# _fix_mysql           -> my-fix-mysql
+# _hosts_edit          -> my-hosts-edit
+# _default_perms       -> my-default-perms
+# localtime            -> my-localtime
+# gmtime               -> my-gmtime
+# pyhelp               -> my-pyhelp
+# b64e/b64d            -> my-b64e/my-b64d
+# pack/unpack          -> my-pack/my-unpack
+# packf/unpackf        -> my-packf/my-unpackf
+# mydumpall            -> my-mydumpall
+# mans                 -> my-mans
+# showa                -> my-showa
+# extract              -> my-extract
+# _backup_wordpress.sh -> my-backup-wordpress
+# _install_tightvnc.sh -> my-install-tightvnc
+# _openvas_install.sh  -> my-openvas-install
+# _openvas_update_start.sh -> my-openvas-update-start
+# _profile_update_check.sh -> my-profile-update-check
+# clean_mysql.sh       -> my-clean-mysql
 #
 # Type 'my-' and press TAB TAB to see all available custom functions!
+#
+# Example of how the old functions were modularized:
+#
+# OLD FUNCTION (in this file):
+# extract() {
+#     if [ -f $1 ] ; then
+#         case $1 in
+#             *.tar.bz2)   tar xjf $1     ;;
+#             *.tar.gz)    tar xzf $1     ;;
+#             # ... more cases
+#         esac
+#     fi
+# }
+#
+# NEW SCRIPT (base/scripts/my-extract):
+# #!/bin/bash
+# # Function: my-extract  
+# # Purpose: Extract most common archive formats with one command
+# # Usage: my-extract <archive_file>
+# # Example: my-extract file.tar.gz
+# # Platform: All (requires appropriate extraction tools)
+# # Dependencies: tar, unzip, bunzip2, gunzip, unrar, 7z, uncompress
+#
+# my_extract() {
+#     if [ -f "$1" ]; then
+#         case $1 in
+#             *.tar.bz2)   tar xjf "$1"     ;;
+#             *.tar.gz)    tar xzf "$1"     ;;
+#             # ... improved with proper quoting and error handling
+#         esac
+#     fi
+# }
+#
+# if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+#     my_extract "$@"
+# fi
 
 # These should be the last 2 lines of the file
 # Don't make edits below this

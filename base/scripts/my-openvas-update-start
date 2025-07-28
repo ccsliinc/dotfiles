@@ -1,0 +1,56 @@
+#!/bin/bash
+# Function: my-openvas-update-start
+# Purpose: Update system and configure OpenVAS/GVM for remote access
+# Usage: my-openvas-update-start
+# Platform: Linux (requires systemd)
+# Dependencies: sudo, apt, systemctl
+
+my_openvas_update_start() {
+    echo "Updating System and Configuring OpenVAS"
+    echo "========================================"
+    
+    echo "Updating package lists..."
+    sudo apt update -y
+    
+    echo "Upgrading packages..."
+    sudo apt upgrade -y
+    
+    echo "Performing distribution upgrade..."
+    sudo apt dist-upgrade -y
+    
+    echo "Configuring GVM for remote access..."
+    
+    # Configure greenbone-security-assistant for remote access
+    if [[ -f /lib/systemd/system/greenbone-security-assistant.service ]]; then
+        sudo sed -i 's/127.0.0.1/0.0.0.0/g' /lib/systemd/system/greenbone-security-assistant.service
+        sudo sed -i 's/--port 9392/--port 9392 --no-redirect/g' /lib/systemd/system/greenbone-security-assistant.service
+        echo "Configured greenbone-security-assistant for remote access"
+    fi
+    
+    # Configure gsad for remote access (alternative service name)
+    if [[ -f /lib/systemd/system/gsad.service ]]; then
+        sudo sed -i 's/127.0.0.1/0.0.0.0/g' /lib/systemd/system/gsad.service
+        sudo sed -i 's/--port 9392/--port 9392 --no-redirect/g' /lib/systemd/system/gsad.service
+        echo "Configured gsad for remote access"
+    fi
+    
+    echo "Reloading systemd configuration..."
+    sudo systemctl daemon-reload
+    
+    echo "Checking GVM setup..."
+    sudo gvm-check-setup
+    
+    echo "Starting GVM services..."
+    sudo systemctl start greenbone-security-assistant || sudo systemctl start gsad
+    sudo systemctl enable greenbone-security-assistant || sudo systemctl enable gsad
+    
+    echo ""
+    echo "Configuration complete!"
+    echo "OpenVAS should now be accessible at: http://YOUR_IP:9392"
+    echo "Use 'sudo systemctl status greenbone-security-assistant' to check service status"
+}
+
+# Execute if called directly (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    my_openvas_update_start "$@"
+fi
