@@ -9,13 +9,13 @@ This is a cross-platform dotfiles repository that provides shell configuration a
 ## Architecture
 
 - **Bootstrap**: Main entry point via `setup/bootstrap.sh` - detects platform and launches interactive setup
-- **Profile System**: Modular shell configuration in `profile/` directory
-  - `profile/.profile_interactive` - main interactive shell configuration
-  - `profile/profile/.profile_os` - OS detection and platform-specific settings
-  - `profile/shared/bash_colors.sh` - color definitions for terminal output
-- **Platform-Specific**: OS-specific configurations and scripts in `profile/_os/[platform]/`
+- **Base Profile System**: Core shell configuration in `base/` directory
+  - `base/.profile_interactive` - main interactive shell configuration
+  - `base/core/.profile_os` - OS detection and platform-specific settings
+  - `base/shared/bash_colors.sh` - color definitions for terminal output
+- **Platform-Specific**: OS-specific configurations and scripts in `platforms/[platform]/`
   - `mac/` - macOS-specific scripts and configurations
-  - `gnu/` - Linux server configurations
+  - `linux/` - Linux server configurations (formerly `gnu`)
   - `qnap/` - QNAP NAS-specific scripts and cron jobs
   - `raspi/` - Raspberry Pi configurations
 - **Shell Files**: Root-level shell configuration files that get symlinked:
@@ -32,15 +32,15 @@ This is a cross-platform dotfiles repository that provides shell configuration a
 ```
 
 ### Platform Detection
-The system uses OS detection through `profile/profile/.profile_os` with these supported platforms:
+The system uses OS detection through `base/core/.profile_os` with these supported platforms:
 - `mac` - macOS systems
-- `gnu` - GNU/Linux systems
+- `linux` - GNU/Linux systems
 - `raspi` - Raspberry Pi systems
 - `qnap` - QNAP NAS systems
 
 ### Shell Configuration
-- All shells source from `$DOTFILESLOC/profile/.profile_interactive`
-- Color definitions are centralized in `profile/shared/bash_colors.sh`
+- All shells source from `$DOTFILESLOC/base/.profile_interactive`
+- Color definitions are centralized in `base/shared/bash_colors.sh`
 - Platform-specific customizations are loaded automatically based on OS detection
 
 ## Key Components
@@ -50,13 +50,13 @@ The system uses OS detection through `profile/profile/.profile_os` with these su
 - Platform-specific setup scripts in `setup/scripts/setup/setup.[platform].sh`
 
 ### Binary Tools
-- Platform-specific binaries in `profile/bin/` including gdrive clients and Docker CLI tools
-- QNAP-specific binaries in `profile/_os/qnap/bin/`
+- Platform-specific binaries in `base/bin/` including gdrive clients and Docker CLI tools
+- QNAP-specific binaries in `platforms/qnap/bin/`
 
 ### Scripts and Utilities
-- System maintenance scripts in `profile/_os/[platform]/scripts/`
-- Docker management utilities for QNAP in `profile/_os/qnap/scripts/`
-- Backup and maintenance utilities in `profile/scripts/`
+- System maintenance scripts in `platforms/[platform]/scripts/`
+- Docker management utilities for QNAP in `platforms/qnap/scripts/`
+- Backup and maintenance utilities in `base/scripts/`
 
 ## Working with This Repository
 

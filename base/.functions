@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-if [ "$DEBUG" = "true" ]; then echo "$DOTFILESLOC/profile/.functions" ; fi
+if [ "$DEBUG" = "true" ]; then echo "$DOTFILESLOC/base/.functions" ; fi
 
 _compose_update () {
     docker compose pull
@@ -185,6 +185,6 @@ _default_perms() {
 # These should be the last 2 lines of the file
 # Don't make edits below this
 # shellcheck source=/dev/null
-[[ -f "$DOTFILESLOC/profile/_os/${OS}/.functions" ]] && source "$DOTFILESLOC/profile/_os/${OS}/.functions"
+[[ -f "$DOTFILESLOC/platforms/${OS}/.functions" ]] && source "$DOTFILESLOC/platforms/${OS}/.functions"
 # shellcheck source=/dev/null
 [[ -f ~/.functions.local ]] && source "$HOME/.functions.local"

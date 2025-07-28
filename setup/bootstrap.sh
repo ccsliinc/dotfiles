@@ -8,10 +8,10 @@ if [[ -z $BASH ]] || [[ "$BASH" != "/bin/bash" ]] ;then
 	exit 1
 fi
 
-# shellcheck source=../profile/profile/.profile_os
-source "$HOME/.dotfiles/profile/profile/.profile_os" &> /dev/null
-# shellcheck source=../profile/shared/bash_colors.sh
-source "$HOME/.dotfiles/profile/shared/bash_colors.sh" &> /dev/null
+# shellcheck source=../base/core/.profile_os
+source "$HOME/.dotfiles/base/core/.profile_os" &> /dev/null
+# shellcheck source=../base/shared/bash_colors.sh
+source "$HOME/.dotfiles/base/shared/bash_colors.sh" &> /dev/null
 # shellcheck source=/menus/main_menu.sh
 source "$HOME/.dotfiles/setup/menus/main_menu.sh" &> /dev/null
 

@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# shellcheck source=../../../profile/profile/.profile_os
-source ~/.dotfiles/profile/profile/.profile_os
+# shellcheck source=../../../base/core/.profile_os
+source ~/.dotfiles/base/core/.profile_os
 
 read -r -d '' SUDO << EOF
 # Allow user $(whoami) execute any command without a
