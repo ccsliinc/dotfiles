@@ -3,4 +3,4 @@
 .dotfiles_location
 .idea
 .DS_Store
-_reference.local
+_reference.local.env

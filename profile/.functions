@@ -8,10 +8,10 @@ _compose_update () {
 }
 
 _gen_cert () {
-    # Load certificate configuration from .env file
-    # shellcheck source=.env
-    if [[ -f "$DOTFILESLOC/profile/.env" ]]; then
-        source "$DOTFILESLOC/profile/.env"
+    # Load certificate configuration from ~/.env file
+    # shellcheck source=../.env
+    if [[ -f "$HOME/.env" ]]; then
+        source "$HOME/.env"
     else
         echo "Warning: Certificate configuration file not found. Using defaults."
         CERT_COUNTRY="US"
