@@ -1,0 +1,399 @@
+#!/bin/bash
+#
+# Function: QNAP Performance Optimization
+# Purpose: Disables unnecessary QNAP services to improve system performance
+# Usage: my-qnap-optimize-performance [--dry-run] [--restore]
+# Platform: QNAP NAS
+# Dependencies: kill, pidof, service control scripts
+#
+# Author: Generated from dotfiles automation
+# Last Updated: $(date +%Y-%m-%d)
+
+set -euo pipefail
+
+# Color definitions for output
+readonly RED='\033[0;31m'
+readonly GREEN='\033[0;32m'
+readonly YELLOW='\033[1;33m'
+readonly BLUE='\033[0;34m'
+readonly NC='\033[0m' # No Color
+
+# Function to print colored output
+print_status() {
+    echo -e "${GREEN}[INFO]${NC} $1"
+}
+
+print_warning() {
+    echo -e "${YELLOW}[WARNING]${NC} $1"
+}
+
+print_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+}
+
+print_header() {
+    echo -e "${BLUE}[TASK]${NC} $1"
+}
+
+# Function to show usage
+show_usage() {
+    cat << EOF
+QNAP Performance Optimization Script
+
+USAGE:
+    my-qnap-optimize-performance [OPTIONS]
+
+OPTIONS:
+    --dry-run           Show what would be done without making changes
+    --restore           Restore disabled services to original state
+    --help, -h          Show this help message
+
+DESCRIPTION:
+    This script optimizes QNAP NAS performance by disabling unnecessary services:
+    
+    Services that will be disabled:
+    - hal_daemon        - Hardware Abstraction Layer (rarely needed)
+    - Notification Center - System notification service
+    - QuLog             - System logging collector
+    - Resource Monitor  - System resource monitoring
+    
+    These services consume CPU and memory resources but are not essential
+    for basic NAS functionality. They can be safely disabled on most systems.
+
+EXAMPLES:
+    my-qnap-optimize-performance --dry-run    # Preview changes
+    my-qnap-optimize-performance              # Apply optimizations
+    my-qnap-optimize-performance --restore    # Restore services
+
+SAFETY:
+    - Always run with --dry-run first to see what will be changed
+    - Services can be restored using --restore option
+    - Basic NAS functionality (file sharing, web interface) is not affected
+    - You can manually restart services if needed later
+
+MANUAL RESTORE:
+    If needed, you can manually restore services:
+    - sudo mv /sbin/hal_daemon.disabled /sbin/hal_daemon
+    - sudo /etc/init.d/nc.sh start
+    - sudo /etc/init.d/qulog.sh start
+    - sudo /etc/init.d/qpkg_res.sh start
+EOF
+}
+
+# Function to check if running on QNAP
+check_qnap_system() {
+    print_header "Checking QNAP system..."
+    
+    if [[ ! -d "/etc/init.d" ]] || [[ ! -f "/sbin/hal_daemon" ]]; then
+        print_warning "This doesn't appear to be a QNAP system"
+        print_warning "Some services may not be available"
+    else
+        print_status "QNAP system detected"
+    fi
+}
+
+# Function to check service status
+check_service_status() {
+    local service_name="$1"
+    local service_path="$2"
+    local check_type="$3"  # "file", "process", or "init"
+    
+    case "$check_type" in
+        "file")
+            if [[ -f "$service_path" ]]; then
+                echo "active"
+            elif [[ -f "$service_path.disabled" ]]; then
+                echo "disabled"
+            else
+                echo "missing"
+            fi
+            ;;
+        "process")
+            if pidof "$service_name" >/dev/null 2>&1; then
+                echo "running"
+            else
+                echo "stopped"
+            fi
+            ;;
+        "init")
+            if [[ -x "$service_path" ]]; then
+                # Try to get status if the script supports it
+                if "$service_path" status >/dev/null 2>&1; then
+                    echo "active"
+                else
+                    echo "inactive"
+                fi
+            else
+                echo "missing"
+            fi
+            ;;
+    esac
+}
+
+# Function to show current service status
+show_service_status() {
+    print_header "Current Service Status"
+    
+    # Check hal_daemon
+    local hal_status
+    hal_status=$(check_service_status "hal_daemon" "/sbin/hal_daemon" "file")
+    print_status "HAL Daemon: $hal_status"
+    
+    # Check if hal_daemon process is running
+    if pidof hal_daemon >/dev/null 2>&1; then
+        print_status "  Process: running (PID: $(pidof hal_daemon))"
+    else
+        print_status "  Process: not running"
+    fi
+    
+    # Check Notification Center
+    local nc_status
+    nc_status=$(check_service_status "nc" "/etc/init.d/nc.sh" "init")
+    print_status "Notification Center: $nc_status"
+    
+    # Check QuLog
+    local qulog_status
+    qulog_status=$(check_service_status "qulog" "/etc/init.d/qulog.sh" "init")
+    print_status "QuLog: $qulog_status"
+    
+    # Check Resource Monitor
+    local qpkg_res_status
+    qpkg_res_status=$(check_service_status "qpkg_res" "/etc/init.d/qpkg_res.sh" "init")
+    print_status "Resource Monitor: $qpkg_res_status"
+    
+    echo ""
+}
+
+# Function to disable hal_daemon
+disable_hal_daemon() {
+    local dry_run="$1"
+    
+    print_status "Processing HAL Daemon..."
+    
+    if [[ -f "/sbin/hal_daemon" ]]; then
+        if [[ "$dry_run" == "true" ]]; then
+            print_status "Would disable: /sbin/hal_daemon -> /sbin/hal_daemon.disabled"
+        else
+            print_status "Disabling HAL Daemon..."
+            sudo mv /sbin/hal_daemon /sbin/hal_daemon.disabled
+            print_status "HAL Daemon disabled"
+        fi
+        
+        # Kill running process
+        if pidof hal_daemon >/dev/null 2>&1; then
+            if [[ "$dry_run" == "true" ]]; then
+                print_status "Would kill HAL Daemon process (PID: $(pidof hal_daemon))"
+            else
+                print_status "Stopping HAL Daemon process..."
+                sudo kill -9 "$(pidof hal_daemon)" || print_warning "Failed to kill hal_daemon"
+                print_status "HAL Daemon process stopped"
+            fi
+        else
+            print_status "HAL Daemon process not running"
+        fi
+    elif [[ -f "/sbin/hal_daemon.disabled" ]]; then
+        print_status "HAL Daemon already disabled"
+    else
+        print_warning "HAL Daemon not found"
+    fi
+}
+
+# Function to disable notification center
+disable_notification_center() {
+    local dry_run="$1"
+    
+    print_status "Processing Notification Center..."
+    
+    if [[ -x "/etc/init.d/nc.sh" ]]; then
+        if [[ "$dry_run" == "true" ]]; then
+            print_status "Would stop Notification Center service"
+        else
+            print_status "Stopping Notification Center..."
+            sudo /etc/init.d/nc.sh force-stop || print_warning "Failed to stop Notification Center"
+            print_status "Notification Center stopped"
+        fi
+    else
+        print_warning "Notification Center service script not found"
+    fi
+}
+
+# Function to disable QuLog
+disable_qulog() {
+    local dry_run="$1"
+    
+    print_status "Processing QuLog..."
+    
+    if [[ -x "/etc/init.d/qulog.sh" ]]; then
+        if [[ "$dry_run" == "true" ]]; then
+            print_status "Would stop QuLog service"
+        else
+            print_status "Stopping QuLog..."
+            sudo /etc/init.d/qulog.sh force-stop || print_warning "Failed to stop QuLog"
+            print_status "QuLog stopped"
+        fi
+    else
+        print_warning "QuLog service script not found"
+    fi
+}
+
+# Function to disable resource monitor
+disable_resource_monitor() {
+    local dry_run="$1"
+    
+    print_status "Processing Resource Monitor..."
+    
+    if [[ -x "/etc/init.d/qpkg_res.sh" ]]; then
+        if [[ "$dry_run" == "true" ]]; then
+            print_status "Would stop Resource Monitor service"
+        else
+            print_status "Stopping Resource Monitor..."
+            sudo /etc/init.d/qpkg_res.sh stop || print_warning "Failed to stop Resource Monitor"
+            print_status "Resource Monitor stopped"
+        fi
+    else
+        print_warning "Resource Monitor service script not found"
+    fi
+}
+
+# Function to restore services
+restore_services() {
+    local dry_run="$1"
+    
+    print_header "Restoring Services"
+    
+    # Restore hal_daemon
+    if [[ -f "/sbin/hal_daemon.disabled" ]]; then
+        if [[ "$dry_run" == "true" ]]; then
+            print_status "Would restore: /sbin/hal_daemon.disabled -> /sbin/hal_daemon"
+        else
+            print_status "Restoring HAL Daemon..."
+            sudo mv /sbin/hal_daemon.disabled /sbin/hal_daemon
+            print_status "HAL Daemon restored"
+        fi
+    else
+        print_status "HAL Daemon not disabled or already restored"
+    fi
+    
+    # Restore other services
+    local services=("nc.sh:Notification Center" "qulog.sh:QuLog" "qpkg_res.sh:Resource Monitor")
+    
+    for service_info in "${services[@]}"; do
+        local service_script="${service_info%%:*}"
+        local service_name="${service_info##*:}"
+        
+        if [[ -x "/etc/init.d/$service_script" ]]; then
+            if [[ "$dry_run" == "true" ]]; then
+                print_status "Would start $service_name"
+            else
+                print_status "Starting $service_name..."
+                sudo "/etc/init.d/$service_script" start || print_warning "Failed to start $service_name"
+                print_status "$service_name started"
+            fi
+        else
+            print_warning "$service_name service script not found"
+        fi
+    done
+}
+
+# Function to show memory usage
+show_memory_usage() {
+    print_header "Memory Usage"
+    
+    if command -v free &> /dev/null; then
+        free -h
+    elif [[ -f /proc/meminfo ]]; then
+        print_status "Memory information:"
+        grep -E "MemTotal|MemFree|MemAvailable" /proc/meminfo
+    else
+        print_warning "Memory information not available"
+    fi
+    
+    echo ""
+}
+
+# Main function
+main() {
+    local dry_run=false
+    local restore=false
+    
+    # Parse command line arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --dry-run)
+                dry_run=true
+                shift
+                ;;
+            --restore)
+                restore=true
+                shift
+                ;;
+            --help|-h)
+                show_usage
+                exit 0
+                ;;
+            *)
+                print_error "Unknown option: $1"
+                show_usage
+                exit 1
+                ;;
+        esac
+    done
+    
+    print_header "QNAP Performance Optimization"
+    
+    if [[ "$dry_run" == "true" ]]; then
+        print_warning "DRY RUN MODE - No changes will be made"
+    fi
+    
+    if [[ "$restore" == "true" ]]; then
+        print_status "RESTORE MODE - Services will be restored"
+    else
+        print_status "OPTIMIZATION MODE - Services will be disabled"
+    fi
+    
+    echo ""
+    
+    # Check system
+    check_qnap_system
+    
+    # Show current status
+    show_service_status
+    
+    # Show memory usage before
+    show_memory_usage
+    
+    if [[ "$restore" == "true" ]]; then
+        # Restore services
+        restore_services "$dry_run"
+    else
+        # Optimize performance by disabling services
+        print_header "Disabling Unnecessary Services"
+        
+        disable_hal_daemon "$dry_run"
+        disable_notification_center "$dry_run"
+        disable_qulog "$dry_run"
+        disable_resource_monitor "$dry_run"
+    fi
+    
+    echo ""
+    
+    # Show status after changes
+    if [[ "$dry_run" != "true" ]]; then
+        show_service_status
+        show_memory_usage
+    fi
+    
+    print_status "QNAP performance optimization completed!"
+    
+    if [[ "$dry_run" == "true" ]]; then
+        print_status "Run without --dry-run to apply changes"
+    elif [[ "$restore" != "true" ]]; then
+        print_status "Services have been disabled to improve performance"
+        print_status "Use --restore option to restore services if needed"
+    fi
+}
+
+# Script entry point
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main "$@"
+fi

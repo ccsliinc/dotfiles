@@ -1,0 +1,5 @@
+# shellcheck shell=bash
+if [ "$DEBUG" = "true" ]; then echo "$DOTFILESLOC/platforms/raspi/.exports" ; fi
+
+# Platform scripts are automatically added to PATH by base/.exports
+# Add Raspberry Pi-specific PATH additions here if needed

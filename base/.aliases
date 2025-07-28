@@ -1,175 +1,185 @@
 #shellcheck shell=bash
 if [ "$DEBUG" = "true" ]; then echo "$DOTFILESLOC/base/.aliases" ; fi
 
+# System limits
 ulimit -c 10000000
 
-alias _ui_text='sudo systemctl set-default multi-user.target'
-alias _ui_graphical='sudo systemctl set-default graphical.target'
-alias _ui_graphic_start='sudo systemctl start display-manager.service'
+# =============================================================================
+# SYSTEM & SERVICE MANAGEMENT
+# =============================================================================
 
-alias _apt_clean='sudo apt-get update && sudo apt-get autoclean && sudo apt-get clean && sudo apt-get autoremove'
+# System UI management (Linux systemd)
+alias ui-text='sudo systemctl set-default multi-user.target'
+alias ui-graphical='sudo systemctl set-default graphical.target'
+alias ui-start='sudo systemctl start display-manager.service'
 
-alias _bootstrap="$HOME/.dotfiles/setup/bootstrap.sh"
+# Package management cleanup (Debian/Ubuntu)
+alias apt-clean='sudo apt-get update && sudo apt-get autoclean && sudo apt-get clean && sudo apt-get autoremove'
 
-alias _fix_perms_d_f="sudo find ./ -type f -exec chmod 0664 {} \; && sudo find ./ -type d -exec chmod 0775 {} \;"
+# Dotfiles management
+alias bootstrap="$HOME/.dotfiles/setup/bootstrap.sh"
 
-#Viewing Latest Files
-alias taill='tail -f $(ls -Art | tail -n 1)'
-alias vil='vi $(ls -Art | tail -n 1)'
-alias histg='history | grep '
-alias hg='history | grep '
-
-alias v='vim -R -'
-alias vi='vim'
-
-alias psa='ps axf'
-alias psA='ps -Af'
-
-alias du='sudo du -h'
-alias du1='sudo du -h --max-depth=1 |  sort -h'
-alias df='sudo df -h'
-
-alias rclone='rclone --progress'
-
-cd() { builtin cd "$@" || return; ll;}
-alias cd.='cd `pwd -LP`'
-alias cd..='cd ../'                         # Go back 1 directory level (for fast typers)
-alias ..='cd ../'                           # Go back 1 directory level
-alias ...='cd ../../'                       # Go back 2 directory levels
-alias .3='cd ../../../'                     # Go back 3 directory levels
-alias .4='cd ../../../../'                  # Go back 4 directory levels
-alias .5='cd ../../../../../'               # Go back 5 directory levels
-alias .6='cd ../../../../../../'            # Go back 6 directory levels
-alias mkdir='mkdir -pv'
-
-alias ~="cd ~"                              # ~:            Go Home
-alias c='clear'                             # c:            Clear terminal display
-alias which='type -all'                     # which:        Find executables
-alias path='echo -e ${PATH//:/\\n}'         # path:         Echo all executable Paths
-alias show_options='shopt'                  # Show_options: display bash options settings
-alias fix_stty='stty sane'                  # fix_stty:     Restore terminal settings when screwed up
-alias cic='set completion-ignore-case On'   # cic:          Make tab-completion case-insensitive
-
-alias su-='su -'
-
-alias ls='ls -haF --color=auto'
-alias l.='ls -d .*'
-alias l='less'
-alias ll.='l. -al'
-alias ll='ls -al'
-
-# Grep
-alias grep='grep --color=tty'
-alias egrep='egrep --color=tty'
-alias less='less -FSRXc'
-
-# Safety first
-alias cp='cp -iv'	# prompt before overwriting files
-alias rm='rm -iv'   # prompt before deleting files
-alias del='rm -iv'  # alternative for rm
-
-# Auto-sudo (if not root)ß
+# Auto-sudo for common commands (if not root)
 if [[ $UID != 0 ]] ; then
-	alias yum='sudo yum'
-	alias apt='sudo apt'
-	alias service='sudo service'
-	alias chkconfig='sudo chkconfig'
+    alias yum='sudo yum'
+    alias apt='sudo apt'
+    alias service='sudo service'
+    alias chkconfig='sudo chkconfig'
 fi
 
-#   lr:  Full Recursive Directory Listing
-#   ------------------------------------------
+# =============================================================================
+# FILE SYSTEM & DIRECTORY NAVIGATION  
+# =============================================================================
+
+# Directory navigation
+cd() { builtin cd "$@" || return; ll; }    # cd:       Change directory and list contents
+alias cd.='cd `pwd -LP`'                   # cd.:      Go to symlink's actual directory
+alias cd..='cd ../'                        # cd..:     Go back 1 directory level (typo helper)
+alias ..='cd ../'                          # ..:       Go back 1 directory level
+alias ...='cd ../../'                      # ...:      Go back 2 directory levels
+alias .3='cd ../../../'                    # .3:       Go back 3 directory levels
+alias .4='cd ../../../../'                 # .4:       Go back 4 directory levels
+alias .5='cd ../../../../../'              # .5:       Go back 5 directory levels
+alias .6='cd ../../../../../../'           # .6:       Go back 6 directory levels
+alias ~="cd ~"                             # ~:        Go to home directory
+
+# File listing (base versions - platforms may override for OS-specific flags)
+alias ls='ls -haF --color=auto'            # ls:       List with hidden files, colors, indicators
+alias ll='ls -al'                          # ll:       Detailed list with hidden files
+alias l.='ls -d .*'                        # l.:       List only hidden files
+alias ll.='l. -al'                         # ll.:      Detailed list of hidden files
 alias lr='ls -R | grep ":$" | sed -e '\''s/:$//'\'' -e '\''s/[^-][^\/]*\//--/g'\'' -e '\''s/^/   /'\'' -e '\''s/-/|/'\'' | less'
 
+# File operations
+alias mkdir='mkdir -pv'                    # mkdir:    Create directories with parents and verbose
+alias cp='cp -iv'                          # cp:       Copy with interactive and verbose
+alias rm='rm -iv'                          # rm:       Remove with interactive and verbose
+alias del='rm -iv'                         # del:      Alternative for rm
+alias rclone='rclone --progress'           # rclone:   Show progress for rclone operations
 
-#   -------------------------------
-#   FILE AND FOLDER MANAGEMENT
-#   -------------------------------
+# Disk usage
+alias df='sudo df -h'                      # df:       Show disk usage in human readable format
+alias du='sudo du -h'                     # du:       Show directory usage in human readable format
+alias du1='sudo du -h --max-depth=1 | sort -h'  # du1: Show directory usage 1 level deep, sorted
 
-zipf () { zip -r "$1".zip "$1" ; }          # zipf:         To create a ZIP archive of a folder
-alias numFiles='echo $(ls -1 | wc -l)'      # numFiles:     Count of non-hidden files in current dir
-alias make1mb='mkfile 1m ./1MB.dat'         # make1mb:      Creates a file of 1mb size (all zeros)
-alias make5mb='mkfile 5m ./5MB.dat'         # make5mb:      Creates a file of 5mb size (all zeros)
-alias make10mb='mkfile 10m ./10MB.dat'      # make10mb:     Creates a file of 10mb size (all zeros)
+# Permission fixing
+alias fix-perms='sudo find ./ -type f -exec chmod 0664 {} \; && sudo find ./ -type d -exec chmod 0775 {} \;'
 
-#   ---------------------------
-#   SEARCHING
-#   ---------------------------
+# =============================================================================
+# EDITORS & FILE VIEWING
+# =============================================================================
 
-alias qfind="find . -name "                 # qfind:    Quickly search for file
-ff () { /usr/bin/find . -name "$*" ; }      # ff:       Find file under the current directory
-ffs () { /usr/bin/find . -name "$**" ; }  # ffs:      Find file whose name starts with a given string
-ffe () { /usr/bin/find . -name "*$*" ; }  # ffe:      Find file whose name ends with a given string
+# Editor shortcuts
+alias v='vim -R -'                         # v:        Read-only vim from stdin
+alias vi='vim'                             # vi:       Use vim for vi command
+alias l='less'                             # l:        Use less for paging
+alias less='less -FSRXc'                   # less:     Better less defaults
 
-#   ---------------------------
-#   PROCESS MANAGEMENT
-#   ---------------------------
+# View latest files
+alias taill='tail -f $(ls -Art | tail -n 1)'  # taill:   Follow tail on most recent file
+alias vil='vi $(ls -Art | tail -n 1)'         # vil:     Edit most recent file
 
-#   findPid: find out the pid of a specified process
-#   -----------------------------------------------------
-#       Note that the command name can be specified via a regex
-#       E.g. findPid '/d$/' finds pids of all processes with names ending in 'd'
-#       Without the 'sudo' it will only find processes of the current user
-#   -----------------------------------------------------
-    findPid () { lsof -t -c "$@" ; }
+# =============================================================================
+# SEARCH & GREP
+# =============================================================================
 
-#   memHogsTop, memHogsPs:  Find memory hogs
-#   -----------------------------------------------------
-    alias memHogsTop='top -l 1 -o rsize | head -20'
-    alias memHogsPs='ps wwaxm -o pid,stat,vsize,rss,time,command | head -10'
+# Grep with colors
+alias grep='grep --color=tty'              # grep:     Grep with colors
+alias egrep='egrep --color=tty'            # egrep:    Extended grep with colors
 
-#   cpuHogs:  Find CPU hogs
-#   -----------------------------------------------------
-    alias cpu_hogs='ps wwaxr -o pid,stat,%cpu,time,command | head -10'
+# File searching
+alias qfind="find . -name "                # qfind:    Quick find by name
+ff () { /usr/bin/find . -name "$*" ; }     # ff:       Find file under current directory
+ffs () { /usr/bin/find . -name "$*" ; }    # ffs:      Find file whose name starts with string
+ffe () { /usr/bin/find . -name "*$*" ; }   # ffe:      Find file whose name ends with string
 
-#   topForever:  Continual 'top' listing (every 10 seconds)
-#   -----------------------------------------------------
-    alias topForever='top -l 9999999 -s 10 -o cpu'
+# =============================================================================
+# COMMAND HISTORY & SYSTEM INFO
+# =============================================================================
 
-#   ttop:  Recommended 'top' invocation to minimize resources
-#   ------------------------------------------------------------
-#       Taken from this macosxhints article
-#       http://www.macosxhints.com/article.php?story=20060816123853639
-#   ------------------------------------------------------------
-    alias ttop="top -R -F -s 10 -o rsize"
+# History searching
+alias hg='history | grep '                 # hg:       Search command history
 
-#   my_ps: List processes owned by my user:
-#   ------------------------------------------------------------
-    my_ps() { ps "$@" -u "$USER" -o pid,%cpu,%mem,start,time,bsdtime,command ; }
+# System information
+alias c='clear'                            # c:        Clear terminal display
+alias which='type -all'                    # which:    Find executables (base - platforms may override)
+alias path='echo -e ${PATH//:/\\n}'        # path:     Show all executable paths
+alias show_options='shopt'                 # show_options: Display bash options settings
+alias fix_stty='stty sane'                 # fix_stty: Restore terminal settings when messed up
+alias cic='set completion-ignore-case On'  # cic:      Make tab-completion case-insensitive
+alias su-='su -'                           # su-:      Switch user with login shell
 
+# =============================================================================
+# PROCESS MANAGEMENT
+# =============================================================================
 
-#   ---------------------------
-#   NETWORKING
-#   ---------------------------
+# Process listing
+alias psa='ps axf'                         # psa:      Show all processes in tree format
+alias psA='ps -Af'                         # psA:      Show all processes with full format
 
-#alias myip='curl ip.appspot.com'                    # myip:         Public facing IP Address
-alias myip='dig +short myip.opendns.com @resolver1.opendns.com' # myip:         Public facing IP Address
-alias netCons='lsof -i'                             # netCons:      Show all open TCP/IP sockets
-alias flushDNS='dscacheutil -flushcache'            # flushDNS:     Flush out the DNS Cache
-alias lsock='sudo /usr/sbin/lsof -i -P'             # lsock:        Display open sockets
-alias lsockU='sudo lsof -nP | grep UDP'   # lsockU:       Display only open UDP sockets
-alias lsockT='sudo lsof -nP | grep TCP'   # lsockT:       Display only open TCP sockets
-alias ipInfo0='ipconfig getpacket en0'              # ipInfo0:      Get info on connections for en0
-alias ipInfo1='ipconfig getpacket en1'              # ipInfo1:      Get info on connections for en1
-alias openPorts='sudo lsof -i | grep LISTEN'        # openPorts:    All listening connections
-alias showBlocked='sudo ipfw list'                  # showBlocked:  All ipfw rules inc/ blocked IPs
+# Process monitoring
+alias memHogsTop='top -l 1 -o rsize | head -20'       # memHogsTop:  Find memory hogs with top
+alias memHogsPs='ps wwaxm -o pid,stat,vsize,rss,time,command | head -10'  # memHogsPs: Find memory hogs with ps
+alias cpu_hogs='ps wwaxr -o pid,stat,%cpu,time,command | head -10'        # cpu_hogs:  Find CPU hogs
+alias topForever='top -l 9999999 -s 10 -o cpu'       # topForever:  Continuous top listing
+alias ttop="top -R -F -s 10 -o rsize"                 # ttop:        Optimized top invocation
 
-#   ii:  display useful host related informaton
-#   -------------------------------------------------------------------
-    ii() {
-        echo -e "\nYou are logged on ${RED}$HOST"
-        echo -e "\nAdditionnal information:$NC " ; uname -a
-        echo -e "\n${RED}Users logged on:$NC " ; w -h
-        echo -e "\n${RED}Current date :$NC " ; date
-        echo -e "\n${RED}Machine stats :$NC " ; uptime
-        echo -e "\n${RED}Current network location :$NC " ; scselect
-        echo -e "\n${RED}Public facing IP Address :$NC " ;myip
-        #echo -e "\n${RED}DNS Configuration:$NC " ; scutil --dns
-        echo
-    }
+# Process functions
+findPid () { lsof -t -c "$@" ; }           # findPid:  Find PID of process (supports regex)
+my_ps() { ps "$@" -u "$USER" -o pid,%cpu,%mem,start,time,bsdtime,command ; }  # my_ps: Show my processes
+
+# =============================================================================
+# FILE MANAGEMENT UTILITIES
+# =============================================================================
+
+# File creation
+alias numFiles='echo $(ls -1 | wc -l)'     # numFiles: Count non-hidden files in current dir
+alias make1mb='mkfile 1m ./1MB.dat'        # make1mb:  Create 1MB file (macOS - Linux will override)
+alias make5mb='mkfile 5m ./5MB.dat'        # make5mb:  Create 5MB file (macOS - Linux will override)
+alias make10mb='mkfile 10m ./10MB.dat'     # make10mb: Create 10MB file (macOS - Linux will override)
+
+# Archive functions
+zipf () { zip -r "$1".zip "$1" ; }         # zipf:     Create ZIP archive of folder
+
+# =============================================================================
+# NETWORKING
+# =============================================================================
+
+# Network information
+alias myip='dig +short myip.opendns.com @resolver1.opendns.com'  # myip:    Get public IP address
+alias netCons='lsof -i'                    # netCons:  Show all open TCP/IP sockets
+alias lsock='sudo /usr/sbin/lsof -i -P'    # lsock:    Display open sockets
+alias lsockU='sudo lsof -nP | grep UDP'    # lsockU:   Display only open UDP sockets
+alias lsockT='sudo lsof -nP | grep TCP'    # lsockT:   Display only open TCP sockets
+alias openPorts='sudo lsof -i | grep LISTEN'  # openPorts: All listening connections
+
+# DNS & Network (base versions - platforms may override)
+alias flushDNS='dscacheutil -flushcache'   # flushDNS: Flush DNS cache (macOS - Linux will override)
+alias ipInfo0='ipconfig getpacket en0'     # ipInfo0:  Get connection info for en0 (macOS)
+alias ipInfo1='ipconfig getpacket en1'     # ipInfo1:  Get connection info for en1 (macOS)
+alias showBlocked='sudo ipfw list'         # showBlocked: Show firewall rules (macOS)
+
+# Network information function
+ii() {
+    echo -e "\nYou are logged on ${RED}$HOST"
+    echo -e "\nAdditional information:$NC " ; uname -a
+    echo -e "\n${RED}Users logged on:$NC " ; w -h
+    echo -e "\n${RED}Current date:$NC " ; date
+    echo -e "\n${RED}Machine stats:$NC " ; uptime
+    echo -e "\n${RED}Current network location:$NC " ; scselect 2>/dev/null || echo "N/A"
+    echo -e "\n${RED}Public facing IP Address:$NC " ; myip
+    echo
+}
+
+# =============================================================================
+# PLATFORM OVERRIDES
+# =============================================================================
+# Note: Platform-specific aliases will override these base definitions
+# This allows for OS-specific command variations (e.g., ls flags, which command)
 
 # These should be the last 2 lines of the file
 # Don't make edits below this
 # shellcheck source=/dev/null
-[[ -f "$DOTFILESLOC/profile/_os/${OS}/.aliases" ]] && source "$DOTFILESLOC/profile/_os/${OS}/.aliases"
+[[ -f "$DOTFILESLOC/platforms/${OS}/.aliases" ]] && source "$DOTFILESLOC/platforms/${OS}/.aliases"
 # shellcheck source=/dev/null
 [[ -f ~/.aliases.local ]] && source ~/.aliases.local

@@ -1,0 +1,411 @@
+#!/bin/bash
+#
+# Function: QNAP Built-in Package Removal
+# Purpose: Removes unwanted built-in QNAP packages to free up space and resources
+# Usage: my-qnap-remove-builtin [--dry-run] [--package PACKAGE]
+# Platform: QNAP NAS
+# Dependencies: getcfg, rmcfg, QNAP package management
+#
+# Author: Generated from dotfiles automation
+# Last Updated: $(date +%Y-%m-%d)
+
+set -euo pipefail
+
+# Color definitions for output
+readonly RED='\033[0;31m'
+readonly GREEN='\033[0;32m'
+readonly YELLOW='\033[1;33m'
+readonly BLUE='\033[0;34m'
+readonly NC='\033[0m' # No Color
+
+# Array of packages to remove
+readonly PACKAGES_TO_REMOVE=(
+    "MalwareRemover"
+    "HelpDesk"
+    "MultimediaConsole"
+    "ResourceMonitor"
+    "QuLog"
+    "QcloudSSLCertificate"
+    "LicenseCenter"
+)
+
+# Function to print colored output
+print_status() {
+    echo -e "${GREEN}[INFO]${NC} $1"
+}
+
+print_warning() {
+    echo -e "${YELLOW}[WARNING]${NC} $1"
+}
+
+print_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+}
+
+print_header() {
+    echo -e "${BLUE}[TASK]${NC} $1"
+}
+
+# Function to show usage
+show_usage() {
+    cat << EOF
+QNAP Built-in Package Removal Script
+
+USAGE:
+    my-qnap-remove-builtin [OPTIONS]
+
+OPTIONS:
+    --dry-run                   Show what would be done without making changes
+    --package PACKAGE           Remove only the specified package
+    --list                      List all removable packages
+    --help, -h                  Show this help message
+
+DESCRIPTION:
+    This script removes unwanted built-in QNAP packages to free up space
+    and system resources. The following packages will be removed:
+    
+    - MalwareRemover         - Anti-malware scanner (resource intensive)
+    - HelpDesk              - Support ticket system (rarely used)
+    - MultimediaConsole     - Media management (if not needed)
+    - ResourceMonitor       - System resource monitoring
+    - QuLog                 - System log collector
+    - QcloudSSLCertificate  - Cloud SSL certificate manager
+    - LicenseCenter         - License management system
+    
+    These packages are generally safe to remove and can free up significant
+    storage space and system resources.
+
+EXAMPLES:
+    my-qnap-remove-builtin --dry-run              # Preview what would be removed
+    my-qnap-remove-builtin                        # Remove all packages
+    my-qnap-remove-builtin --package MalwareRemover  # Remove specific package
+    my-qnap-remove-builtin --list                 # List removable packages
+
+SAFETY:
+    - Always run with --dry-run first to see what will be removed
+    - Packages are uninstalled using their official uninstall scripts
+    - Configuration entries are removed from /etc/config/qpkg.conf
+    - This process is generally irreversible without reinstalling packages
+
+WARNING:
+    Some packages may be dependencies for other software. Review the list
+    carefully before proceeding. Basic NAS functionality will not be affected.
+EOF
+}
+
+# Function to check if running on QNAP
+check_qnap_system() {
+    print_header "Checking QNAP system..."
+    
+    if ! command -v getcfg &> /dev/null; then
+        print_error "This script must be run on a QNAP NAS system"
+        print_error "getcfg command not found"
+        exit 1
+    fi
+    
+    if [[ ! -f "/etc/config/qpkg.conf" ]]; then
+        print_error "QNAP package configuration file not found"
+        exit 1
+    fi
+    
+    print_status "QNAP system detected"
+}
+
+# Function to check if package is installed
+is_package_installed() {
+    local package_name="$1"
+    
+    if getcfg "$package_name" Install_Path -f /etc/config/qpkg.conf >/dev/null 2>&1; then
+        return 0  # Package is installed
+    else
+        return 1  # Package is not installed
+    fi
+}
+
+# Function to get package install path
+get_package_path() {
+    local package_name="$1"
+    
+    getcfg "$package_name" Install_Path -f /etc/config/qpkg.conf 2>/dev/null || echo ""
+}
+
+# Function to list installed packages
+list_removable_packages() {
+    print_header "Removable Packages Status"
+    
+    for package in "${PACKAGES_TO_REMOVE[@]}"; do
+        if is_package_installed "$package"; then
+            local install_path
+            install_path=$(get_package_path "$package")
+            print_status "✓ $package (installed at: $install_path)"
+        else
+            print_warning "✗ $package (not installed)"
+        fi
+    done
+    
+    echo ""
+    print_status "To remove a specific package: my-qnap-remove-builtin --package PACKAGE_NAME"
+    print_status "To remove all packages: my-qnap-remove-builtin"
+}
+
+# Function to estimate space savings
+estimate_space_savings() {
+    print_header "Estimating Space Savings"
+    
+    local total_size=0
+    local packages_found=0
+    
+    for package in "${PACKAGES_TO_REMOVE[@]}"; do
+        if is_package_installed "$package"; then
+            local install_path
+            install_path=$(get_package_path "$package")
+            
+            if [[ -d "$install_path" ]]; then
+                local size
+                if command -v du &> /dev/null; then
+                    size=$(du -sh "$install_path" 2>/dev/null | cut -f1)
+                    print_status "$package: $size"
+                    packages_found=$((packages_found + 1))
+                else
+                    print_status "$package: size unknown (du not available)"
+                fi
+            else
+                print_warning "$package: installation directory not found"
+            fi
+        fi
+    done
+    
+    if [[ $packages_found -gt 0 ]]; then
+        print_status "Found $packages_found packages that can be removed"
+    else
+        print_warning "No removable packages found"
+    fi
+    
+    echo ""
+}
+
+# Function to remove a single package
+remove_package() {
+    local package_name="$1"
+    local dry_run="$2"
+    
+    print_header "Processing package: $package_name"
+    
+    # Check if package is installed
+    if ! is_package_installed "$package_name"; then
+        print_warning "Package '$package_name' is not installed"
+        return 0
+    fi
+    
+    # Get installation path
+    local install_path
+    install_path=$(get_package_path "$package_name")
+    
+    if [[ -z "$install_path" ]]; then
+        print_error "Could not determine installation path for $package_name"
+        return 1
+    fi
+    
+    print_status "Installation path: $install_path"
+    
+    # Check if uninstall script exists
+    local uninstall_script="$install_path/.uninstall.sh"
+    
+    if [[ ! -f "$uninstall_script" ]]; then
+        print_warning "Uninstall script not found: $uninstall_script"
+        print_warning "Package may need manual removal"
+        return 1
+    fi
+    
+    if [[ "$dry_run" == "true" ]]; then
+        print_status "Would execute: $uninstall_script"
+        print_status "Would remove config entry for: $package_name"
+    else
+        print_status "Running uninstall script..."
+        
+        # Run the uninstall script
+        if sudo "$uninstall_script"; then
+            print_status "Uninstall script completed successfully"
+        else
+            print_error "Uninstall script failed for $package_name"
+            return 1
+        fi
+        
+        # Remove configuration entry
+        if sudo rmcfg "$package_name" -f /etc/config/qpkg.conf; then
+            print_status "Configuration entry removed"
+        else
+            print_warning "Failed to remove configuration entry"
+        fi
+        
+        print_status "Successfully removed $package_name"
+    fi
+    
+    echo ""
+}
+
+# Function to confirm removal
+confirm_removal() {
+    local packages_to_process=("$@")
+    
+    print_warning "You are about to remove the following packages:"
+    for package in "${packages_to_process[@]}"; do
+        if is_package_installed "$package"; then
+            echo "  - $package"
+        fi
+    done
+    
+    print_warning "This action cannot be easily undone!"
+    
+    read -p "Are you sure you want to continue? (y/N): " -r
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        print_status "Operation cancelled by user"
+        exit 0
+    fi
+}
+
+# Function to show system status before and after
+show_system_status() {
+    print_header "System Status"
+    
+    # Show disk space
+    if command -v df &> /dev/null; then
+        print_status "Disk usage:"
+        df -h | grep -E "(Filesystem|/dev/md|/share)"
+    fi
+    
+    # Show memory usage
+    if command -v free &> /dev/null; then
+        print_status "Memory usage:"
+        free -h
+    elif [[ -f /proc/meminfo ]]; then
+        print_status "Memory information:"
+        grep -E "MemTotal|MemFree|MemAvailable" /proc/meminfo
+    fi
+    
+    echo ""
+}
+
+# Main function
+main() {
+    local dry_run=false
+    local specific_package=""
+    local list_only=false
+    
+    # Parse command line arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --dry-run)
+                dry_run=true
+                shift
+                ;;
+            --package)
+                specific_package="$2"
+                shift 2
+                ;;
+            --list)
+                list_only=true
+                shift
+                ;;
+            --help|-h)
+                show_usage
+                exit 0
+                ;;
+            *)
+                print_error "Unknown option: $1"
+                show_usage
+                exit 1
+                ;;
+        esac
+    done
+    
+    print_header "QNAP Built-in Package Removal"
+    
+    if [[ "$dry_run" == "true" ]]; then
+        print_warning "DRY RUN MODE - No changes will be made"
+    fi
+    
+    # Check system
+    check_qnap_system
+    
+    # Handle list-only mode
+    if [[ "$list_only" == "true" ]]; then
+        list_removable_packages
+        exit 0
+    fi
+    
+    # Show system status before
+    show_system_status
+    
+    # Estimate space savings
+    estimate_space_savings
+    
+    # Determine packages to process
+    local packages_to_process=()
+    
+    if [[ -n "$specific_package" ]]; then
+        # Check if specified package is in our removal list
+        local package_found=false
+        for package in "${PACKAGES_TO_REMOVE[@]}"; do
+            if [[ "$package" == "$specific_package" ]]; then
+                packages_to_process=("$specific_package")
+                package_found=true
+                break
+            fi
+        done
+        
+        if [[ "$package_found" == "false" ]]; then
+            print_error "Package '$specific_package' is not in the removable packages list"
+            print_status "Use --list to see available packages"
+            exit 1
+        fi
+    else
+        packages_to_process=("${PACKAGES_TO_REMOVE[@]}")
+    fi
+    
+    # Confirm removal if not in dry-run mode and running interactively
+    if [[ "$dry_run" != "true" ]] && [[ -t 0 ]]; then
+        confirm_removal "${packages_to_process[@]}"
+    fi
+    
+    # Remove packages
+    local removed_count=0
+    local failed_count=0
+    
+    for package in "${packages_to_process[@]}"; do
+        if remove_package "$package" "$dry_run"; then
+            if is_package_installed "$package"; then
+                # Only count if package was actually installed
+                removed_count=$((removed_count + 1))
+            fi
+        else
+            failed_count=$((failed_count + 1))
+        fi
+    done
+    
+    # Show results
+    print_header "Removal Summary"
+    print_status "Packages processed: ${#packages_to_process[@]}"
+    print_status "Successfully removed: $removed_count"
+    
+    if [[ $failed_count -gt 0 ]]; then
+        print_warning "Failed removals: $failed_count"
+    fi
+    
+    # Show system status after if changes were made
+    if [[ "$dry_run" != "true" ]] && [[ $removed_count -gt 0 ]]; then
+        echo ""
+        show_system_status
+    fi
+    
+    print_status "QNAP package removal completed!"
+    
+    if [[ "$dry_run" == "true" ]]; then
+        print_status "Run without --dry-run to actually remove packages"
+    fi
+}
+
+# Script entry point
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main "$@"
+fi

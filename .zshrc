@@ -130,11 +130,5 @@ export NVM_DIR="/Users/jsugamele/Library/Application Support/Herd/config/nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
 
 [[ -f "/Applications/Herd.app/Contents/Resources/config/shell/zshrc.zsh" ]] && builtin source "/Applications/Herd.app/Contents/Resources/config/shell/zshrc.zsh"
-# Added by LM Studio CLI (lms)
-export PATH="$PATH:/Users/jsugamele/.cache/lm-studio/bin"
 
-# Added by Windsurf
-# export PATH="/Users/jsugamele/.codeium/windsurf/bin:$PATH"
-# source /Users/jsugamele/Development/Node/fllux-ui/examples/shell-aliases.sh
-# source /Users/jsugamele/Development/Node/fllux-ui/examples/environment.sh
 alias sail="./vendor/bin/sail"

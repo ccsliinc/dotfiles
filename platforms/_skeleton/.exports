@@ -1,0 +1,28 @@
+# shellcheck shell=bash
+if [ "$DEBUG" = "true" ]; then echo "$DOTFILESLOC/platforms/[platform]/.exports" ; fi
+
+# =============================================================================
+# [PLATFORM NAME]-SPECIFIC ENVIRONMENT VARIABLES
+# =============================================================================
+
+# Platform scripts are automatically added to PATH by base/.exports
+# Add platform-specific PATH additions here (not the scripts directory)
+
+# Platform-specific binary paths (example)
+# export PATH="/opt/[platform]/bin:/usr/local/[platform]/bin:$PATH"
+
+# Platform-specific environment variables (examples)
+# export [PLATFORM]_HOME="/opt/[platform]"
+# export [PLATFORM]_CONFIG="/etc/[platform]"
+
+# Architecture-specific settings (if needed)
+# if [[ "$ARCH" == "x86_64" ]]; then
+#     export PLATFORM_ARCH="x64"
+# elif [[ "$ARCH" == "armv7l" ]] || [[ "$ARCH" == "aarch64" ]]; then
+#     export PLATFORM_ARCH="arm"
+# fi
+
+# Platform-specific system settings
+# export BLOCKSIZE=1k                    # File size display format
+# export PLATFORM_EDITOR="[editor]"      # Platform-preferred editor
+# export PLATFORM_BROWSER="[browser]"    # Platform-preferred browser

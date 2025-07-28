@@ -1,0 +1,27 @@
+#!/bin/bash
+# Function: my-update-clean
+# Purpose: Update system packages and clean up
+# Usage: my-update-clean
+# Platform: Linux (Debian/Ubuntu-based systems)
+# Dependencies: sudo, apt
+
+my_update_clean() {
+    echo "Updating and cleaning system packages..."
+    echo "======================================="
+    
+    echo "Updating package lists..."
+    sudo apt update -y
+    
+    echo "Upgrading packages..."
+    sudo apt upgrade -y
+    
+    echo "Removing unused packages..."
+    sudo apt --purge autoremove -y
+    
+    echo "System update and cleanup complete!"
+}
+
+# Execute if called directly (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    my_update_clean "$@"
+fi

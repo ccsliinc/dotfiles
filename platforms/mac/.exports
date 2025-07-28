@@ -1,0 +1,7 @@
+# shellcheck shell=bash
+if [ "$DEBUG" = "true" ]; then echo "$DOTFILESLOC/platforms/mac/.exports" ; fi
+
+# Platform scripts are automatically added to PATH by base/.exports
+# Add macOS-specific PATH additions here
+export PATH="~/.composer/vendor/bin:$PATH"
+export BLOCKSIZE=1k

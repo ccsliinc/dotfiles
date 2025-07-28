@@ -1,0 +1,25 @@
+# shellcheck shell=bash
+if [ "$DEBUG" = "true" ]; then echo "$DOTFILESLOC/platforms/raspi/.aliases" ; fi
+
+# =============================================================================
+# RASPBERRY PI-SPECIFIC ALIAS OVERRIDES
+# =============================================================================
+# These aliases override base definitions for Raspberry Pi-specific behavior
+
+# File creation (Raspberry Pi ARM - use dd instead of mkfile)
+alias make1mb='dd if=/dev/zero of=./1MB.dat bs=1M count=1'      # make1mb:  Create 1MB file
+alias make5mb='dd if=/dev/zero of=./5MB.dat bs=1M count=5'      # make5mb:  Create 5MB file  
+alias make10mb='dd if=/dev/zero of=./10MB.dat bs=1M count=10'   # make10mb: Create 10MB file
+
+# DNS flush (Raspberry Pi specific)
+alias flushDNS='sudo systemctl restart dhcpcd || sudo service networking restart'  # flushDNS: Restart network services
+
+# =============================================================================
+# RASPBERRY PI-SPECIFIC ALIASES
+# =============================================================================
+
+# Raspberry Pi configuration
+alias raspi-setup='sudo raspi-config'        # raspi-setup: Open Raspberry Pi configuration tool
+
+# System updates (comprehensive Raspberry Pi update in screen session)
+alias raspi-update='screen bash -c "sudo apt update -y && sudo apt upgrade -y && sudo apt dist-upgrade -y && sudo apt autoremove -y"'

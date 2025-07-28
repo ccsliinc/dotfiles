@@ -1,0 +1,5 @@
+# shellcheck shell=bash
+if [ "$DEBUG" = "true" ]; then echo "$DOTFILESLOC/platforms/linux/.exports" ; fi
+
+# Platform scripts are automatically added to PATH by base/.exports
+# No additional PATH configuration needed unless adding other directories

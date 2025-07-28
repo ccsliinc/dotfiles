@@ -1,0 +1,137 @@
+#!/bin/bash
+# Function: my-destroy-valet-plus
+# Purpose: Completely remove Valet Plus and all associated services from macOS
+# Usage: my-destroy-valet-plus
+# Platform: macOS (with Homebrew)
+# Dependencies: brew, sudo
+# Warning: This will completely remove your local development environment
+
+my_destroy_valet_plus() {
+    # Color definitions
+    local VP_NONE='\033[00m'
+    local VP_RED='\033[01;31m'
+    local VP_GREEN='\033[01;32m'
+    local VP_YELLOW='\033[01;33m'
+    local VP_PURPLE='\033[01;35m'
+    local VP_CYAN='\033[01;36m'
+    local VP_WHITE='\033[01;37m'
+    local VP_BOLD='\033[1m'
+    local VP_UNDERLINE='\033[4m'
+    
+    # Clear the screen
+    clear
+    
+    echo -e "${VP_RED}${VP_BOLD}WARNING: This will completely remove Valet Plus and all associated services!${VP_NONE}"
+    echo -e "${VP_YELLOW}This includes: PHP, MySQL, Nginx, Redis, MailHog, and all related configurations${VP_NONE}"
+    echo ""
+    read -p "Are you sure you want to continue? (y/N): " -n 1 -r
+    echo ""
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        echo "Aborted."
+        return 0
+    fi
+    
+    echo -e "${VP_RED}${VP_BOLD}You may be asked to enter your password multiple times...${VP_NONE}"
+    sudo -v
+    
+    echo "Updating Homebrew..."
+    brew update
+    brew upgrade
+    brew doctor
+    brew cleanup
+    
+    echo "Stopping Valet services..."
+    valet stop 2>/dev/null || true
+    sudo valet stop 2>/dev/null || true
+    composer global remove laravel/valet 2>/dev/null || true
+    composer global remove weprovide/valet-plus 2>/dev/null || true
+    brew services stop --all
+    
+    echo "Removing dnsmasq..."
+    sudo launchctl unload /Library/LaunchDaemons/homebrew.mxcl.dnsmasq.plist 2>/dev/null || true
+    brew uninstall dnsmasq 2>/dev/null || true
+    sudo rm -rf /usr/local/etc/dnsmasq.conf
+    sudo rm -rf /usr/local/Cellar/dnsmasq
+    sudo rm -rf /usr/local/opt/dnsmasq
+    sudo rm -rf /etc/resolver
+    sudo rm -f /Library/LaunchDaemons/homebrew.mxcl.dnsmasq.plist
+    sudo killall dnsmasq 2>/dev/null || true
+    
+    echo "Removing nginx..."
+    sudo launchctl unload /Library/LaunchDaemons/homebrew.mxcl.nginx.plist 2>/dev/null || true
+    brew uninstall nginx 2>/dev/null || true
+    sudo rm -rf /usr/local/etc/nginx/
+    sudo rm -rf /usr/local/Cellar/nginx
+    sudo rm -rf /usr/local/opt/nginx
+    sudo rm -f /Library/LaunchDaemons/homebrew.mxcl.nginx.plist
+    sudo killall nginx 2>/dev/null || true
+    killall nginx 2>/dev/null || true
+    
+    echo "Removing PHP versions..."
+    for php_version in php72 php71 php70 php56; do
+        echo "  Removing $php_version..."
+        sudo launchctl unload "/Library/LaunchDaemons/homebrew.mxcl.$php_version.plist" 2>/dev/null || true
+        brew uninstall "$php_version" "$php_version-mcrypt" "$php_version-xdebug" "$php_version-opcache" "$php_version-apcu" "$php_version-geoip" "$php_version-intl" n98-magerun n98-magerun2 2>/dev/null || true
+        sudo rm -rf "/usr/local/Cellar/$php_version*"
+        sudo rm -rf "/usr/local/opt/$php_version*"
+        sudo rm -f "/Library/LaunchDaemons/homebrew.mxcl.$php_version.plist"
+    done
+    
+    sudo rm -rf /usr/local/etc/php
+    sudo rm -rf /usr/local/sbin/php* 2>/dev/null || true
+    sudo killall php-fpm 2>/dev/null || true
+    
+    echo "Removing MySQL..."
+    brew uninstall mysql 2>/dev/null || true
+    sudo rm -f /usr/local/my.cnf
+    sudo rm -f /usr/local/etc/my.cnf
+    sudo rm -f /usr/local/mysql
+    sudo rm -rf /usr/local/var/mysql
+    sudo rm -rf /usr/local/mysql*
+    sudo rm -f ~/Library/LaunchAgents/homebrew.mxcl.mysql.plist
+    sudo rm -rf /Library/StartupItems/MySQLCOM
+    sudo rm -rf /Library/PreferencePanes/My*
+    sudo rm -rf /usr/local/Cellar/mysql
+    launchctl unload -w ~/Library/LaunchAgents/homebrew.mxcl.mysql.plist 2>/dev/null || true
+    rm -f ~/Library/LaunchAgents/homebrew.mxcl.mysql.plist
+    rm -rf ~/Library/PreferencePanes/My*
+    sudo rm -rf /Library/Receipts/mysql*
+    sudo rm -rf /Library/Receipts/MySQL*
+    sudo rm -rf /private/var/db/receipts/*mysql*
+    sudo killall mysqld 2>/dev/null || true
+    
+    echo "Removing additional Valet services..."
+    brew uninstall mailhog redis 2>/dev/null || true
+    sudo launchctl unload /Library/LaunchDaemons/homebrew.mxcl.mailhog.plist 2>/dev/null || true
+    sudo launchctl unload /Library/LaunchDaemons/homebrew.mxcl.redis.plist 2>/dev/null || true
+    sudo rm -f /Library/LaunchDaemons/homebrew.mxcl.*
+    sudo killall mailhog redis 2>/dev/null || true
+    
+    echo "Cleaning up Valet configurations..."
+    sudo rm -rf ~/.valet
+    sudo rm -rf ~/.composer/vendor/weprovide/
+    brew services stop --all
+    
+    echo "Final cleanup..."
+    brew update
+    brew upgrade
+    brew doctor
+    brew cleanup
+    
+    echo ""
+    echo -e "${VP_GREEN}${VP_BOLD}Checking remaining services:${VP_NONE}"
+    brew services list
+    
+    echo ""
+    echo -e "${VP_GREEN}${VP_BOLD}Checking for remaining processes:${VP_NONE}"
+    ps aux | grep -E "(DesktopServer|Local by Flywheel|xamp|mamp|dnsmasq|nginx|php|mysql)" | grep -v grep || echo "No related processes found"
+    
+    echo ""
+    echo -e "${VP_RED}${VP_BOLD}IMPORTANT: Reboot your system before installing any new development environment!${VP_NONE}"
+    echo -e "${VP_GREEN}Valet Plus removal completed successfully.${VP_NONE}"
+}
+
+# Execute if called directly (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    my_destroy_valet_plus "$@"
+fi

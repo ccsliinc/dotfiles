@@ -1,0 +1,132 @@
+#!/bin/bash
+# Function: my-update-mac
+# Purpose: Comprehensive macOS system update (Homebrew, npm, composer, App Store)
+# Usage: my-update-mac [--force]
+# Platform: macOS (requires Homebrew, npm, composer, mas)
+# Dependencies: brew, npm, composer, mas, apm (optional)
+
+my_update_mac() {
+    local force_update=false
+    local update_file="$HOME/.update_brew"
+    local current=$(date +%s)
+    local time_threshold=345600  # 4 days in seconds
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -f|--force)
+                force_update=true
+                echo "Forced update mode enabled"
+                shift
+                ;;
+            -h|--help)
+                echo "Usage: $0 [--force]"
+                echo "  --force, -f    Force update regardless of last update time"
+                return 0
+                ;;
+            *)
+                echo "Invalid argument: $1"
+                echo "Try: $0 --help"
+                return 1
+                ;;
+        esac
+    done
+    
+    # Check if update is needed
+    if [[ -f "$update_file" ]]; then
+        local last_modified=$(stat -f %m "$update_file")
+        local time_difference=$((current - last_modified))
+        
+        if [[ $force_update == false && $time_difference -le $time_threshold ]]; then
+            echo "Last update was $(stat -f "%Sm" "$update_file")"
+            echo "Update not needed (use --force to override)"
+            return 0
+        fi
+        
+        if [[ $force_update == false ]]; then
+            echo "Last update: $(stat -f "%Sm" "$update_file")"
+            read -p "Do you want to update? [y/N] " -n 1 -r
+            echo ""
+            if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+                return 0
+            fi
+        fi
+    fi
+    
+    # Update timestamp
+    touch "$update_file"
+    
+    echo "macOS System Update Starting..."
+    echo "=============================="
+    
+    # Backup system settings
+    echo "## Backing up system settings..."
+    local backup_dir="$HOME/Library/Mobile Documents/com~apple~CloudDocs/Apps"
+    
+    if [[ -d "$backup_dir" ]]; then
+        echo "Backing up hosts file..."
+        cp -f /etc/hosts "$backup_dir/hosts/" 2>/dev/null || true
+        
+        echo "Backing up Homebrew bundle..."
+        brew bundle dump --force
+        mv -f ~/Brewfile "$backup_dir/brew/" 2>/dev/null || true
+        
+        echo "Backing up global npm packages..."
+        npm list --global --parseable --depth=0 2>/dev/null | sed '1d' | awk '{gsub(/\/.*\//,"",$1); print}' > "$backup_dir/npm/npm.txt" 2>/dev/null || true
+        
+        echo "Backing up global composer packages..."
+        composer global show > "$backup_dir/composer/composer.txt" 2>/dev/null || true
+    fi
+    
+    echo ""
+    echo "## Updating Homebrew..."
+    brew update
+    brew upgrade
+    brew cleanup -s
+    
+    echo ""
+    echo "## Running Homebrew diagnostics..."
+    brew doctor
+    brew missing 2>/dev/null || true
+    
+    # Update Atom packages if available
+    if command -v apm &> /dev/null; then
+        echo ""
+        echo "## Updating Atom packages..."
+        apm upgrade -c false
+    fi
+    
+    echo ""
+    echo "## Checking App Store updates..."
+    if command -v mas &> /dev/null; then
+        echo "Available App Store updates:"
+        mas outdated
+        echo ""
+        echo "Run 'mas upgrade' to install App Store updates"
+    else
+        echo "mas not installed - install with: brew install mas"
+    fi
+    
+    echo ""
+    echo "## Updating npm packages..."
+    npm update -g 2>/dev/null || echo "npm update failed or not available"
+    
+    echo ""
+    echo "## Updating Composer packages..."
+    composer global update 2>/dev/null || echo "composer update failed or not available"
+    
+    echo ""
+    echo "## Update completed successfully!"
+    echo "================================"
+    echo "Updated at: $(date)"
+    echo ""
+    echo "Optional manual updates:"
+    echo "- App Store: mas upgrade"
+    echo "- Ruby gems: gem update --system && gem update"
+    echo "- Python packages: pip list --outdated"
+}
+
+# Execute if called directly (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    my_update_mac "$@"
+fi

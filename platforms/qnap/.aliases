@@ -1,0 +1,38 @@
+# shellcheck shell=bash
+if [ "$DEBUG" = "true" ]; then echo "$DOTFILESLOC/platforms/qnap/.aliases" ; fi
+
+# =============================================================================
+# QNAP-SPECIFIC ALIAS OVERRIDES
+# =============================================================================
+# These aliases override base definitions for QNAP-specific behavior
+
+# System commands (QNAP versions)
+alias grep='grep'                            # grep:     Use standard grep (QNAP override)
+alias which='which'                          # which:    Use standard which (QNAP version)
+
+# File creation (QNAP - use dd)
+alias make1mb='dd if=/dev/zero of=./1MB.dat bs=1M count=1'      # make1mb:  Create 1MB file
+alias make5mb='dd if=/dev/zero of=./5MB.dat bs=1M count=5'      # make5mb:  Create 5MB file
+alias make10mb='dd if=/dev/zero of=./10MB.dat bs=1M count=10'   # make10mb: Create 10MB file
+
+# DNS flush (QNAP doesn't have standard DNS flush)
+alias flushDNS='echo "DNS flush not applicable on QNAP - restart networking if needed"'
+
+# =============================================================================
+# QNAP-SPECIFIC ALIASES
+# =============================================================================
+
+# Docker CLI (architecture-specific)
+if [[ "$ARCH" == "armv7l" ]]; then
+    alias docker-cli="$DOTFILESLOC/base/bin/docker-cli-linux-arm64"  # docker-cli: ARM64 version
+else
+    alias docker-cli="$DOTFILESLOC/base/bin/docker-cli-linux-x64"   # docker-cli: x64 version
+fi
+
+# QNAP services and tools
+alias rclone-webgui='rclone rcd --rc-web-gui --rc-addr=localhost:5573 --rc-user=admin --rc-pass=admin'  # rclone-webgui: Start rclone web GUI
+alias fix-nvidia-drivers='sudo /share/CACHEDEV1_DATA/.qpkg/NVIDIA_GPU_DRV/NVIDIA_GPU_DRV.sh stop && sudo /share/CACHEDEV1_DATA/.qpkg/NVIDIA_GPU_DRV/NVIDIA_GPU_DRV.sh start'  # fix-nvidia-drivers: Restart NVIDIA drivers
+
+# Quick navigation shortcuts (commented examples)
+# alias qnap-custom='cd /share/CACHEDEV1_DATA/custom/'   # qnap-custom: Go to custom directory
+# alias qnap-share='cd /share/CACHEDEV1_DATA/'           # qnap-share:  Go to main share directory
