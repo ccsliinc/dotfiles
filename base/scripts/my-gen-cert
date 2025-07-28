@@ -1,0 +1,87 @@
+#!/bin/bash
+# Function: my-gen-cert
+# Purpose: Generate SSL certificates with configurable settings
+# Usage: my-gen-cert <domain> <ip> [additional_domains...]
+# Example: my-gen-cert my.office 8.8.8.8 domain.second
+# Platform: All (requires OpenSSL)
+# Dependencies: openssl, ~/.env file for configuration
+
+my_gen_cert() {
+    # Load certificate configuration from ~/.env file
+    # shellcheck source=../../.env
+    if [[ -f "$HOME/.env" ]]; then
+        source "$HOME/.env"
+    else
+        echo "Warning: Certificate configuration file not found. Using defaults."
+        CERT_COUNTRY="US"
+        CERT_STATE="State" 
+        CERT_CITY="City"
+        CERT_ORGANIZATION="Organization"
+        CERT_ORG_UNIT="IT Department"
+        CERT_KEY_SIZE="4096"
+        CERT_DAYS="365"
+        CERT_DIGEST="sha256"
+        SSL_DIR="$HOME/ssl"
+    fi
+
+    if [ "$#" -lt 2 ]; then
+        echo "Usage: Must supply a domain and IP"
+        echo "Usage: my-gen-cert my.office 8.8.8.8"
+        echo "my-gen-cert my.office 8.8.8.8 domain.second etc..."
+        return 1
+    fi
+    
+    DOMAIN=$1
+    IP=$2
+    ARGS=( "$@" )
+    YEAR=$(date +%Y)
+
+    # Create SSL directory structure
+    mkdir -p "$SSL_DIR"
+    # Backup existing domain certificate if it exists
+    if [[ -d "$SSL_DIR/$DOMAIN" ]]; then
+        mv "$SSL_DIR/$DOMAIN" "$SSL_DIR/$DOMAIN.$YEAR"
+    fi
+    mkdir -p "$SSL_DIR/$DOMAIN"
+    cd "$SSL_DIR/$DOMAIN" || exit
+    
+    # Generate private key
+    openssl genrsa -out "$DOMAIN.key" "$CERT_KEY_SIZE"
+    
+    # Generate certificate signing request with configurable subject
+    openssl req -new \
+        -key "$DOMAIN.key" \
+        -out "$DOMAIN.csr" \
+        -subj "/C=$CERT_COUNTRY/ST=$CERT_STATE/L=$CERT_CITY/O=$CERT_ORGANIZATION/OU=$CERT_ORG_UNIT/CN=$DOMAIN"
+
+    cat > "$DOMAIN.ext" << EOF
+authorityKeyIdentifier=keyid,issuer
+basicConstraints=CA:FALSE
+keyUsage = digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment
+subjectAltName = @alt_names
+[alt_names]
+DNS.1 = $DOMAIN
+IP.1 = $IP
+EOF
+    x=2
+    for ((i=3;i<=$#;i++)); do 
+        echo "DNS.$x = ${ARGS[i]}" >> "$DOMAIN.ext"
+        x=$((x+1))
+    done
+
+    # Generate the certificate using configurable settings
+    openssl x509 -req \
+        -in "$DOMAIN.csr" \
+        -CA ../myCA.pem \
+        -CAkey ../myCA.key \
+        -CAcreateserial \
+        -out "$DOMAIN.crt" \
+        -days "$CERT_DAYS" \
+        -"$CERT_DIGEST" \
+        -extfile "$DOMAIN.ext"
+}
+
+# Execute if called directly (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    my_gen_cert "$@"
+fi

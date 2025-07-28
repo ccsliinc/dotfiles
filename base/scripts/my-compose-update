@@ -1,0 +1,17 @@
+#!/bin/bash
+# Function: my-compose-update
+# Purpose: Update Docker Compose services - pull latest images, restart, and cleanup
+# Usage: my-compose-update
+# Platform: All (requires Docker Compose)
+# Dependencies: docker, docker-compose
+
+my_compose_update() {
+    docker compose pull
+    docker compose up -d --remove-orphans
+    docker image prune
+}
+
+# Execute if called directly (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    my_compose_update "$@"
+fi

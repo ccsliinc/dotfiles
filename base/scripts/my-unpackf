@@ -1,0 +1,15 @@
+#!/bin/bash
+# Function: my-unpackf
+# Purpose: Base64 decode, decompress, and extract tar archive from stdin
+# Usage: cat packed_archive | my-unpackf
+# Platform: All (requires tar, gzip)
+# Dependencies: my-b64d, tar
+
+my_unpackf() {
+    my-b64d | tar -zxf -
+}
+
+# Execute if called directly (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    my_unpackf "$@"
+fi

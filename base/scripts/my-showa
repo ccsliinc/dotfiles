@@ -1,0 +1,29 @@
+#!/bin/bash
+# Function: my-showa
+# Purpose: Search and display aliases matching a pattern
+# Usage: my-showa <search_pattern>
+# Example: my-showa git
+# Platform: macOS (uses ~/Library/init/bash/aliases.bash)
+# Dependencies: grep, less
+
+my_showa() {
+    if [ $# -eq 0 ]; then
+        echo "Usage: my-showa <search_pattern>"
+        echo "Example: my-showa git"
+        echo "Searches aliases for the given pattern"
+        return 1
+    fi
+    
+    # Check if the aliases file exists, otherwise search current aliases
+    if [[ -f ~/Library/init/bash/aliases.bash ]]; then
+        /usr/bin/grep --color=always -i -a1 "$@" ~/Library/init/bash/aliases.bash | grep -v '^\s*$' | less -FSRXc
+    else
+        echo "Aliases file not found. Searching current shell aliases..."
+        alias | grep -i --color=always "$@" | less -FSRXc
+    fi
+}
+
+# Execute if called directly (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    my_showa "$@"
+fi

@@ -1,0 +1,27 @@
+#!/bin/bash
+# Function: my-mydumpall
+# Purpose: Dump all MySQL databases to individual SQL files
+# Usage: my-mydumpall [mysql_options...]
+# Example: my-mydumpall -p
+# Platform: All (requires MySQL)
+# Dependencies: mysql, mysqldump
+
+my_mydumpall() {
+    echo "Dumping all MySQL databases..."
+    
+    for DB in $(echo show databases | mysql -u root -B --skip-column-names "$@"); do
+        if [[ "$DB" != "information_schema" && "$DB" != "performance_schema" && "$DB" != "mysql" && "$DB" != "sys" ]]; then
+            echo "Dumping database: $DB"
+            mysqldump -u root "$DB" "$@" > "$DB.sql"
+        else
+            echo "Skipping system database: $DB"
+        fi
+    done
+    
+    echo "Database dump completed."
+}
+
+# Execute if called directly (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    my_mydumpall "$@"
+fi

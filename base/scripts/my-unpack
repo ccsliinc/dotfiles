@@ -1,0 +1,15 @@
+#!/bin/bash
+# Function: my-unpack
+# Purpose: Base64 decode and decompress data from stdin
+# Usage: cat packed_data | my-unpack
+# Platform: All (requires gzip)
+# Dependencies: my-b64d, gunzip
+
+my_unpack() {
+    my-b64d | gunzip
+}
+
+# Execute if called directly (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    my_unpack "$@"
+fi

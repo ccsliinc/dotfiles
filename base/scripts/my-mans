@@ -1,0 +1,23 @@
+#!/bin/bash
+# Function: my-mans
+# Purpose: Search manpage for a term with context and colored output
+# Usage: my-mans <command> <search_term>
+# Example: my-mans mplayer codec
+# Platform: All (Unix-like systems)
+# Dependencies: man, grep, less
+
+my_mans() {
+    if [ $# -ne 2 ]; then
+        echo "Usage: my-mans <command> <search_term>"
+        echo "Example: my-mans mplayer codec"
+        echo "Searches manpage for <command> and highlights <search_term> with context"
+        return 1
+    fi
+    
+    man "$1" | grep -iC2 --color=always "$2" | less
+}
+
+# Execute if called directly (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    my_mans "$@"
+fi

@@ -1,0 +1,16 @@
+#!/bin/bash
+# Function: my-b64d
+# Purpose: Base64 decode input from stdin
+# Usage: echo "encoded_text" | my-b64d
+# Example: echo "SGVsbG8gV29ybGQ=" | my-b64d
+# Platform: All (requires Perl)
+# Dependencies: perl
+
+my_b64d() {
+    perl -e 'use MIME::Base64 qw(decode_base64);$/=undef;print decode_base64(<>);'
+}
+
+# Execute if called directly (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    my_b64d "$@"
+fi

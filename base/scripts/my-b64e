@@ -1,0 +1,16 @@
+#!/bin/bash
+# Function: my-b64e
+# Purpose: Base64 encode input from stdin
+# Usage: echo "text" | my-b64e
+# Example: echo "Hello World" | my-b64e
+# Platform: All (requires Perl)
+# Dependencies: perl
+
+my_b64e() {
+    perl -e 'use MIME::Base64 qw(encode_base64);$/=undef;print encode_base64(<>);'
+}
+
+# Execute if called directly (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    my_b64e "$@"
+fi

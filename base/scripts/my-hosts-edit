@@ -1,0 +1,15 @@
+#!/bin/bash
+# Function: my-hosts-edit
+# Purpose: Edit the system hosts file with elevated privileges
+# Usage: my-hosts-edit
+# Platform: All (Unix-like systems)
+# Dependencies: sudo, vi/vim
+
+my_hosts_edit() {
+    sudo vi /etc/hosts
+}
+
+# Execute if called directly (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    my_hosts_edit "$@"
+fi

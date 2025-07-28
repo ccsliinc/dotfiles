@@ -1,0 +1,22 @@
+#!/bin/bash
+# Function: my-pyhelp
+# Purpose: Get Python help for a module using less pager
+# Usage: my-pyhelp <module_name>
+# Example: my-pyhelp os
+# Platform: All (requires Python)
+# Dependencies: python, less
+
+my_pyhelp() {
+    if [ $# -eq 0 ]; then
+        echo "Usage: my-pyhelp <module_name>"
+        echo "Example: my-pyhelp os"
+        return 1
+    fi
+    
+    echo "import $1;help($1)" | python | less
+}
+
+# Execute if called directly (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    my_pyhelp "$@"
+fi

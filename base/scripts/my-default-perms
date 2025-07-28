@@ -1,0 +1,17 @@
+#!/bin/bash
+# Function: my-default-perms
+# Purpose: Set default permissions on files and directories (664 for files, 775 for dirs)
+# Usage: my-default-perms
+# Platform: All (Unix-like systems)
+# Dependencies: find, chmod
+
+my_default_perms() {
+    echo "Setting default permissions (files: 664, directories: 775)..."
+    find . -type f -exec chmod 664 {} \; && find . -type d -exec chmod 775 {} \;
+    echo "Permissions updated successfully."
+}
+
+# Execute if called directly (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    my_default_perms "$@"
+fi

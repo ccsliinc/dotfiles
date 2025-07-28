@@ -1,0 +1,22 @@
+#!/bin/bash
+# Function: my-packf
+# Purpose: Create tar archive, compress, and base64 encode files/directories
+# Usage: my-packf <files_or_directories...>
+# Example: my-packf mydir/ file.txt
+# Platform: All (requires tar, gzip)
+# Dependencies: tar, gzip, my-b64e
+
+my_packf() {
+    if [ $# -eq 0 ]; then
+        echo "Usage: my-packf <files_or_directories...>"
+        echo "Example: my-packf mydir/ file.txt"
+        return 1
+    fi
+    
+    tar -cf - "$@" | gzip | my-b64e
+}
+
+# Execute if called directly (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    my_packf "$@"
+fi

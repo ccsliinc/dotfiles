@@ -1,0 +1,21 @@
+#!/bin/bash
+# Function: my-fix-mysql
+# Purpose: Display MySQL commands to fix common authentication issues
+# Usage: my-fix-mysql
+# Platform: All (informational - displays MySQL commands)
+# Dependencies: None (displays commands to run manually)
+
+my_fix_mysql() {
+    echo "Run these commands in MySQL to fix authentication issues:"
+    echo ""
+    echo "mysql> SELECT plugin from mysql.user where User='root';"
+    echo "mysql> UPDATE mysql.user SET plugin = 'mysql_native_password', authentication_string = PASSWORD('changeme') WHERE User = 'root';"
+    echo "mysql> FLUSH PRIVILEGES;"
+    echo ""
+    echo "Remember to change 'changeme' to your desired password!"
+}
+
+# Execute if called directly (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    my_fix_mysql "$@"
+fi
