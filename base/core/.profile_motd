@@ -1,8 +1,8 @@
 # shellcheck shell=bash
-if [ "$DEBUG" = "true" ]; then echo "$DOTFILESLOC/profile/profile/.profile_motd" ; fi
+if [ "$DEBUG" = "true" ]; then echo "$DOTFILESLOC/base/core/.profile_motd" ; fi
 
 # shellcheck source=../shared/bash_colors.sh
-source "$DOTFILESLOC/profile/shared/bash_colors.sh"
+source "$DOTFILESLOC/base/shared/bash_colors.sh"
 
 # Print out some stuff
 #############################

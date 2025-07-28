@@ -1,7 +1,7 @@
 #!/bin/bash
 # shellcheck disable=SC2034
 
-if [ "$DEBUG" = "true" ]; then echo "$DOTFILESLOC/profile/shared/bash_colors.sh" ; fi
+if [ "$DEBUG" = "true" ]; then echo "$DOTFILESLOC/base/shared/bash_colors.sh" ; fi
 
        LGRAY="\\033[1;30m"
         LRED="\\033[1;31m"
