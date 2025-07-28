@@ -1,0 +1,36 @@
+#!/bin/bash
+# Function: my-install-webmin
+# Purpose: Install Webmin web-based system administration interface
+# Usage: my-install-webmin
+# Platform: Linux (Debian/Ubuntu-based systems)
+# Dependencies: sudo, apt, wget
+
+my_install_webmin() {
+    echo "Installing Webmin..."
+    echo "==================="
+    
+    echo "Updating package lists..."
+    sudo apt update
+    
+    echo "Installing required packages..."
+    sudo apt install -y software-properties-common apt-transport-https wget
+    
+    echo "Adding Webmin repository key..."
+    wget -q http://www.webmin.com/jcameron-key.asc -O- | sudo apt-key add -
+    
+    echo "Adding Webmin repository..."
+    sudo add-apt-repository "deb [arch=amd64] http://download.webmin.com/download/repository sarge contrib"
+    
+    echo "Installing Webmin..."
+    sudo apt install -y webmin
+    
+    echo ""
+    echo "Webmin installation complete!"
+    echo "Access Webmin at: https://YOUR_SERVER_IP:10000"
+    echo "Default login: root with your system root password"
+}
+
+# Execute if called directly (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    my_install_webmin "$@"
+fi

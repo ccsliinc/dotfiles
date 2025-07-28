@@ -1,0 +1,272 @@
+#!/bin/bash
+#
+# Function: QNAP Share Cleanup
+# Purpose: Removes system and temporary files from QNAP shared folders
+# Usage: my-qnap-clean-share [--delete] [--path PATH]
+# Platform: QNAP NAS
+# Dependencies: find
+#
+# Author: Generated from dotfiles automation
+# Last Updated: $(date +%Y-%m-%d)
+
+set -euo pipefail
+
+# Color definitions for output
+readonly RED='\033[0;31m'
+readonly GREEN='\033[0;32m'
+readonly YELLOW='\033[1;33m'
+readonly BLUE='\033[0;34m'
+readonly NC='\033[0m' # No Color
+
+# Default configuration
+readonly DEFAULT_FOLDER="/share/CACHEDEV2_DATA/"
+
+# Function to print colored output
+print_status() {
+    echo -e "${GREEN}[INFO]${NC} $1"
+}
+
+print_warning() {
+    echo -e "${YELLOW}[WARNING]${NC} $1"
+}
+
+print_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+}
+
+print_header() {
+    echo -e "${BLUE}[TASK]${NC} $1"
+}
+
+# Function to show usage
+show_usage() {
+    cat << EOF
+QNAP Share Cleanup Script
+
+USAGE:
+    my-qnap-clean-share [OPTIONS]
+
+OPTIONS:
+    --delete            Actually delete files (default is test mode)
+    --path PATH         Specify custom path to clean (default: $DEFAULT_FOLDER)
+    --help, -h          Show this help message
+
+DESCRIPTION:
+    This script removes common system and temporary files from QNAP shared folders:
+    
+    Cleaned file types:
+    - ._* (Mac resource fork files)
+    - __MACOSX (Mac archive artifacts)
+    - .DS_Store (Mac folder metadata)
+    - Thumbs.db (Windows thumbnail cache)
+    - Thumbs.db:encryptable (Windows encrypted thumbnails)
+    
+    By default, the script runs in test mode showing what would be deleted.
+    Use --delete to actually remove the files.
+
+EXAMPLES:
+    my-qnap-clean-share                           # Test mode
+    my-qnap-clean-share --delete                  # Actually delete files  
+    my-qnap-clean-share --path /share/homes       # Clean specific path
+    my-qnap-clean-share --delete --path /share/multimedia
+
+SAFETY:
+    - Always run in test mode first to verify what will be deleted
+    - The script only targets specific temporary/system files
+    - Does not delete user data or important files
+EOF
+}
+
+# Function to check if path exists and is accessible
+check_path() {
+    local path="$1"
+    
+    if [[ ! -d "$path" ]]; then
+        print_error "Directory does not exist: $path"
+        exit 1
+    fi
+    
+    if [[ ! -r "$path" ]]; then
+        print_error "Directory is not readable: $path"
+        exit 1
+    fi
+    
+    print_status "Target directory: $path"
+}
+
+# Function to show cleanup summary
+show_cleanup_patterns() {
+    print_header "Cleanup Patterns"
+    cat << EOF
+The following file patterns will be processed:
+
+Mac OS files:
+  ._*       - Resource fork files created by Mac OS
+  __MACOSX  - Archive artifacts from Mac compression
+  .DS_Store - Directory metadata files
+
+Windows files:
+  Thumbs.db             - Thumbnail cache files
+  Thumbs.db:encryptable - Encrypted thumbnail files
+
+EOF
+}
+
+# Function to find and optionally delete files
+process_files() {
+    local folder="$1"
+    local delete_mode="$2"
+    
+    # Array of patterns to clean
+    local patterns=(
+        "._*"
+        "__MACOSX"
+        ".DS_Store"
+        "Thumbs.db"
+        "Thumbs.db:encryptable"
+    )
+    
+    local total_found=0
+    local total_size=0
+    
+    print_header "Processing files in: $folder"
+    
+    for pattern in "${patterns[@]}"; do
+        print_status "Processing pattern: $pattern"
+        
+        # Count files matching pattern
+        local count
+        count=$(find "$folder" -iname "$pattern" -type f 2>/dev/null | wc -l)
+        
+        if [[ $count -gt 0 ]]; then
+            print_status "Found $count files matching '$pattern'"
+            total_found=$((total_found + count))
+            
+            if [[ "$delete_mode" == "true" ]]; then
+                print_status "Deleting files matching '$pattern'..."
+                if find "$folder" -iname "$pattern" -type f -delete 2>/dev/null; then
+                    print_status "Successfully deleted $count files matching '$pattern'"
+                else
+                    print_warning "Some files matching '$pattern' could not be deleted"
+                fi
+            else
+                print_status "Files that would be deleted:"
+                find "$folder" -iname "$pattern" -type f 2>/dev/null | head -10 | sed 's/^/  /'
+                if [[ $count -gt 10 ]]; then
+                    print_status "  ... and $((count - 10)) more files"
+                fi
+            fi
+        else
+            print_status "No files found matching '$pattern'"
+        fi
+        
+        echo ""
+    done
+    
+    print_header "Summary"
+    print_status "Total files found: $total_found"
+    
+    if [[ "$delete_mode" == "true" ]]; then
+        print_status "Cleanup completed - files have been deleted"
+    else
+        print_warning "Test mode - no files were actually deleted"
+        print_status "Use --delete to actually remove these files"
+    fi
+}
+
+# Function to get disk space info
+show_disk_space() {
+    local folder="$1"
+    
+    print_header "Disk Space Information"
+    print_status "Disk usage for: $folder"
+    
+    if command -v df &> /dev/null; then
+        df -h "$folder" | grep -v "Filesystem"
+    else
+        print_warning "df command not available"
+    fi
+    
+    echo ""
+}
+
+# Function to confirm deletion in interactive mode
+confirm_deletion() {
+    local folder="$1"
+    
+    print_warning "You are about to delete system/temporary files from: $folder"
+    print_warning "This action cannot be undone!"
+    
+    read -p "Are you sure you want to continue? (y/N): " -r
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        print_status "Operation cancelled by user"
+        exit 0
+    fi
+}
+
+# Main function
+main() {
+    local folder="$DEFAULT_FOLDER"
+    local delete_mode=false
+    
+    # Parse command line arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --delete)
+                delete_mode=true
+                shift
+                ;;
+            --path)
+                folder="$2"
+                shift 2
+                ;;
+            --help|-h)
+                show_usage
+                exit 0
+                ;;
+            *)
+                print_error "Unknown option: $1"
+                show_usage
+                exit 1
+                ;;
+        esac
+    done
+    
+    print_header "QNAP Share Cleanup"
+    
+    if [[ "$delete_mode" == "true" ]]; then
+        print_status "Mode: DELETE (files will be removed)"
+    else
+        print_status "Mode: TEST (showing what would be deleted)"
+    fi
+    
+    # Show what we're going to do
+    show_cleanup_patterns
+    
+    # Check path accessibility
+    check_path "$folder"
+    
+    # Show disk space before
+    show_disk_space "$folder"
+    
+    # Confirm deletion if in delete mode and running interactively
+    if [[ "$delete_mode" == "true" ]] && [[ -t 0 ]]; then
+        confirm_deletion "$folder"
+    fi
+    
+    # Process files
+    process_files "$folder" "$delete_mode"
+    
+    # Show disk space after if we deleted files
+    if [[ "$delete_mode" == "true" ]]; then
+        echo ""
+        show_disk_space "$folder"
+    fi
+    
+    print_status "QNAP share cleanup completed!"
+}
+
+# Script entry point
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main "$@"
+fi

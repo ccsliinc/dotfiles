@@ -1,0 +1,50 @@
+#!/bin/bash
+# Function: my-setup-unifi
+# Purpose: Install UniFi Controller on Raspberry Pi
+# Usage: my-setup-unifi
+# Platform: Raspberry Pi (Debian-based)
+# Dependencies: sudo, apt, wget
+# Reference: Ubiquiti UniFi installation guide
+
+my_setup_unifi() {
+    echo "Installing UniFi Controller on Raspberry Pi"
+    echo "==========================================="
+    
+    echo "Installing Java 8 Runtime..."
+    sudo apt install -y openjdk-8-jre
+    
+    echo "Adding UniFi repository..."
+    echo 'deb https://www.ui.com/downloads/unifi/debian stable ubiquiti' | sudo tee /etc/apt/sources.list.d/100-ubnt-unifi.list
+    
+    echo "Adding UniFi repository GPG key..."
+    sudo wget -O /etc/apt/trusted.gpg.d/unifi-repo.gpg https://dl.ui.com/unifi/unifi-repo.gpg
+    
+    echo "Updating package lists..."
+    sudo apt update
+    
+    echo "Installing UniFi Controller..."
+    sudo apt install -y unifi
+    
+    echo "Checking UniFi service status..."
+    sudo service unifi status
+    
+    echo ""
+    echo "UniFi Controller installation complete!"
+    echo "======================================="
+    echo ""
+    echo "Access the controller at: https://YOUR_PI_IP:8443"
+    echo ""
+    echo "Service commands:"
+    echo "  sudo service unifi start"
+    echo "  sudo service unifi stop"
+    echo "  sudo service unifi restart"
+    echo "  sudo service unifi status"
+    echo ""
+    echo "Note: Initial setup may take several minutes."
+    echo "The service will be available once fully started."
+}
+
+# Execute if called directly (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    my_setup_unifi "$@"
+fi

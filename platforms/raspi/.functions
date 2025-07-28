@@ -1,0 +1,4 @@
+# shellcheck shell=bash
+if [ "$DEBUG" = "true" ]; then echo "$DOTFILESLOC/platforms/raspi/.functions" ; fi
+
+# Raspberry Pi-specific functions can be added here

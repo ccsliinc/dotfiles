@@ -1,0 +1,34 @@
+#!/bin/bash
+# Function: my-clean-php-logs
+# Purpose: Clean PHP-FPM logs (useful for daily cron)
+# Usage: my-clean-php-logs
+# Platform: macOS (with Homebrew PHP-FPM)
+# Dependencies: Homebrew PHP-FPM installation
+# Cron: 0 0 * * * my-clean-php-logs
+
+my_clean_php_logs() {
+    local LOGFILE="/opt/homebrew/var/log/php-fpm.log"
+    
+    echo "Cleaning PHP-FPM logs..."
+    echo "========================"
+    
+    if [[ -f "$LOGFILE" ]]; then
+        echo "Found PHP-FPM log: $LOGFILE"
+        
+        # Clear the log file
+        echo "" > "$LOGFILE"
+        
+        echo "Log file cleared successfully"
+        echo "Current log contents:"
+        tail "$LOGFILE"
+    else 
+        echo "PHP-FPM log file not found: $LOGFILE"
+        echo "Make sure Homebrew PHP-FPM is installed and running"
+        return 1
+    fi
+}
+
+# Execute if called directly (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    my_clean_php_logs "$@"
+fi

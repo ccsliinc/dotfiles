@@ -1,0 +1,31 @@
+# shellcheck shell=bash
+if [ "$DEBUG" = "true" ]; then echo "$DOTFILESLOC/platforms/[platform]/.aliases" ; fi
+
+# =============================================================================
+# [PLATFORM NAME]-SPECIFIC ALIAS OVERRIDES
+# =============================================================================
+# These aliases override base definitions for [platform]-specific behavior
+
+# System command overrides (if needed)
+# alias ls='ls [platform-specific-flags]'     # ls:       Platform-specific listing
+# alias which='[platform-which-command]'      # which:    Platform-specific executable finder
+
+# File creation overrides (if platform lacks certain commands)
+# alias make1mb='[platform-specific-command]'  # make1mb:  Create 1MB file
+# alias make5mb='[platform-specific-command]'  # make5mb:  Create 5MB file
+# alias make10mb='[platform-specific-command]' # make10mb: Create 10MB file
+
+# DNS flush override (if platform uses different method)
+# alias flushDNS='[platform-dns-flush-command]'  # flushDNS: Platform-specific DNS flush
+
+# =============================================================================
+# [PLATFORM NAME]-SPECIFIC ALIASES
+# =============================================================================
+
+# Platform-specific shortcuts and tools
+# alias [platform]-setup='sudo [platform-config-tool]'    # Platform configuration
+# alias [platform]-update='[platform-update-command]'     # Platform update command
+
+# Example aliases (remove/customize as needed):
+# alias platform-tool='my-[platform]-tool'                # Platform-specific tool
+# alias platform-status='systemctl status [service]'      # Platform service status

@@ -1,0 +1,100 @@
+#!/bin/bash
+# Function: my-docker-restart-all
+# Purpose: Restart all Docker containers based on configuration file
+# Usage: my-docker-restart-all
+# Platform: All (requires Docker, jq)
+# Dependencies: docker, jq, ~/dockers.local configuration file
+# Config: Uses ~/dockers.local JSON file with container definitions
+
+my_docker_restart_all() {
+    local DEBUG="${DEBUG:-false}"
+    local DOCKER_FILE="$HOME/dockers.local"
+    
+    if [[ "$DEBUG" == "true" ]]; then 
+        printf "\n\t%s\n\n" "DEBUG MODE ON"
+    fi
+    
+    # Check dependencies
+    if ! command -v jq &> /dev/null; then
+        echo "Error: jq command not found. Please install jq."
+        echo "  macOS: brew install jq"
+        echo "  Ubuntu/Debian: sudo apt install jq"
+        echo "  QNAP: opkg install jq"
+        return 1
+    fi
+    
+    if ! command -v docker &> /dev/null; then
+        echo "Error: docker command not found. Please install Docker."
+        return 1
+    fi
+    
+    # Check configuration file
+    if [[ ! -f "$DOCKER_FILE" ]]; then
+        echo "Error: Docker configuration file not found: $DOCKER_FILE"
+        echo ""
+        echo "Create a file like this:"
+        cat << 'EOF'
+{
+  "dockers": {
+    "container1": {
+      "name": "my-app",
+      "update": true
+    },
+    "container2": {
+      "name": "my-db",
+      "update": false
+    }
+  }
+}
+EOF
+        return 1
+    fi
+    
+    # Validate JSON
+    if ! jq . "$DOCKER_FILE" >/dev/null 2>&1; then
+        echo "Error: Invalid JSON in $DOCKER_FILE"
+        return 1
+    fi
+    
+    echo "Restarting Docker containers based on configuration..."
+    echo "Configuration file: $DOCKER_FILE"
+    echo ""
+    
+    # Process each container
+    local containers_restarted=0
+    local containers_skipped=0
+    
+    for row in $(jq -r '.dockers | keys[]' "$DOCKER_FILE"); do
+        local should_update=$(jq -r ".dockers.$row.update" "$DOCKER_FILE")
+        local container_name=$(jq -r ".dockers.$row.name" "$DOCKER_FILE")
+        
+        if [[ "$should_update" == "true" ]]; then
+            echo "Restarting: $container_name"
+            if docker restart "$container_name" 2>/dev/null; then
+                echo "  ✓ Successfully restarted $container_name"
+                ((containers_restarted++))
+            else
+                echo "  ✗ Failed to restart $container_name (container may not exist)"
+            fi
+        else
+            echo "Skipping: $container_name (update=false)"
+            ((containers_skipped++))
+        fi
+    done
+    
+    echo ""
+    echo "Summary:"
+    echo "  Containers restarted: $containers_restarted"
+    echo "  Containers skipped: $containers_skipped"
+    
+    if [[ $containers_restarted -gt 0 ]]; then
+        echo ""
+        echo "Container status:"
+        docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+    fi
+}
+
+# Execute if called directly (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    my_docker_restart_all "$@"
+fi

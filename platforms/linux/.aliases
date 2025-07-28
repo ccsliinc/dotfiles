@@ -1,0 +1,29 @@
+# shellcheck shell=bash
+if [ "$DEBUG" = "true" ]; then echo "$DOTFILESLOC/platforms/linux/.aliases" ; fi
+
+# =============================================================================
+# LINUX-SPECIFIC ALIAS OVERRIDES
+# =============================================================================
+# These aliases override base definitions for Linux-specific behavior
+
+# System commands (Linux-specific versions)
+alias chkconfig='sudo sysv-rc-conf'         # chkconfig: Use sysv-rc-conf on modern Linux
+alias which='which'                         # which:     Use standard which command on Linux
+
+# File creation (Linux doesn't have mkfile, use fallocate/dd instead)
+alias make1mb='fallocate -l 1M ./1MB.dat || dd if=/dev/zero of=./1MB.dat bs=1M count=1'     # make1mb:  Create 1MB file
+alias make5mb='fallocate -l 5M ./5MB.dat || dd if=/dev/zero of=./5MB.dat bs=1M count=5'     # make5mb:  Create 5MB file
+alias make10mb='fallocate -l 10M ./10MB.dat || dd if=/dev/zero of=./10MB.dat bs=1M count=10' # make10mb: Create 10MB file
+
+# DNS flush (Linux uses different command)
+alias flushDNS='sudo systemctl restart systemd-resolved || sudo service networking restart'  # flushDNS: Restart DNS services
+
+# =============================================================================
+# LINUX-SPECIFIC ALIASES
+# =============================================================================
+
+# Network monitoring
+alias netstatt='netstat -tulpen'            # netstatt: Enhanced netstat with process info
+
+# Application shortcuts
+alias gdrive='gdrive_linux_x86'             # gdrive:   Use Linux x86 gdrive binary

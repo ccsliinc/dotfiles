@@ -1,0 +1,516 @@
+#!/bin/bash
+#
+# Function: QNAP System Report
+# Purpose: Generates comprehensive system information report for QNAP NAS
+# Usage: my-qnap-system-report [--output FILE] [--format FORMAT]
+# Platform: QNAP NAS
+# Dependencies: getsysinfo, getcfg, hdparm, mdadm, testparm
+#
+# Original Author: Patrick Wilson
+# Modified from: http://forum.qnap.com/viewtopic.php?f=185&t=82260#p366188
+# Enhanced: Generated from dotfiles automation
+# Last Updated: $(date +%Y-%m-%d)
+
+set -euo pipefail
+
+# Color definitions for output
+readonly RED='\033[0;31m'
+readonly GREEN='\033[0;32m'
+readonly YELLOW='\033[1;33m'
+readonly BLUE='\033[0;34m'
+readonly NC='\033[0m' # No Color
+
+# Configuration
+readonly REPORT_TITLE="QNAP NAS System Report"
+readonly SCRIPT_VERSION="2.0"
+
+# Function to print colored output
+print_status() {
+    echo -e "${GREEN}[INFO]${NC} $1"
+}
+
+print_warning() {
+    echo -e "${YELLOW}[WARNING]${NC} $1"
+}
+
+print_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+}
+
+print_header() {
+    echo -e "${BLUE}[SECTION]${NC} $1"
+}
+
+# Function to show usage
+show_usage() {
+    cat << EOF
+QNAP System Report Generator
+
+USAGE:
+    my-qnap-system-report [OPTIONS]
+
+OPTIONS:
+    --output FILE       Save report to specified file (default: stdout)
+    --format FORMAT     Output format: text, html (default: text)
+    --no-color          Disable colored output
+    --help, -h          Show this help message
+
+DESCRIPTION:
+    Generates a comprehensive system report for QNAP NAS including:
+    
+    - System information (model, firmware, hostname)
+    - Network configuration and status
+    - Hard drive information and health
+    - RAID/volume status
+    - Disk space usage
+    - Mount points and shares
+    - Memory usage
+    - Service status
+
+EXAMPLES:
+    my-qnap-system-report                           # Display to screen
+    my-qnap-system-report --output system-report.txt
+    my-qnap-system-report --format html --output report.html
+    my-qnap-system-report --no-color > report.txt
+
+NOTES:
+    - Some information requires administrative privileges
+    - Report generation may take a few minutes for systems with many drives
+    - HTML format includes additional styling and structure
+EOF
+}
+
+# Function to check if running on QNAP
+check_qnap_system() {
+    if ! command -v getsysinfo &> /dev/null || ! command -v getcfg &> /dev/null; then
+        print_error "This script must be run on a QNAP NAS system"
+        print_error "Required QNAP commands not found"
+        exit 1
+    fi
+}
+
+# Function to print section separator
+print_separator() {
+    local title="$1"
+    local width=80
+    local padding=$(( (width - ${#title} - 2) / 2 ))
+    
+    echo ""
+    printf '=%.0s' $(seq 1 $width)
+    echo ""
+    printf "%*s %s %*s\n" $padding "" "$title" $padding ""
+    printf '=%.0s' $(seq 1 $width)
+    echo ""
+}
+
+# Function to safe command execution
+safe_exec() {
+    local cmd="$1"
+    local description="$2"
+    
+    if eval "$cmd" 2>/dev/null; then
+        return 0
+    else
+        echo "Error executing: $description"
+        return 1
+    fi
+}
+
+# Function to get system basic information
+get_system_info() {
+    print_separator "SYSTEM INFORMATION"
+    
+    echo "Report Generated: $(date +'%Y-%m-%d %H:%M:%S %Z')"
+    echo "Report Version: $SCRIPT_VERSION"
+    echo ""
+    
+    safe_exec "getsysinfo model" "system model" && echo "NAS Model: $(getsysinfo model)"
+    safe_exec "getcfg system version" "firmware version" && echo "Firmware: $(getcfg system version)"
+    safe_exec "getcfg system 'Build Number'" "build number" && echo "Build Number: $(getcfg system 'Build Number')"
+    safe_exec "hostname" "hostname" && echo "System Name: $(hostname)"
+    safe_exec "getcfg system workgroup" "workgroup" && echo "Workgroup: $(getcfg system workgroup)"
+    
+    # Get base directory
+    if local base_dir=$(getcfg -f /etc/config/smb.conf Public path 2>/dev/null); then
+        echo "Base Directory: $(dirname "$base_dir")"
+    fi
+    
+    echo ""
+}
+
+# Function to get network information
+get_network_info() {
+    print_separator "NETWORK INFORMATION"
+    
+    # Get default gateway device
+    local gw_device
+    if gw_device=$(getcfg network 'Default GW Device' 2>/dev/null); then
+        echo "Default Gateway Device: $gw_device"
+        
+        # Get IP address
+        if command -v ifconfig &> /dev/null; then
+            local ip_addr
+            ip_addr=$(ifconfig "$gw_device" 2>/dev/null | grep 'inet addr:' | awk '{print $2}' | cut -d: -f2)
+            if [[ -n "$ip_addr" ]]; then
+                echo "NAS IP Address: $ip_addr"
+            fi
+            
+            echo ""
+            echo "Network Interface Details:"
+            ifconfig "$gw_device" 2>/dev/null | grep -v HWaddr || echo "Interface details not available"
+        fi
+    else
+        print_warning "Could not determine default gateway device"
+    fi
+    
+    echo ""
+    
+    # DNS Information
+    echo "DNS Configuration:"
+    if [[ -f /etc/resolv.conf ]]; then
+        grep nameserver /etc/resolv.conf | while read -r line; do
+            echo "  Nameserver: $(echo "$line" | cut -d' ' -f2)"
+        done
+    else
+        echo "  DNS configuration not available"
+    fi
+    
+    echo ""
+}
+
+# Function to get hard drive information
+get_hdd_info() {
+    print_separator "HARD DRIVE INFORMATION"
+    
+    local drives
+    if drives=$(getcfg Storage 'Disk Drive Number' 2>/dev/null); then
+        echo "Number of Drive Bays: $drives"
+        echo ""
+        
+        local alpha='abcdefghijklmnopqrstuvwxyz'
+        
+        for ((i=1; i<=drives; ++i)); do
+            local drive_letter=${alpha:$i-1:1}
+            local drive_path="/dev/sd$drive_letter"
+            
+            echo "=== HDD$i ==="
+            
+            if [[ ! -b "$drive_path" ]]; then
+                echo "Status: Drive absent"
+            else
+                echo "Device: $drive_path"
+                
+                # Get drive model information
+                if command -v hdparm &> /dev/null; then
+                    if hdparm -i "$drive_path" 2>/dev/null | grep "Model"; then
+                        :  # Output already printed
+                    else
+                        echo "Model: Information not available"
+                    fi
+                else
+                    echo "Model: hdparm not available"
+                fi
+                
+                echo ""
+                
+                # Partition information
+                if command -v parted &> /dev/null; then
+                    echo "Partition Table:"
+                    parted "$drive_path" print 2>/dev/null || echo "Partition information not available"
+                fi
+                
+                echo ""
+                
+                # SMART information
+                if command -v get_hd_smartinfo &> /dev/null; then
+                    echo "SMART Information:"
+                    /sbin/get_hd_smartinfo -d "$i" 2>/dev/null || echo "SMART information not available"
+                else
+                    echo "SMART Information: get_hd_smartinfo not available"
+                fi
+            fi
+            
+            echo ""
+        done
+    else
+        print_warning "Could not determine number of drives"
+    fi
+}
+
+# Function to get RAID/volume status
+get_volume_status() {
+    print_separator "RAID/VOLUME STATUS"
+    
+    # MDADM status
+    if command -v mdadm &> /dev/null; then
+        echo "RAID Array Status:"
+        mdadm -D /dev/md0 /dev/md1 2>/dev/null || echo "No RAID arrays found or mdadm failed"
+    else
+        echo "RAID Status: mdadm not available"
+    fi
+    
+    echo ""
+    
+    # /proc/mdstat
+    if [[ -f /proc/mdstat ]]; then
+        echo "Kernel RAID Status (/proc/mdstat):"
+        cat /proc/mdstat
+    else
+        echo "Kernel RAID status not available"
+    fi
+    
+    echo ""
+}
+
+# Function to get disk space information
+get_disk_space() {
+    print_separator "DISK SPACE USAGE"
+    
+    if command -v df &> /dev/null; then
+        echo "Filesystem Usage:"
+        df -h | grep -v qpkg || echo "Disk space information not available"
+    else
+        echo "Disk space information: df command not available"
+    fi
+    
+    echo ""
+}
+
+# Function to get mount information
+get_mount_info() {
+    print_separator "MOUNT STATUS"
+    
+    if command -v mount &> /dev/null; then
+        echo "Mounted Filesystems:"
+        mount | grep -v qpkg || echo "Mount information not available"
+    else
+        echo "Mount information: mount command not available"
+    fi
+    
+    echo ""
+}
+
+# Function to get share information
+get_share_info() {
+    print_separator "WINDOWS SHARES"
+    
+    if [[ -f /etc/config/smb.conf ]] && command -v testparm &> /dev/null; then
+        echo "Configured Shares:"
+        
+        # Get share names
+        local shares
+        shares=$(grep '^\[' /etc/config/smb.conf | sed 's/^\[//g' | sed 's/\]//g' | grep -v global)
+        
+        for share in $shares; do
+            local share_path
+            share_path=$(testparm -s -l --section-name="$share" --parameter-name=path 2>/dev/null)
+            if [[ -n "$share_path" ]]; then
+                echo "  $share: $share_path"
+            else
+                echo "  $share: path not found"
+            fi
+        done
+    else
+        echo "Share information not available (smb.conf not found or testparm not available)"
+    fi
+    
+    echo ""
+}
+
+# Function to get memory information
+get_memory_info() {
+    print_separator "MEMORY INFORMATION"
+    
+    if command -v free &> /dev/null; then
+        echo "Memory Usage:"
+        free -h | grep -v cache: || free | grep -v cache:
+    elif [[ -f /proc/meminfo ]]; then
+        echo "Memory Information:"
+        head -10 /proc/meminfo
+    else
+        echo "Memory information not available"
+    fi
+    
+    echo ""
+}
+
+# Function to get additional system information
+get_additional_info() {
+    print_separator "ADDITIONAL INFORMATION"
+    
+    # iTunes/Media information
+    if getcfg -f /etc/config/mt-daapd.conf general mp3_dir 2>/dev/null; then
+        echo "iTunes Music Store: $(getcfg -f /etc/config/mt-daapd.conf general mp3_dir)"
+    fi
+    
+    # System uptime
+    if [[ -f /proc/uptime ]]; then
+        local uptime_seconds
+        uptime_seconds=$(cut -d' ' -f1 /proc/uptime)
+        local uptime_days=$((uptime_seconds / 86400))
+        local uptime_hours=$(((uptime_seconds % 86400) / 3600))
+        echo "System Uptime: ${uptime_days} days, ${uptime_hours} hours"
+    fi
+    
+    # Load average
+    if [[ -f /proc/loadavg ]]; then
+        echo "Load Average: $(cat /proc/loadavg)"
+    fi
+    
+    echo ""
+}
+
+# Function to generate HTML report
+generate_html_report() {
+    cat << 'EOF'
+<!DOCTYPE html>
+<html>
+<head>
+    <title>QNAP System Report</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .header { background-color: #f0f0f0; padding: 10px; border-radius: 5px; }
+        .section { margin: 20px 0; padding: 10px; border-left: 3px solid #007acc; }
+        .section h2 { color: #007acc; margin-top: 0; }
+        pre { background-color: #f8f8f8; padding: 10px; border-radius: 3px; overflow-x: auto; }
+        .warning { color: #ff6600; }
+        .error { color: #cc0000; }
+        .info { color: #0066cc; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>QNAP System Report</h1>
+        <p>Generated on: <strong>$(date +'%Y-%m-%d %H:%M:%S %Z')</strong></p>
+    </div>
+EOF
+    
+    # Generate sections with HTML formatting
+    # This would need to be expanded to convert the text output to HTML
+    echo "<div class=\"section\"><h2>System Information</h2><pre>"
+    get_system_info
+    echo "</pre></div>"
+    
+    echo "</body></html>"
+}
+
+# Function to save report to file
+save_report() {
+    local output_file="$1"
+    local format="$2"
+    
+    print_status "Generating report..."
+    
+    if [[ "$format" == "html" ]]; then
+        generate_html_report > "$output_file"
+    else
+        # Generate text report
+        {
+            echo "*********************"
+            echo "** $REPORT_TITLE **"
+            echo "*********************"
+            
+            get_system_info
+            get_network_info
+            get_hdd_info
+            get_volume_status
+            get_disk_space
+            get_mount_info
+            get_share_info
+            get_memory_info
+            get_additional_info
+            
+            echo ""
+            echo "Report completed on $(date +'%Y-%m-%d %H:%M:%S')"
+            echo "Generated by: $0"
+        } > "$output_file"
+    fi
+    
+    print_status "Report saved to: $output_file"
+}
+
+# Main function
+main() {
+    local output_file=""
+    local format="text"
+    local no_color=false
+    
+    # Parse command line arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --output)
+                output_file="$2"
+                shift 2
+                ;;
+            --format)
+                format="$2"
+                if [[ "$format" != "text" && "$format" != "html" ]]; then
+                    print_error "Unsupported format: $format"
+                    print_status "Supported formats: text, html"
+                    exit 1
+                fi
+                shift 2
+                ;;
+            --no-color)
+                no_color=true
+                shift
+                ;;
+            --help|-h)
+                show_usage
+                exit 0
+                ;;
+            *)
+                print_error "Unknown option: $1"
+                show_usage
+                exit 1
+                ;;
+        esac
+    done
+    
+    # Disable colors if requested or output is not a terminal
+    if [[ "$no_color" == "true" ]] || [[ ! -t 1 ]]; then
+        # Redefine color variables as empty
+        RED=""
+        GREEN=""
+        YELLOW=""
+        BLUE=""
+        NC=""
+    fi
+    
+    print_header "QNAP System Report Generator"
+    print_status "Starting system report generation..."
+    
+    # Check system
+    check_qnap_system
+    
+    if [[ -n "$output_file" ]]; then
+        # Save to file
+        save_report "$output_file" "$format"
+    else
+        # Display to stdout
+        echo "*********************"
+        echo "** $REPORT_TITLE **"
+        echo "*********************"
+        
+        get_system_info
+        get_network_info
+        get_hdd_info
+        get_volume_status
+        get_disk_space
+        get_mount_info
+        get_share_info
+        get_memory_info
+        get_additional_info
+        
+        echo ""
+        echo "Report completed on $(date +'%Y-%m-%d %H:%M:%S')"
+        echo "Generated by: $0"
+    fi
+    
+    print_status "System report generation completed!"
+}
+
+# Script entry point
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main "$@"
+fi

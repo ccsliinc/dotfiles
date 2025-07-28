@@ -1,0 +1,199 @@
+#!/bin/bash
+#
+# Function: MySQL Security Setup
+# Purpose: Configures MySQL/MariaDB with secure installation and optional database/user creation
+# Usage: my-setup-mysql-secure [--create-db]
+# Platform: Linux (GNU)
+# Dependencies: mysql, mysql_secure_installation
+#
+# Author: Generated from dotfiles automation
+# Last Updated: $(date +%Y-%m-%d)
+
+set -euo pipefail
+
+# Color definitions for output
+readonly RED='\033[0;31m'
+readonly GREEN='\033[0;32m'
+readonly YELLOW='\033[1;33m'
+readonly BLUE='\033[0;34m'
+readonly NC='\033[0m' # No Color
+
+# Function to print colored output
+print_status() {
+    echo -e "${GREEN}[INFO]${NC} $1"
+}
+
+print_warning() {
+    echo -e "${YELLOW}[WARNING]${NC} $1"
+}
+
+print_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+}
+
+print_header() {
+    echo -e "${BLUE}[TASK]${NC} $1"
+}
+
+# Function to show usage
+show_usage() {
+    cat << EOF
+MySQL Security Setup Script
+
+USAGE:
+    my-setup-mysql-secure [OPTIONS]
+
+OPTIONS:
+    --create-db     Create example database and user (commented examples included)
+    --help, -h      Show this help message
+
+DESCRIPTION:
+    This script runs the MySQL secure installation process to:
+    - Set root password
+    - Remove anonymous users
+    - Disable remote root login
+    - Remove test database
+    - Reload privilege tables
+
+    Use --create-db to see examples of database and user creation commands.
+
+EXAMPLES:
+    my-setup-mysql-secure
+    my-setup-mysql-secure --create-db
+EOF
+}
+
+# Function to check if MySQL/MariaDB is installed and running
+check_mysql() {
+    print_header "Checking MySQL/MariaDB installation..."
+    
+    if ! command -v mysql &> /dev/null; then
+        print_error "MySQL client not found. Please install MySQL or MariaDB first."
+        exit 1
+    fi
+    
+    if ! systemctl is-active --quiet mysql && ! systemctl is-active --quiet mariadb; then
+        print_error "MySQL/MariaDB service is not running. Please start the service first."
+        print_status "Try: sudo systemctl start mysql"
+        print_status "Or:  sudo systemctl start mariadb"
+        exit 1
+    fi
+    
+    print_status "MySQL/MariaDB is installed and running"
+}
+
+# Function to run MySQL secure installation
+run_secure_installation() {
+    print_header "Running MySQL secure installation..."
+    print_warning "You will be prompted to configure MySQL security settings"
+    print_status "Recommended answers: Y, Y, Y, Y, Y (or follow the prompts)"
+    
+    if ! sudo mysql_secure_installation; then
+        print_error "MySQL secure installation failed"
+        exit 1
+    fi
+    
+    print_status "MySQL secure installation completed"
+}
+
+# Function to show database creation examples
+show_database_examples() {
+    print_header "Database and User Creation Examples"
+    cat << 'EOF'
+
+The following commands can be used to create a database and user:
+(These are examples - modify as needed for your application)
+
+# Create database
+sudo mysql -e "CREATE DATABASE pt_mission;"
+
+# Create user with password
+sudo mysql -e "CREATE USER 'omega_mission'@'localhost' IDENTIFIED BY 'your_secure_password_here';"
+
+# Grant privileges
+sudo mysql -e "GRANT ALL PRIVILEGES ON pt_mission.* TO 'omega_mission'@'localhost';"
+
+# Reload privileges
+sudo mysql -e "FLUSH PRIVILEGES;"
+
+# Test connection
+mysql -u omega_mission -p pt_mission
+
+SECURITY NOTES:
+- Use strong passwords for database users
+- Grant only necessary privileges (avoid ALL PRIVILEGES if possible)
+- Consider using specific privileges like SELECT, INSERT, UPDATE, DELETE
+- Use '%' instead of 'localhost' only if remote access is required
+
+EOF
+}
+
+# Function to verify MySQL security
+verify_security() {
+    print_header "Verifying MySQL security configuration..."
+    
+    # Test if anonymous users are removed
+    if mysql -u root -p -e "SELECT User FROM mysql.user WHERE User='';" 2>/dev/null | grep -q "^$"; then
+        print_warning "Anonymous users may still exist"
+    else
+        print_status "Anonymous users removed successfully"
+    fi
+    
+    # Test if test database is removed
+    if mysql -u root -p -e "SHOW DATABASES;" 2>/dev/null | grep -q "^test$"; then
+        print_warning "Test database may still exist"
+    else
+        print_status "Test database removed successfully"
+    fi
+    
+    print_status "Security verification completed"
+}
+
+# Main function
+main() {
+    local create_db=false
+    
+    # Parse command line arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --create-db)
+                create_db=true
+                shift
+                ;;
+            --help|-h)
+                show_usage
+                exit 0
+                ;;
+            *)
+                print_error "Unknown option: $1"
+                show_usage
+                exit 1
+                ;;
+        esac
+    done
+    
+    print_header "MySQL Security Setup"
+    print_status "Starting MySQL security configuration..."
+    
+    # Check prerequisites
+    check_mysql
+    
+    # Run secure installation
+    run_secure_installation
+    
+    # Show database examples if requested
+    if [[ "$create_db" == true ]]; then
+        show_database_examples
+    fi
+    
+    print_status "MySQL security setup completed successfully!"
+    print_status "Next steps:"
+    print_status "1. Test root login: mysql -u root -p"
+    print_status "2. Create your application databases and users"
+    print_status "3. Configure your applications to use the new credentials"
+}
+
+# Script entry point
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main "$@"
+fi

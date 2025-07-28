@@ -1,0 +1,33 @@
+#!/bin/bash
+# Function: my-restart-nginx-varnish
+# Purpose: Restart Nginx and Varnish services for Magento
+# Usage: my-restart-nginx-varnish
+# Platform: Linux (Magento-specific)
+# Dependencies: sudo, systemctl, php7.4, magento
+
+my_restart_nginx_varnish() {
+    echo "Restarting Nginx and Varnish for Magento..."
+    echo "==========================================="
+    
+    # Clear Magento cache first
+    if [[ -f "/opt/magento/www.precisiontools.com/bin/magento" ]]; then
+        echo "Clearing Magento cache..."
+        php7.4 /opt/magento/www.precisiontools.com/bin/magento cache:clean
+    else
+        echo "Warning: Magento installation not found at expected path"
+    fi
+    
+    # Restart services
+    echo "Restarting Nginx..."
+    sudo service nginx restart
+    
+    echo "Restarting Varnish..."
+    sudo service varnish restart
+    
+    echo "Services restarted successfully!"
+}
+
+# Execute if called directly (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    my_restart_nginx_varnish "$@"
+fi

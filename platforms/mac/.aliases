@@ -1,0 +1,33 @@
+# shellcheck shell=bash
+if [ "$DEBUG" = "true" ]; then echo "$DOTFILESLOC/platforms/mac/.aliases" ; fi
+
+# =============================================================================
+# MACOS-SPECIFIC ALIAS OVERRIDES
+# =============================================================================
+# These aliases override base definitions for macOS-specific behavior
+
+# File listing (macOS uses different flags)
+alias ls='ls -haFG'                         # ls:       List with colors (macOS flag)
+alias ll='ls -FGlAhp'                       # ll:       Detailed list (macOS format)
+
+# System commands (macOS-specific behavior)
+alias which='type -a'                       # which:    Find executables (macOS version)
+alias python='/usr/local/bin/python3'       # python:   Use Homebrew Python 3
+
+# Disk usage (macOS du has different flags)
+alias du1='du -d 1 -h'                      # du1:      Directory usage 1 level (macOS flag)
+
+# File creation (macOS-specific mkfile command)
+# Note: make1mb, make5mb, make10mb use mkfile which exists on macOS
+
+# =============================================================================
+# MACOS-SPECIFIC ALIASES
+# =============================================================================
+
+# Finder integration
+alias f='open -a Finder ./'                 # f:        Open current directory in Finder
+alias DT='tee ~/Desktop/terminalOut.txt'    # DT:       Pipe content to file on Desktop
+
+# macOS file management
+trash () { command mv "$@" ~/.Trash ; }     # trash:    Move files to Trash (instead of rm)
+ql () { qlmanage -p "$*" >& /dev/null; }    # ql:       Open file in QuickLook Preview

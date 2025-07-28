@@ -1,0 +1,358 @@
+#!/bin/bash
+#
+# Function: Docker Container Update
+# Purpose: Updates Docker containers based on configuration from dockers.local file
+# Usage: my-docker-update <container_name> [--force]
+# Platform: QNAP NAS
+# Dependencies: docker, jq, dockers.local configuration file
+#
+# Author: Generated from dotfiles automation
+# Last Updated: $(date +%Y-%m-%d)
+
+set -euo pipefail
+
+# Color definitions for output
+readonly RED='\033[0;31m'
+readonly GREEN='\033[0;32m'
+readonly YELLOW='\033[1;33m'
+readonly BLUE='\033[0;34m'
+readonly NC='\033[0m' # No Color
+
+# Configuration
+readonly DOCKER_FILE="$HOME/dockers.local"
+DEBUG="${DEBUG:-false}"
+
+# Function to print colored output
+print_status() {
+    echo -e "${GREEN}[INFO]${NC} $1"
+}
+
+print_warning() {
+    echo -e "${YELLOW}[WARNING]${NC} $1"
+}
+
+print_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+}
+
+print_header() {
+    echo -e "${BLUE}[TASK]${NC} $1"
+}
+
+print_debug() {
+    if [[ "$DEBUG" == "true" ]]; then
+        echo -e "${BLUE}[DEBUG]${NC} $1"
+    fi
+}
+
+# Function to show usage
+show_usage() {
+    cat << EOF
+Docker Container Update Script
+
+USAGE:
+    my-docker-update <container_name> [OPTIONS]
+
+ARGUMENTS:
+    container_name    Name of the container to update (from dockers.local)
+
+OPTIONS:
+    --force, -f       Force update even if no new version is available
+    --help, -h        Show this help message
+
+DESCRIPTION:
+    This script updates Docker containers based on configuration stored in
+    the dockers.local file. It checks for image updates, stops the old
+    container, and starts a new one with the same configuration.
+
+    The script requires a dockers.local file in your home directory with
+    JSON configuration for each container.
+
+EXAMPLES:
+    my-docker-update pihole
+    my-docker-update pihole --force
+    DEBUG=true my-docker-update nginx
+
+ENVIRONMENT VARIABLES:
+    DEBUG=true        Enable debug output showing configuration and commands
+EOF
+}
+
+# Function to check prerequisites
+check_prerequisites() {
+    print_debug "Checking prerequisites..."
+    
+    # Check if jq is available
+    if ! command -v jq &> /dev/null; then
+        print_error "jq command not found. Please install jq."
+        print_status "QNAP: Install jq from App Center or Entware"
+        exit 1
+    fi
+    
+    # Check if Docker is available
+    if ! command -v docker &> /dev/null; then
+        print_error "Docker command not found. Please install Docker."
+        exit 1
+    fi
+    
+    # Check if dockers.local exists
+    if [[ ! -f "$DOCKER_FILE" ]]; then
+        print_error "Configuration file not found: $DOCKER_FILE"
+        print_status "Create a dockers.local file with your container configurations"
+        exit 1
+    fi
+    
+    print_debug "Prerequisites check passed"
+}
+
+# Function to parse container configuration
+parse_container_config() {
+    local container_name="$1"
+    
+    print_debug "Parsing configuration for container: $container_name"
+    
+    # Get container configuration from JSON
+    local docker_config
+    docker_config=$(jq ".dockers.$container_name" "$DOCKER_FILE" 2>/dev/null)
+    
+    if [[ "$docker_config" == "null" ]] || [[ -z "$docker_config" ]]; then
+        print_error "Container '$container_name' not found in $DOCKER_FILE"
+        print_status "Available containers:"
+        jq -r '.dockers | keys[]' "$DOCKER_FILE" 2>/dev/null | sed 's/^/  - /' || echo "  (none found)"
+        exit 1
+    fi
+    
+    print_debug "Container configuration: $docker_config"
+    echo "$docker_config"
+}
+
+# Function to build Docker run command
+build_docker_command() {
+    local docker_config="$1"
+    
+    # Extract basic configuration
+    local image name network ip mac
+    image=$(echo "$docker_config" | jq -r .image)
+    name=$(echo "$docker_config" | jq -r .name)
+    network=$(jq -r ".network" "$DOCKER_FILE")
+    ip=$(echo "$docker_config" | jq -r .ip)
+    mac=$(echo "$docker_config" | jq -r .mac)
+    
+    # Build command components
+    local env_args vol_args net_args extra_args
+    env_args=""
+    vol_args=""
+    net_args=""
+    extra_args=""
+    
+    # Build environment variables
+    while IFS= read -r env_var; do
+        if [[ -n "$env_var" ]]; then
+            env_args="$env_args -e \"$env_var\""
+        fi
+    done < <(echo "$docker_config" | jq -r '.env[]? // empty')
+    
+    # Build volume mounts
+    while IFS= read -r volume; do
+        if [[ -n "$volume" ]]; then
+            vol_args="$vol_args -v \"$volume\""
+        fi
+    done < <(echo "$docker_config" | jq -r '.vol[]? // empty')
+    
+    # Build extra arguments
+    while IFS= read -r extra; do
+        if [[ -n "$extra" ]]; then
+            extra_args="$extra_args $extra"
+        fi
+    done < <(echo "$docker_config" | jq -r '.ext[]? // empty')
+    
+    # Build network arguments
+    if [[ "$ip" != "null" ]] && [[ -n "$ip" ]]; then
+        net_args="--net=$network --ip=$ip"
+        if [[ "$mac" != "null" ]] && [[ -n "$mac" ]]; then
+            net_args="$net_args --mac-address=$mac"
+        fi
+    fi
+    
+    # Construct final command
+    local cmd="docker run -it -d"
+    [[ -n "$env_args" ]] && cmd="$cmd $env_args"
+    [[ -n "$vol_args" ]] && cmd="$cmd $vol_args"
+    [[ -n "$net_args" ]] && cmd="$cmd $net_args"
+    cmd="$cmd --restart=always --name $name"
+    [[ -n "$extra_args" ]] && cmd="$cmd $extra_args"
+    cmd="$cmd $image"
+    
+    # Clean up multiple spaces
+    cmd=$(echo "$cmd" | tr -s " ")
+    
+    print_debug "Generated Docker command: $cmd"
+    echo "$cmd"
+}
+
+# Function to check if image needs update
+check_image_update() {
+    local image="$1"
+    
+    print_status "Checking for updates to image: $image"
+    
+    # Check if helper script exists
+    if [[ -f "_docker_check_image_latest.sh" ]]; then
+        if /bin/bash _docker_check_image_latest.sh "$image"; then
+            return 1  # Update available
+        else
+            return 0  # No update needed
+        fi
+    else
+        print_warning "Image update checker not found. Assuming update is needed."
+        return 1
+    fi
+}
+
+# Function to run prerequisite commands
+run_prerequisites() {
+    local docker_config="$1"
+    
+    print_debug "Running prerequisite commands..."
+    
+    while IFS= read -r prereq_cmd; do
+        if [[ -n "$prereq_cmd" ]]; then
+            print_status "Running prerequisite: $prereq_cmd"
+            if ! eval "$prereq_cmd"; then
+                print_warning "Prerequisite command failed: $prereq_cmd"
+            fi
+        fi
+    done < <(echo "$docker_config" | jq -r '.prereq[]? // empty')
+}
+
+# Function to update container
+update_container() {
+    local container_name="$1"
+    local force_update="$2"
+    
+    print_header "Updating Docker container: $container_name"
+    
+    # Parse container configuration
+    local docker_config
+    docker_config=$(parse_container_config "$container_name")
+    
+    # Extract image and name
+    local image name
+    image=$(echo "$docker_config" | jq -r .image)
+    name=$(echo "$docker_config" | jq -r .name)
+    
+    print_status "Container: $name"
+    print_status "Image: $image"
+    
+    # Check if update is needed (unless forced)
+    local needs_update=true
+    if [[ "$force_update" != "true" ]]; then
+        if check_image_update "$image"; then
+            print_status "No update available for '$name'"
+            return 0
+        fi
+    fi
+    
+    print_status "Updating container '$name'..."
+    
+    # Pull latest image
+    print_status "Pulling latest image..."
+    if ! docker pull "$image"; then
+        print_error "Failed to pull image: $image"
+        exit 1
+    fi
+    
+    # Stop and remove existing container if it exists
+    if docker ps -a --format '{{.Names}}' | grep -q "^${name}$"; then
+        print_status "Stopping existing container..."
+        docker stop "$name" || print_warning "Failed to stop container $name"
+        
+        print_status "Removing existing container..."
+        docker rm "$name" || print_warning "Failed to remove container $name"
+    fi
+    
+    # Run prerequisite commands
+    run_prerequisites "$docker_config"
+    
+    # Build and execute Docker run command
+    local docker_cmd
+    docker_cmd=$(build_docker_command "$docker_config")
+    
+    print_status "Starting new container..."
+    print_debug "Executing: $docker_cmd"
+    
+    if eval "$docker_cmd"; then
+        print_status "Successfully updated container '$name'"
+        
+        # Verify container is running
+        sleep 2
+        if docker ps --format '{{.Names}}' | grep -q "^${name}$"; then
+            print_status "Container '$name' is running"
+        else
+            print_warning "Container '$name' may not be running properly"
+        fi
+    else
+        print_error "Failed to start new container '$name'"
+        exit 1
+    fi
+}
+
+# Main function
+main() {
+    local container_name=""
+    local force_update=false
+    
+    # Parse command line arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --force|-f)
+                force_update=true
+                shift
+                ;;
+            --help|-h)
+                show_usage
+                exit 0
+                ;;
+            -*)
+                print_error "Unknown option: $1"
+                show_usage
+                exit 1
+                ;;
+            *)
+                if [[ -z "$container_name" ]]; then
+                    container_name="$1"
+                else
+                    print_error "Too many arguments. Only one container name allowed."
+                    show_usage
+                    exit 1
+                fi
+                shift
+                ;;
+        esac
+    done
+    
+    # Check if container name was provided
+    if [[ -z "$container_name" ]]; then
+        print_error "Container name is required"
+        show_usage
+        exit 1
+    fi
+    
+    print_debug "Debug mode enabled"
+    print_status "Docker container update script starting..."
+    print_status "Container: $container_name"
+    print_status "Force update: $force_update"
+    
+    # Check prerequisites
+    check_prerequisites
+    
+    # Update the container
+    update_container "$container_name" "$force_update"
+    
+    print_status "Docker update completed successfully!"
+}
+
+# Script entry point
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main "$@"
+fi

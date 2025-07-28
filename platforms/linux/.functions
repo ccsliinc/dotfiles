@@ -1,0 +1,13 @@
+# shellcheck shell=bash
+if [ "$DEBUG" = "true" ]; then echo "$DOTFILESLOC/platforms/linux/.functions" ; fi
+
+# All functions have been modularized into individual my- prefixed scripts
+# in platforms/linux/scripts/ which are now available in PATH for tab completion.
+#
+# Function -> Script mapping:
+# _fix_permissions        -> my-fix-permissions-magento
+# _updateAndClean         -> my-update-clean
+# _restart_nginx_varnish  -> my-restart-nginx-varnish
+# _update_magento         -> my-update-magento
+#
+# Type 'my-' and press TAB TAB to see all available platform-specific functions!

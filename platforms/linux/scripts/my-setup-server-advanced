@@ -1,0 +1,307 @@
+#!/bin/bash
+#
+# Function: Advanced Server Setup
+# Purpose: Configures Java, Elasticsearch, PHP-FPM, Nginx, and SSL for web server environment
+# Usage: my-setup-server-advanced [--skip-ssl] [--php-version VERSION]
+# Platform: Linux (GNU)
+# Dependencies: java, elasticsearch, php-fpm, nginx, openssl, letsencrypt
+#
+# Author: Generated from dotfiles automation
+# Last Updated: $(date +%Y-%m-%d)
+
+set -euo pipefail
+
+# Color definitions for output
+readonly RED='\033[0;31m'
+readonly GREEN='\033[0;32m'
+readonly YELLOW='\033[1;33m'
+readonly BLUE='\033[0;34m'
+readonly NC='\033[0m' # No Color
+
+# Default configuration
+DEFAULT_PHP_VERSION="7.4"
+SKIP_SSL=false
+
+# Function to print colored output
+print_status() {
+    echo -e "${GREEN}[INFO]${NC} $1"
+}
+
+print_warning() {
+    echo -e "${YELLOW}[WARNING]${NC} $1"
+}
+
+print_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+}
+
+print_header() {
+    echo -e "${BLUE}[TASK]${NC} $1"
+}
+
+# Function to show usage
+show_usage() {
+    cat << EOF
+Advanced Server Setup Script
+
+USAGE:
+    my-setup-server-advanced [OPTIONS]
+
+OPTIONS:
+    --skip-ssl              Skip SSL/TLS certificate setup
+    --php-version VERSION   Specify PHP version (default: $DEFAULT_PHP_VERSION)
+    --help, -h              Show this help message
+
+DESCRIPTION:
+    This script configures a complete web server environment including:
+    - Java runtime verification
+    - Elasticsearch configuration
+    - PHP-FPM optimization
+    - Nginx setup with SSL
+    - SSL certificate preparation
+
+    The script assumes you have the necessary services installed.
+
+EXAMPLES:
+    my-setup-server-advanced
+    my-setup-server-advanced --skip-ssl
+    my-setup-server-advanced --php-version 8.0
+EOF
+}
+
+# Function to check Java installation
+check_java() {
+    print_header "Checking Java installation..."
+    
+    if command -v java &> /dev/null; then
+        print_status "Java version:"
+        java -version
+    else
+        print_error "Java not found. Please install Java first."
+        print_status "Try: sudo apt install default-jdk"
+        exit 1
+    fi
+}
+
+# Function to check and configure Elasticsearch
+check_elasticsearch() {
+    print_header "Checking Elasticsearch..."
+    
+    # Check if Elasticsearch is running
+    if curl -X GET 'http://localhost:9200' 2>/dev/null; then
+        print_status "Elasticsearch is running and accessible"
+    else
+        print_warning "Elasticsearch is not accessible on localhost:9200"
+        print_status "Make sure Elasticsearch is installed and running"
+        print_status "Try: sudo systemctl start elasticsearch"
+    fi
+    
+    # Offer to edit configuration
+    print_status "Opening Elasticsearch configuration for review..."
+    print_warning "Press Ctrl+X to exit nano without saving if no changes needed"
+    
+    if [[ -f /etc/elasticsearch/elasticsearch.yml ]]; then
+        sudo nano /etc/elasticsearch/elasticsearch.yml
+    else
+        print_warning "Elasticsearch configuration file not found at /etc/elasticsearch/elasticsearch.yml"
+    fi
+}
+
+# Function to configure PHP-FPM
+configure_php_fpm() {
+    local php_version="$1"
+    print_header "Configuring PHP $php_version FPM..."
+    
+    local php_ini="/etc/php/$php_version/fpm/php.ini"
+    local fpm_pool="/etc/php/$php_version/fpm/pool.d"
+    
+    if [[ ! -f "$php_ini" ]]; then
+        print_error "PHP $php_version FPM not found. Please install it first."
+        print_status "Try: sudo apt install php$php_version-fpm"
+        exit 1
+    fi
+    
+    print_status "Backing up original PHP configuration..."
+    sudo cp "$php_ini" "$php_ini.backup.$(date +%Y%m%d-%H%M%S)"
+    
+    print_status "Updating PHP configuration..."
+    # Memory limit
+    sudo sed -i "s/memory_limit = .*/memory_limit = 2048M/" "$php_ini"
+    # Upload file size
+    sudo sed -i "s/upload_max_filesize = .*/upload_max_filesize = 256M/" "$php_ini"
+    # Post max size (should be larger than upload_max_filesize)
+    sudo sed -i "s/post_max_size = .*/post_max_size = 512M/" "$php_ini"
+    # Enable compression
+    sudo sed -i "s/zlib.output_compression = .*/zlib.output_compression = on/" "$php_ini"
+    
+    print_status "PHP configuration updated:"
+    print_status "- Memory limit: 2048M"
+    print_status "- Upload max filesize: 256M"
+    print_status "- Post max size: 512M"
+    print_status "- Compression: enabled"
+    
+    # Configure FPM pool if configuration file exists
+    if [[ -f "conf/fpm-$php_version/mmagento.conf" ]]; then
+        print_status "Installing custom FPM pool configuration..."
+        sudo cp "conf/fpm-$php_version/mmagento.conf" "$fpm_pool/"
+    else
+        print_warning "Custom FPM pool configuration not found at conf/fpm-$php_version/mmagento.conf"
+    fi
+    
+    print_status "Restarting PHP $php_version FPM..."
+    if ! sudo systemctl restart "php$php_version-fpm"; then
+        print_error "Failed to restart PHP $php_version FPM"
+        exit 1
+    fi
+    
+    print_status "PHP $php_version FPM configured and restarted"
+}
+
+# Function to configure Nginx
+configure_nginx() {
+    print_header "Configuring Nginx..."
+    
+    if ! command -v nginx &> /dev/null; then
+        print_error "Nginx not found. Please install it first."
+        print_status "Try: sudo apt install nginx"
+        exit 1
+    fi
+    
+    print_status "Removing default Nginx site..."
+    sudo rm -f /etc/nginx/sites-enabled/default
+    sudo rm -f /etc/nginx/sites-available/default
+    
+    print_status "Nginx default site removed"
+    print_warning "Remember to create your custom site configurations"
+}
+
+# Function to setup SSL
+setup_ssl() {
+    print_header "Setting up SSL configuration..."
+    
+    if ! command -v openssl &> /dev/null; then
+        print_error "OpenSSL not found. Please install it first."
+        exit 1
+    fi
+    
+    print_status "Stopping Nginx for SSL setup..."
+    sudo systemctl stop nginx
+    
+    print_status "Generating DH parameters (this may take a while)..."
+    if ! sudo openssl dhparam -out /etc/ssl/certs/dhparam.pem 2048; then
+        print_error "Failed to generate DH parameters"
+        exit 1
+    fi
+    
+    print_status "Creating Let's Encrypt directory structure..."
+    sudo mkdir -p /var/lib/letsencrypt/.well-known
+    sudo chown www-data:www-data /var/lib/letsencrypt
+    sudo chmod g+s /var/lib/letsencrypt
+    
+    # Copy Let's Encrypt configuration if it exists
+    if [[ -f "conf/letsencrypt.conf" ]]; then
+        print_status "Installing Let's Encrypt configuration..."
+        sudo cp conf/letsencrypt.conf /etc/nginx/snippets/letsencrypt.conf
+    else
+        print_warning "Let's Encrypt configuration not found at conf/letsencrypt.conf"
+        print_status "You'll need to create /etc/nginx/snippets/letsencrypt.conf manually"
+    fi
+    
+    print_status "SSL setup completed"
+    print_status "DH parameters generated: /etc/ssl/certs/dhparam.pem"
+    print_status "Let's Encrypt directory created: /var/lib/letsencrypt"
+}
+
+# Function to verify services
+verify_services() {
+    print_header "Verifying service status..."
+    
+    local services=("nginx" "php${php_version}-fpm")
+    
+    for service in "${services[@]}"; do
+        if systemctl is-active --quiet "$service"; then
+            print_status "$service: active"
+        else
+            print_warning "$service: not active"
+        fi
+    done
+    
+    # Check if Elasticsearch is accessible
+    if curl -s -X GET 'http://localhost:9200' >/dev/null; then
+        print_status "elasticsearch: accessible"
+    else
+        print_warning "elasticsearch: not accessible"
+    fi
+}
+
+# Main function
+main() {
+    local php_version="$DEFAULT_PHP_VERSION"
+    
+    # Parse command line arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --skip-ssl)
+                SKIP_SSL=true
+                shift
+                ;;
+            --php-version)
+                php_version="$2"
+                shift 2
+                ;;
+            --help|-h)
+                show_usage
+                exit 0
+                ;;
+            *)
+                print_error "Unknown option: $1"
+                show_usage
+                exit 1
+                ;;
+        esac
+    done
+    
+    print_header "Advanced Server Setup"
+    print_status "Configuring web server environment..."
+    print_status "PHP version: $php_version"
+    print_status "Skip SSL: $SKIP_SSL"
+    
+    # Check Java
+    check_java
+    
+    # Check and configure Elasticsearch
+    check_elasticsearch
+    
+    # Configure PHP-FPM
+    configure_php_fpm "$php_version"
+    
+    # Configure Nginx
+    configure_nginx
+    
+    # Setup SSL if not skipped
+    if [[ "$SKIP_SSL" != true ]]; then
+        setup_ssl
+    else
+        print_status "Skipping SSL setup as requested"
+    fi
+    
+    # Verify services
+    verify_services
+    
+    print_status "Advanced server setup completed successfully!"
+    print_status ""
+    print_status "Next steps:"
+    print_status "1. Create your Nginx site configurations"
+    print_status "2. Obtain SSL certificates (e.g., using certbot)"
+    print_status "3. Configure your applications"
+    print_status "4. Test your web server setup"
+    
+    if [[ "$SKIP_SSL" != true ]]; then
+        print_status "5. Start Nginx: sudo systemctl start nginx"
+    fi
+}
+
+# Script entry point
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main "$@"
+fi

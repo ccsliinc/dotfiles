@@ -35,6 +35,3 @@ fi
 # Don't make edits below this
 [[ -f ~/.bash_profile.local ]] && source "$HOME/.bash_profile.local"
 . "$HOME/.cargo/env"
-
-# Added by LM Studio CLI (lms)
-export PATH="$PATH:/Users/jsugamele/.cache/lm-studio/bin"

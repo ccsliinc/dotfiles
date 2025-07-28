@@ -1,0 +1,39 @@
+#!/bin/bash
+# Function: my-fix-permissions-magento
+# Purpose: Fix file and directory permissions for Magento installations
+# Usage: my-fix-permissions-magento <user>
+# Platform: Linux (Magento-specific)
+# Dependencies: find, chmod, chown, sudo
+
+my_fix_permissions_magento() {
+    if [[ $# -ne 1 ]]; then
+        echo "Usage: $0 <user>"
+        echo "Example: $0 www-data"
+        return 1
+    fi
+    
+    local user="$1"
+    
+    echo "Fixing Magento file permissions..."
+    echo "User: $user"
+    echo "Directory: $(pwd)"
+    
+    # Fix file permissions (664)
+    echo "Setting file permissions to 664..."
+    find . -type f -exec chmod 664 {} \;
+    
+    # Fix directory permissions (775)
+    echo "Setting directory permissions to 775..."
+    find . -type d -exec chmod 775 {} \;
+    
+    # Fix ownership
+    echo "Setting ownership to $user:psacln..."
+    chown -R "$user":psacln ./*
+    
+    echo "Permission fix complete!"
+}
+
+# Execute if called directly (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    my_fix_permissions_magento "$@"
+fi

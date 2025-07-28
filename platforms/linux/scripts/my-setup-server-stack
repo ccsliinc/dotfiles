@@ -1,0 +1,112 @@
+#!/bin/bash
+# Function: my-setup-server-stack
+# Purpose: Initial Linux server setup with LEMP stack, Node.js, and Elasticsearch
+# Usage: my-setup-server-stack
+# Platform: Linux (Debian/Ubuntu-based systems)
+# Dependencies: sudo, apt
+# Note: This is a comprehensive server setup script
+
+my_setup_server_stack() {
+    echo "Linux Server Stack Setup"
+    echo "========================"
+    
+    # Change Timezone
+    echo "Setting timezone to America/New_York..."
+    sudo timedatectl set-timezone America/New_York
+    
+    # Update Server
+    echo "Updating system packages..."
+    sudo apt update -y && sudo apt upgrade -y
+    
+    # Install Node.js
+    echo "Installing Node.js and npm..."
+    sudo apt install -y nodejs npm
+    
+    # Install Essential Tools
+    echo "Installing essential tools..."
+    sudo apt install -y unzip git net-tools vim
+    
+    # Install Web Server Software
+    echo "Installing web server stack..."
+    sudo apt install -y certbot nginx mysql-server
+    
+    # Install PHP 7.4 and Extensions
+    echo "Installing PHP 7.4 and extensions..."
+    sudo apt install -y \
+        php7.4-fpm \
+        php7.4-bcmath \
+        php7.4-common \
+        php7.4-curl \
+        php7.4-gd \
+        php7.4-intl \
+        php7.4-json \
+        php7.4-mbstring \
+        php7.4-mysql \
+        php7.4-opcache \
+        php7.4-readline \
+        php7.4-soap \
+        php7.4-tidy \
+        php7.4-xml \
+        php7.4-xmlrpc \
+        php7.4-zip \
+        php7.4-cli
+    
+    # Install Composer
+    echo "Installing Composer..."
+    php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
+    
+    # Verify installer (you should update this hash regularly)
+    COMPOSER_HASH="906a84df04cea2aa72f40b5f787e49f22d4c2f19492ac310e8cba5b96ac8b64115ac402c8cd292b8a03482574915d1a8"
+    ACTUAL_HASH=$(php -r "echo hash_file('sha384', 'composer-setup.php');")
+    
+    if [[ "$ACTUAL_HASH" == "$COMPOSER_HASH" ]]; then
+        echo "Composer installer verified"
+        sudo php composer-setup.php --install-dir=/usr/local/bin --filename=composer
+    else
+        echo "ERROR: Composer installer verification failed!"
+        echo "Expected: $COMPOSER_HASH"
+        echo "Actual: $ACTUAL_HASH"
+        rm composer-setup.php
+        return 1
+    fi
+    
+    php -r "unlink('composer-setup.php');"
+    
+    # Install Java for Elasticsearch
+    echo "Installing Java 8..."
+    sudo apt-get update -y && sudo apt upgrade -y && sudo apt-get install -y openjdk-8-jdk
+    
+    # Install Redis
+    echo "Installing Redis..."
+    sudo apt-get install -y redis-server
+    
+    # Install Elasticsearch
+    echo "Installing Elasticsearch..."
+    curl -fsSL https://artifacts.elastic.co/GPG-KEY-elasticsearch | sudo apt-key add -
+    echo "deb https://artifacts.elastic.co/packages/7.x/apt stable main" | sudo tee -a /etc/apt/sources.list.d/elastic-7.x.list
+    sudo apt update -y && sudo apt install -y elasticsearch
+    
+    echo ""
+    echo "Server stack installation complete!"
+    echo "================================="
+    echo "Installed components:"
+    echo "- NGINX web server"
+    echo "- MySQL database server"
+    echo "- PHP 7.4 with extensions"
+    echo "- Node.js and npm"
+    echo "- Composer"
+    echo "- Java 8"
+    echo "- Redis"
+    echo "- Elasticsearch"
+    echo "- Let's Encrypt Certbot"
+    echo ""
+    echo "Next steps:"
+    echo "1. Configure MySQL: sudo mysql_secure_installation"
+    echo "2. Configure NGINX virtual hosts"
+    echo "3. Start and enable services as needed"
+}
+
+# Execute if called directly (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    my_setup_server_stack "$@"
+fi

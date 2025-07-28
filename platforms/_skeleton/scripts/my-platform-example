@@ -1,0 +1,85 @@
+#!/bin/bash
+# Function: my-[platform]-example
+# Purpose: Example platform-specific script template
+# Usage: my-[platform]-example [options]
+# Platform: [Platform Name] ([requirements])
+# Dependencies: List required tools/packages
+
+my_platform_example() {
+    local script_name="my-[platform]-example"
+    local version="1.0"
+    
+    # Parse command line arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -h|--help)
+                show_help
+                return 0
+                ;;
+            -v|--version)
+                echo "$script_name version $version"
+                return 0
+                ;;
+            --dry-run)
+                echo "Dry run mode - no changes will be made"
+                local dry_run=true
+                shift
+                ;;
+            *)
+                echo "Unknown option: $1"
+                echo "Use --help for usage information"
+                return 1
+                ;;
+        esac
+    done
+    
+    echo "Platform-specific functionality for [Platform Name]"
+    echo "=================================================="
+    
+    # Platform detection
+    echo "Detected platform: $OS"
+    echo "Architecture: ${ARCH:-$(uname -m)}"
+    
+    # Example platform-specific logic
+    if [[ "$dry_run" == true ]]; then
+        echo "Would perform platform-specific operations..."
+    else
+        echo "Performing platform-specific operations..."
+        # Add actual implementation here
+    fi
+    
+    echo "Platform example completed successfully!"
+}
+
+show_help() {
+    cat << EOF
+Usage: $0 [OPTIONS]
+
+Example platform-specific script for [Platform Name].
+
+OPTIONS:
+    -h, --help      Show this help message
+    -v, --version   Show version information
+    --dry-run       Show what would be done without making changes
+
+EXAMPLES:
+    $0                    # Run with default settings
+    $0 --dry-run          # Preview actions without execution
+    $0 --help             # Show this help
+
+PLATFORM REQUIREMENTS:
+    - [Platform Name] ([version requirements])
+    - [Required dependencies]
+    
+DESCRIPTION:
+    This is an example script demonstrating the structure and conventions
+    for platform-specific tools. Replace this content with actual
+    platform-specific functionality.
+
+EOF
+}
+
+# Execute if called directly (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    my_platform_example "$@"
+fi

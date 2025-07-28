@@ -1,0 +1,42 @@
+#!/bin/bash
+# Function: my-update-magento
+# Purpose: Update Magento installation with cache clearing and recompilation
+# Usage: my-update-magento
+# Platform: Linux (Magento-specific)
+# Dependencies: sudo, rm, n98-magerun2
+
+my_update_magento() {
+    echo "Updating Magento installation..."
+    echo "==============================="
+    
+    # Note about MySQL permissions
+    echo "Note: If you encounter SUPER privilege errors, run:"
+    echo "  sudo mysql -e \"SET GLOBAL log_bin_trust_function_creators=1;\""
+    echo ""
+    
+    # Clear caches and generated files
+    echo "Clearing Magento caches and generated files..."
+    sudo rm -rf var/cache/* var/view_preprocessed/* generated/* pub/static/*
+    
+    # Run Magento setup commands
+    echo "Running setup:upgrade..."
+    n98 setup:upgrade
+    
+    echo "Compiling dependency injection..."
+    n98 setup:di:compile
+    
+    echo "Deploying static content..."
+    n98 setup:static-content:deploy en_US -f
+    
+    echo "Magento update complete!"
+    echo ""
+    echo "You may need to:"
+    echo "1. Clear browser cache"
+    echo "2. Restart web server"
+    echo "3. Clear CDN cache if applicable"
+}
+
+# Execute if called directly (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    my_update_magento "$@"
+fi

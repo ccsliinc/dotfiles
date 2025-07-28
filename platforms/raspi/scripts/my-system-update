@@ -1,0 +1,493 @@
+#!/bin/bash
+#
+# Function: Raspberry Pi System Update
+# Purpose: Updates the Raspberry Pi system packages and performs maintenance
+# Usage: my-system-update [--full] [--no-cleanup] [--dry-run]
+# Platform: Raspberry Pi
+# Dependencies: apt
+#
+# Author: Generated from dotfiles automation
+# Last Updated: $(date +%Y-%m-%d)
+
+set -euo pipefail
+
+# Color definitions for output
+readonly RED='\033[0;31m'
+readonly GREEN='\033[0;32m'
+readonly YELLOW='\033[1;33m'
+readonly BLUE='\033[0;34m'
+readonly NC='\033[0m' # No Color
+
+# Function to print colored output
+print_status() {
+    echo -e "${GREEN}[INFO]${NC} $1"
+}
+
+print_warning() {
+    echo -e "${YELLOW}[WARNING]${NC} $1"
+}
+
+print_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+}
+
+print_header() {
+    echo -e "${BLUE}[TASK]${NC} $1"
+}
+
+# Function to show usage
+show_usage() {
+    cat << EOF
+Raspberry Pi System Update Script
+
+USAGE:
+    my-system-update [OPTIONS]
+
+OPTIONS:
+    --full              Perform full system upgrade (including kernel)
+    --no-cleanup        Skip cleanup of old packages and cache
+    --dry-run           Show what would be done without making changes
+    --reboot            Automatically reboot if required
+    --help, -h          Show this help message
+
+DESCRIPTION:
+    This script performs comprehensive system updates for Raspberry Pi:
+    
+    Standard update process:
+    1. Update package lists (apt update)
+    2. Upgrade installed packages (apt upgrade)
+    3. Remove unnecessary packages (apt autoremove)
+    4. Clean package cache (apt autoclean)
+    
+    Full update process (--full):
+    - Includes distribution upgrade (apt dist-upgrade)
+    - Updates firmware and kernel
+    - May require reboot
+    
+    The script also checks for:
+    - Available disk space
+    - System health before/after updates
+    - Required reboots
+    - Update statistics
+
+EXAMPLES:
+    my-system-update                    # Standard update
+    my-system-update --dry-run          # Preview updates
+    my-system-update --full             # Full system upgrade
+    my-system-update --full --reboot    # Full upgrade with auto-reboot
+
+SAFETY:
+    - Always run --dry-run first on production systems
+    - Ensure adequate disk space before major updates
+    - Consider backing up important data before --full updates
+    - Monitor temperature during intensive updates
+
+AUTOMATION:
+    This script can be run from cron for automatic updates:
+    # Daily security updates at 2 AM
+    0 2 * * * /path/to/my-system-update --no-cleanup
+    
+    # Weekly full update on Sunday at 3 AM
+    0 3 * * 0 /path/to/my-system-update --full --reboot
+EOF
+}
+
+# Function to check if running on Raspberry Pi
+check_raspberry_pi() {
+    print_header "Checking system..."
+    
+    # Check for Raspberry Pi hardware
+    if [[ -f /proc/cpuinfo ]] && grep -q "Raspberry Pi" /proc/cpuinfo 2>/dev/null; then
+        print_status "Raspberry Pi system detected"
+        
+        # Show Pi model
+        if [[ -f /proc/device-tree/model ]]; then
+            local model
+            model=$(cat /proc/device-tree/model 2>/dev/null | tr -d '\0')
+            print_status "Model: $model"
+        fi
+    else
+        print_warning "This doesn't appear to be a Raspberry Pi system"
+        print_warning "Update process may differ from expectations"
+    fi
+    
+    # Check if apt is available
+    if ! command -v apt &> /dev/null; then
+        print_error "apt package manager not found"
+        print_error "This script requires apt for package management"
+        exit 1
+    fi
+    
+    print_status "Package manager (apt) is available"
+}
+
+# Function to check system health
+check_system_health() {
+    print_header "System Health Check"
+    
+    # Check disk space
+    local root_usage
+    root_usage=$(df / | awk 'NR==2 {print $5}' | sed 's/%//')
+    
+    if [[ $root_usage -gt 90 ]]; then
+        print_error "Root filesystem is ${root_usage}% full"
+        print_error "Free up space before proceeding with updates"
+        exit 1
+    elif [[ $root_usage -gt 80 ]]; then
+        print_warning "Root filesystem is ${root_usage}% full"
+        print_warning "Consider freeing up space"
+    else
+        print_status "Disk space: ${root_usage}% used (adequate)"
+    fi
+    
+    # Check memory usage
+    if [[ -f /proc/meminfo ]]; then
+        local mem_total mem_free mem_available
+        mem_total=$(grep "^MemTotal:" /proc/meminfo | awk '{print $2}')
+        mem_free=$(grep "^MemFree:" /proc/meminfo | awk '{print $2}')
+        mem_available=$(grep "^MemAvailable:" /proc/meminfo | awk '{print $2}' 2>/dev/null || echo "$mem_free")
+        
+        local mem_usage_percent=$((100 - (mem_available * 100 / mem_total)))
+        print_status "Memory usage: ${mem_usage_percent}%"
+    fi
+    
+    # Check system temperature (Pi-specific)
+    if [[ -f /sys/class/thermal/thermal_zone0/temp ]]; then
+        local temp_raw temp_celsius
+        temp_raw=$(cat /sys/class/thermal/thermal_zone0/temp)
+        temp_celsius=$((temp_raw / 1000))
+        
+        if [[ $temp_celsius -gt 80 ]]; then
+            print_warning "System temperature is high: ${temp_celsius}°C"
+            print_warning "Consider improving cooling before intensive updates"
+        else
+            print_status "System temperature: ${temp_celsius}°C"
+        fi
+    fi
+    
+    # Check system load
+    if [[ -f /proc/loadavg ]]; then
+        local load_avg
+        load_avg=$(cut -d' ' -f1 /proc/loadavg)
+        print_status "System load: $load_avg"
+    fi
+    
+    echo ""
+}
+
+# Function to show available updates
+show_available_updates() {
+    local dry_run="$1"
+    
+    print_header "Checking for available updates..."
+    
+    if [[ "$dry_run" == "true" ]]; then
+        print_status "Updating package lists..."
+    else
+        print_status "This is a dry run - no actual updates will be performed"
+    fi
+    
+    # Update package lists
+    if [[ "$dry_run" != "true" ]]; then
+        if ! sudo apt update; then
+            print_error "Failed to update package lists"
+            exit 1
+        fi
+    fi
+    
+    # Show upgradeable packages
+    local upgradeable_count
+    upgradeable_count=$(apt list --upgradable 2>/dev/null | grep -c "upgradable" || echo "0")
+    
+    if [[ $upgradeable_count -gt 0 ]]; then
+        print_status "Available updates: $upgradeable_count packages"
+        
+        if [[ $upgradeable_count -le 20 ]]; then
+            print_status "Packages to be updated:"
+            apt list --upgradable 2>/dev/null | grep "upgradable" | head -20 | sed 's/^/  /'
+        else
+            print_status "First 20 packages to be updated:"
+            apt list --upgradable 2>/dev/null | grep "upgradable" | head -20 | sed 's/^/  /'
+            print_status "... and $((upgradeable_count - 20)) more packages"
+        fi
+    else
+        print_status "System is up to date"
+        return 1  # No updates available
+    fi
+    
+    echo ""
+    return 0  # Updates available
+}
+
+# Function to perform standard update
+perform_standard_update() {
+    local dry_run="$1"
+    
+    print_header "Performing Standard System Update"
+    
+    if [[ "$dry_run" == "true" ]]; then
+        print_status "DRY RUN: Would perform standard upgrade (apt upgrade)"
+        return 0
+    fi
+    
+    # Perform upgrade
+    print_status "Upgrading packages..."
+    if ! sudo apt upgrade -y; then
+        print_error "Package upgrade failed"
+        return 1
+    fi
+    
+    print_status "Standard update completed successfully"
+    return 0
+}
+
+# Function to perform full update
+perform_full_update() {
+    local dry_run="$1"
+    
+    print_header "Performing Full System Update"
+    
+    if [[ "$dry_run" == "true" ]]; then
+        print_status "DRY RUN: Would perform full upgrade (apt dist-upgrade)"
+        print_status "DRY RUN: Would update firmware and kernel"
+        return 0
+    fi
+    
+    # Perform distribution upgrade
+    print_status "Performing distribution upgrade..."
+    if ! sudo apt dist-upgrade -y; then
+        print_error "Distribution upgrade failed"
+        return 1
+    fi
+    
+    # Update firmware (Pi-specific)
+    if command -v rpi-update &> /dev/null; then
+        print_status "Updating firmware and kernel..."
+        print_warning "This may take several minutes..."
+        
+        if ! sudo rpi-update; then
+            print_warning "Firmware update failed or was skipped"
+        else
+            print_status "Firmware update completed"
+        fi
+    else
+        print_warning "rpi-update not available, skipping firmware update"
+    fi
+    
+    print_status "Full update completed successfully"
+    return 0
+}
+
+# Function to perform cleanup
+perform_cleanup() {
+    local dry_run="$1"
+    
+    print_header "Performing System Cleanup"
+    
+    if [[ "$dry_run" == "true" ]]; then
+        print_status "DRY RUN: Would remove unnecessary packages (apt autoremove)"
+        print_status "DRY RUN: Would clean package cache (apt autoclean)"
+        return 0
+    fi
+    
+    # Remove unnecessary packages
+    print_status "Removing unnecessary packages..."
+    if ! sudo apt autoremove -y; then
+        print_warning "Package removal failed or was skipped"
+    else
+        print_status "Unnecessary packages removed"
+    fi
+    
+    # Clean package cache
+    print_status "Cleaning package cache..."
+    if ! sudo apt autoclean; then
+        print_warning "Cache cleaning failed or was skipped"
+    else
+        print_status "Package cache cleaned"
+    fi
+    
+    # Show disk space after cleanup
+    local root_usage_after
+    root_usage_after=$(df / | awk 'NR==2 {print $5}' | sed 's/%//')
+    print_status "Disk usage after cleanup: ${root_usage_after}%"
+    
+    print_status "System cleanup completed"
+    return 0
+}
+
+# Function to check if reboot is required
+check_reboot_required() {
+    print_header "Checking Reboot Requirements"
+    
+    local reboot_required=false
+    
+    # Check for reboot-required file
+    if [[ -f /var/run/reboot-required ]]; then
+        print_warning "System reboot is required"
+        if [[ -f /var/run/reboot-required.pkgs ]]; then
+            print_status "Packages requiring reboot:"
+            cat /var/run/reboot-required.pkgs | sed 's/^/  /'
+        fi
+        reboot_required=true
+    fi
+    
+    # Check for kernel updates
+    local running_kernel current_kernel
+    running_kernel=$(uname -r)
+    current_kernel=$(ls /boot/vmlinuz-* 2>/dev/null | sort -V | tail -1 | sed 's/.*vmlinuz-//' || echo "$running_kernel")
+    
+    if [[ "$running_kernel" != "$current_kernel" ]]; then
+        print_warning "Kernel has been updated: $running_kernel -> $current_kernel"
+        reboot_required=true
+    fi
+    
+    if [[ "$reboot_required" == "true" ]]; then
+        print_warning "A system reboot is recommended"
+        return 0
+    else
+        print_status "No reboot required"
+        return 1
+    fi
+}
+
+# Function to show update summary
+show_update_summary() {
+    print_header "Update Summary"
+    
+    # Show current system information
+    if command -v lsb_release &> /dev/null; then
+        print_status "OS: $(lsb_release -d | cut -f2)"
+    fi
+    
+    print_status "Kernel: $(uname -r)"
+    
+    # Show package statistics
+    local installed_packages
+    installed_packages=$(dpkg -l | grep -c "^ii" || echo "unknown")
+    print_status "Installed packages: $installed_packages"
+    
+    # Show last update time
+    if [[ -f /var/log/apt/history.log ]]; then
+        local last_update
+        last_update=$(grep "Start-Date" /var/log/apt/history.log | tail -1 | cut -d' ' -f2-3 || echo "unknown")
+        print_status "Last update: $last_update"
+    fi
+    
+    # Show disk usage
+    local disk_usage
+    disk_usage=$(df / | awk 'NR==2 {print $5}')
+    print_status "Disk usage: $disk_usage"
+    
+    echo ""
+}
+
+# Main function
+main() {
+    local full_update=false
+    local no_cleanup=false
+    local dry_run=false
+    local auto_reboot=false
+    
+    # Parse command line arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --full)
+                full_update=true
+                shift
+                ;;
+            --no-cleanup)
+                no_cleanup=true
+                shift
+                ;;
+            --dry-run)
+                dry_run=true
+                shift
+                ;;
+            --reboot)
+                auto_reboot=true
+                shift
+                ;;
+            --help|-h)
+                show_usage
+                exit 0
+                ;;
+            *)
+                print_error "Unknown option: $1"
+                show_usage
+                exit 1
+                ;;
+        esac
+    done
+    
+    print_header "Raspberry Pi System Update"
+    
+    if [[ "$dry_run" == "true" ]]; then
+        print_warning "DRY RUN MODE - No changes will be made"
+    fi
+    
+    if [[ "$full_update" == "true" ]]; then
+        print_status "Mode: Full system update (includes kernel/firmware)"
+    else
+        print_status "Mode: Standard package update"
+    fi
+    
+    print_status "Cleanup: $([[ "$no_cleanup" == "true" ]] && echo "disabled" || echo "enabled")"
+    print_status "Auto-reboot: $([[ "$auto_reboot" == "true" ]] && echo "enabled" || echo "disabled")"
+    
+    echo ""
+    
+    # Check system
+    check_raspberry_pi
+    
+    # Check system health
+    check_system_health
+    
+    # Check for available updates
+    if ! show_available_updates "$dry_run"; then
+        print_status "No updates available. Exiting."
+        exit 0
+    fi
+    
+    # Perform updates
+    if [[ "$full_update" == "true" ]]; then
+        perform_full_update "$dry_run"
+    else
+        perform_standard_update "$dry_run"
+    fi
+    
+    # Perform cleanup unless disabled
+    if [[ "$no_cleanup" != "true" ]]; then
+        perform_cleanup "$dry_run"
+    else
+        print_status "Skipping cleanup as requested"
+    fi
+    
+    # Show update summary
+    if [[ "$dry_run" != "true" ]]; then
+        show_update_summary
+        
+        # Check if reboot is required
+        if check_reboot_required; then
+            if [[ "$auto_reboot" == "true" ]]; then
+                print_warning "Auto-reboot enabled. Rebooting in 10 seconds..."
+                print_status "Press Ctrl+C to cancel reboot"
+                sleep 10
+                sudo reboot
+            else
+                print_status "Please reboot the system to complete the update"
+                print_status "Use: sudo reboot"
+            fi
+        fi
+    fi
+    
+    print_status "System update completed successfully!"
+    
+    if [[ "$dry_run" == "true" ]]; then
+        print_status "Run without --dry-run to apply updates"
+    fi
+}
+
+# Script entry point
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main "$@"
+fi

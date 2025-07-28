@@ -1,0 +1,424 @@
+#!/bin/bash
+#
+# Function: Raspberry Pi Kiosk Setup
+# Purpose: Configures Raspberry Pi for kiosk mode using raspi-config
+# Usage: my-setup-kiosk [--auto] [--help]
+# Platform: Raspberry Pi
+# Dependencies: raspi-config
+#
+# Author: Generated from dotfiles automation
+# Last Updated: $(date +%Y-%m-%d)
+
+set -euo pipefail
+
+# Color definitions for output
+readonly RED='\033[0;31m'
+readonly GREEN='\033[0;32m'
+readonly YELLOW='\033[1;33m'
+readonly BLUE='\033[0;34m'
+readonly NC='\033[0m' # No Color
+
+# Function to print colored output
+print_status() {
+    echo -e "${GREEN}[INFO]${NC} $1"
+}
+
+print_warning() {
+    echo -e "${YELLOW}[WARNING]${NC} $1"
+}
+
+print_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+}
+
+print_header() {
+    echo -e "${BLUE}[TASK]${NC} $1"
+}
+
+# Function to show usage
+show_usage() {
+    cat << EOF
+Raspberry Pi Kiosk Setup Script
+
+USAGE:
+    my-setup-kiosk [OPTIONS]
+
+OPTIONS:
+    --auto              Run in automatic mode (non-interactive where possible)
+    --help, -h          Show this help message
+
+DESCRIPTION:
+    This script helps configure a Raspberry Pi for kiosk mode operation.
+    It launches the raspi-config utility which allows you to configure:
+    
+    - Boot options (auto-login, desktop vs console)
+    - Display settings (overscan, resolution)
+    - GPU memory split
+    - SSH and other interfaces
+    - Localization settings
+    - Advanced options for kiosk setup
+    
+    For kiosk mode, you typically want to:
+    1. Enable auto-login to desktop
+    2. Disable screen blanking
+    3. Set appropriate GPU memory split (64MB or more)
+    4. Configure display settings for your screen
+    5. Enable SSH for remote management
+
+EXAMPLES:
+    my-setup-kiosk                  # Interactive configuration
+    my-setup-kiosk --auto           # Automatic mode where possible
+
+KIOSK MODE RECOMMENDATIONS:
+    After running raspi-config, consider these additional steps:
+    
+    1. Install a lightweight browser (Chromium)
+    2. Configure autostart to launch browser
+    3. Disable mouse cursor visibility
+    4. Set up automatic updates
+    5. Configure network settings
+    6. Set up remote monitoring
+
+MANUAL KIOSK CONFIGURATION:
+    If you need to set up kiosk mode manually:
+    
+    # Install packages
+    sudo apt update
+    sudo apt install chromium-browser unclutter
+    
+    # Create autostart script
+    mkdir -p ~/.config/autostart
+    
+    # Add browser autostart entry
+    # Edit: ~/.config/autostart/kiosk.desktop
+EOF
+}
+
+# Function to check if running on Raspberry Pi
+check_raspberry_pi() {
+    print_header "Checking Raspberry Pi system..."
+    
+    # Check for Raspberry Pi hardware
+    if [[ -f /proc/cpuinfo ]]; then
+        if grep -q "Raspberry Pi" /proc/cpuinfo 2>/dev/null; then
+            print_status "Raspberry Pi hardware detected"
+        else
+            print_warning "This doesn't appear to be a Raspberry Pi system"
+            print_warning "The setup may not work as expected"
+        fi
+    fi
+    
+    # Check for raspi-config
+    if ! command -v raspi-config &> /dev/null; then
+        print_error "raspi-config not found"
+        print_error "This script requires raspi-config to be installed"
+        print_status "Try installing it with: sudo apt install raspi-config"
+        exit 1
+    fi
+    
+    print_status "raspi-config is available"
+}
+
+# Function to show current system information
+show_system_info() {
+    print_header "Current System Information"
+    
+    # Show OS version
+    if [[ -f /etc/os-release ]]; then
+        local os_name os_version
+        os_name=$(grep "^NAME=" /etc/os-release | cut -d= -f2 | tr -d '"')
+        os_version=$(grep "^VERSION=" /etc/os-release | cut -d= -f2 | tr -d '"')
+        print_status "OS: $os_name $os_version"
+    fi
+    
+    # Show kernel version
+    if command -v uname &> /dev/null; then
+        print_status "Kernel: $(uname -r)"
+    fi
+    
+    # Show Raspberry Pi model
+    if [[ -f /proc/device-tree/model ]]; then
+        print_status "Model: $(cat /proc/device-tree/model 2>/dev/null | tr -d '\0')"
+    fi
+    
+    # Show memory
+    if [[ -f /proc/meminfo ]]; then
+        local total_mem
+        total_mem=$(grep "^MemTotal:" /proc/meminfo | awk '{print $2 $3}')
+        print_status "Memory: $total_mem"
+    fi
+    
+    # Show current boot configuration
+    print_status "Current configuration:"
+    if systemctl get-default &> /dev/null; then
+        print_status "  Boot target: $(systemctl get-default)"
+    fi
+    
+    # Check if desktop environment is installed
+    if command -v startx &> /dev/null || [[ -d /usr/share/xsessions ]]; then
+        print_status "  Desktop: Available"
+    else
+        print_warning "  Desktop: Not detected"
+    fi
+    
+    echo ""
+}
+
+# Function to provide kiosk mode guidance
+show_kiosk_guidance() {
+    print_header "Kiosk Mode Configuration Guide"
+    
+    cat << 'EOF'
+When raspi-config opens, follow these steps for kiosk mode:
+
+1. BOOT OPTIONS:
+   - Choose "Boot Options" -> "Desktop / CLI"
+   - Select "Desktop Autologin" for automatic desktop login
+
+2. ADVANCED OPTIONS:
+   - Choose "Advanced Options" -> "Memory Split"
+   - Set GPU memory to at least 64MB (128MB recommended for web content)
+
+3. DISPLAY OPTIONS:
+   - Configure overscan if your display has black borders
+   - Set resolution if needed for your display
+
+4. INTERFACE OPTIONS:
+   - Enable SSH if you need remote access
+   - Enable VNC if you want remote desktop access
+
+5. SYSTEM OPTIONS:
+   - Set hostname if desired
+   - Configure wireless country if using WiFi
+
+After completing raspi-config:
+- The system will ask to reboot
+- After reboot, you can install kiosk software
+- Consider running: my-setup-kiosk-browser (if available)
+
+EOF
+}
+
+# Function to show post-configuration steps
+show_post_config_steps() {
+    print_header "Post-Configuration Steps"
+    
+    cat << 'EOF'
+After configuring with raspi-config, you may want to:
+
+1. INSTALL KIOSK SOFTWARE:
+   sudo apt update
+   sudo apt install chromium-browser unclutter
+
+2. DISABLE SCREEN BLANKING:
+   Add to /boot/config.txt:
+   hdmi_blanking=1
+   
+   Or use:
+   sudo raspi-config nonint do_blanking 1
+
+3. CREATE AUTOSTART SCRIPT:
+   mkdir -p ~/.config/autostart
+   
+   Create ~/.config/autostart/kiosk.desktop:
+   [Desktop Entry]
+   Type=Application
+   Name=Kiosk
+   Exec=/home/pi/kiosk.sh
+   Hidden=false
+   NoDisplay=false
+   X-GNOME-Autostart-enabled=true
+
+4. CREATE KIOSK LAUNCH SCRIPT:
+   Create ~/kiosk.sh with your application
+
+5. CONFIGURE NETWORK:
+   - Set up WiFi credentials
+   - Configure static IP if needed
+   - Set up VPN if required
+
+6. SECURITY CONSIDERATIONS:
+   - Change default passwords
+   - Configure firewall if needed
+   - Set up automatic updates
+   - Consider read-only root filesystem
+
+EOF
+}
+
+# Function to run automatic configuration
+run_auto_config() {
+    print_header "Running Automatic Kiosk Configuration"
+    print_warning "This will make system changes automatically"
+    
+    # Enable desktop autologin
+    print_status "Configuring desktop autologin..."
+    if sudo raspi-config nonint do_boot_behaviour B4; then
+        print_status "Desktop autologin enabled"
+    else
+        print_warning "Failed to enable desktop autologin"
+    fi
+    
+    # Set GPU memory split
+    print_status "Setting GPU memory to 128MB..."
+    if sudo raspi-config nonint do_memory_split 128; then
+        print_status "GPU memory set to 128MB"
+    else
+        print_warning "Failed to set GPU memory"
+    fi
+    
+    # Enable SSH
+    print_status "Enabling SSH..."
+    if sudo raspi-config nonint do_ssh 0; then
+        print_status "SSH enabled"
+    else
+        print_warning "Failed to enable SSH"
+    fi
+    
+    # Disable screen blanking
+    print_status "Disabling screen blanking..."
+    if sudo raspi-config nonint do_blanking 1; then
+        print_status "Screen blanking disabled"
+    else
+        print_warning "Failed to disable screen blanking"
+    fi
+    
+    print_status "Automatic configuration completed"
+    print_warning "A reboot is recommended to apply all changes"
+}
+
+# Function to create basic kiosk setup
+create_basic_kiosk() {
+    print_header "Creating Basic Kiosk Setup"
+    
+    # Create kiosk directory
+    local kiosk_dir="$HOME/kiosk"
+    mkdir -p "$kiosk_dir"
+    
+    # Create basic kiosk script
+    cat > "$kiosk_dir/start-kiosk.sh" << 'EOF'
+#!/bin/bash
+# Basic Kiosk Startup Script
+
+# Disable screen saver and power management
+xset s off
+xset -dpms
+xset s noblank
+
+# Hide mouse cursor
+unclutter -idle 1 &
+
+# Start your kiosk application here
+# Example: chromium-browser --kiosk --no-sandbox "http://your-url-here"
+
+# Keep the script running
+while true; do
+    sleep 60
+done
+EOF
+    
+    chmod +x "$kiosk_dir/start-kiosk.sh"
+    
+    # Create autostart desktop entry
+    local autostart_dir="$HOME/.config/autostart"
+    mkdir -p "$autostart_dir"
+    
+    cat > "$autostart_dir/kiosk.desktop" << EOF
+[Desktop Entry]
+Type=Application
+Name=Kiosk Mode
+Comment=Start Kiosk Application
+Exec=$kiosk_dir/start-kiosk.sh
+Hidden=false
+NoDisplay=false
+X-GNOME-Autostart-enabled=true
+EOF
+    
+    print_status "Basic kiosk setup created in: $kiosk_dir"
+    print_status "Autostart configured: $autostart_dir/kiosk.desktop"
+    print_status "Edit $kiosk_dir/start-kiosk.sh to customize your kiosk application"
+}
+
+# Main function
+main() {
+    local auto_mode=false
+    
+    # Parse command line arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --auto)
+                auto_mode=true
+                shift
+                ;;
+            --help|-h)
+                show_usage
+                exit 0
+                ;;
+            *)
+                print_error "Unknown option: $1"
+                show_usage
+                exit 1
+                ;;
+        esac
+    done
+    
+    print_header "Raspberry Pi Kiosk Setup"
+    
+    if [[ "$auto_mode" == "true" ]]; then
+        print_status "Mode: Automatic configuration"
+    else
+        print_status "Mode: Interactive configuration"
+    fi
+    
+    # Check system
+    check_raspberry_pi
+    
+    # Show current system information
+    show_system_info
+    
+    if [[ "$auto_mode" == "true" ]]; then
+        # Run automatic configuration
+        run_auto_config
+        
+        # Create basic kiosk setup
+        create_basic_kiosk
+        
+        print_status "Automatic kiosk setup completed!"
+        print_warning "Please reboot to apply all changes: sudo reboot"
+    else
+        # Show guidance for manual configuration
+        show_kiosk_guidance
+        
+        # Launch raspi-config
+        print_status "Launching raspi-config..."
+        print_status "Follow the guidance above for kiosk mode configuration"
+        
+        if sudo raspi-config; then
+            print_status "raspi-config completed successfully"
+            
+            # Ask if user wants basic kiosk setup
+            read -p "Would you like to create a basic kiosk startup configuration? (y/N): " -r
+            if [[ $REPLY =~ ^[Yy]$ ]]; then
+                create_basic_kiosk
+            fi
+            
+            # Show post-configuration steps
+            show_post_config_steps
+        else
+            print_error "raspi-config failed or was cancelled"
+            exit 1
+        fi
+    fi
+    
+    print_status "Kiosk setup completed!"
+    print_status "Next steps:"
+    print_status "1. Reboot the system if prompted"
+    print_status "2. Install your kiosk application (browser, custom app, etc.)"
+    print_status "3. Configure the startup script with your application"
+    print_status "4. Test the kiosk mode functionality"
+}
+
+# Script entry point
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main "$@"
+fi

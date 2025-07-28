@@ -1,0 +1,23 @@
+# shellcheck shell=bash
+if [ "$DEBUG" = "true" ]; then echo "$DOTFILESLOC/platforms/[platform]/.functions" ; fi
+
+# =============================================================================
+# [PLATFORM NAME]-SPECIFIC FUNCTIONS
+# =============================================================================
+
+# Platform-specific functions can be defined here, but consider creating
+# individual my- prefixed scripts in the scripts/ directory instead for
+# better discoverability and maintainability.
+
+# Example platform-specific function:
+# platform_specific_function() {
+#     # Platform-specific functionality
+#     echo "This function is specific to [platform]"
+# }
+
+# If you have converted functions to scripts, document the mapping here:
+# Function -> Script mapping:
+# old_function_name    -> my-[platform]-new-name
+# another_function     -> my-[platform]-another-tool
+#
+# Type 'my-' and press TAB TAB to see all available platform-specific functions!
