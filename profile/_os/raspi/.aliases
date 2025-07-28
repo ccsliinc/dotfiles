@@ -1,5 +1,0 @@
-# shellcheck shell=bash
-if [ "$DEBUG" = "true" ]; then echo "$DOTFILESLOC/profile/_os/raspi/.aliases" ; fi
-
-alias _setup='raspi-config'
-alias _update_raspi='screen bash -c "sudo apt update -y && sudo apt upgrade -y && sudo apt dist-upgrade -y && sudo apt autoremove -y"'

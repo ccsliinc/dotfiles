@@ -1,4 +1,0 @@
-# shellcheck shell=bash
-if [ "$DEBUG" = "true" ]; then echo "$DOTFILESLOC/profile/_os/gnu/.exports" ; fi
-
-export PATH="$DOTFILESLOC/profile/_os/gnu/scripts:$PATH"

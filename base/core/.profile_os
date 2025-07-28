@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-if [ "$DEBUG" = "true" ]; then echo "$DOTFILESLOC/profile/profile/.profile_os" ; fi
+if [ "$DEBUG" = "true" ]; then echo "$DOTFILESLOC/base/core/.profile_os" ; fi
 
 # OS Version
 
@@ -51,9 +51,9 @@ elif [[ -x "/sbin/getcfg" ]]; then
 
     alias PM="sudo opkg install"
 
-# GNU
+# GNU/Linux
 elif [[ "$OSTYPE" == *"linux-gnu"* ]]; then
-    OS="gnu"
+    OS="linux"
     export OS
 
     MODEL=""

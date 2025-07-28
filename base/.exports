@@ -1,5 +1,5 @@
 #shellcheck shell=bash
-if [ "$DEBUG" = "true" ]; then echo "$DOTFILESLOC/profile/.exports" ; fi
+if [ "$DEBUG" = "true" ]; then echo "$DOTFILESLOC/base/.exports" ; fi
 
 # History
 export HISTSIZE=100000
@@ -7,7 +7,7 @@ export HISTFILESIZE=100000
 export HISTCONTROL=ignoreboth
 
 # Add Bin directory to path
-export PATH="$DOTFILESLOC/profile/bin:$PATH"
+export PATH="$DOTFILESLOC/base/bin:$PATH"
 
 # Java Home
 if [[ -z "$JAVA_HOME" ]] ; then
@@ -17,7 +17,7 @@ fi
 
 # I like vim!
 export EDITOR="vim"
-export VIMINIT="source $DOTFILESLOC/profile/vim/.vimrc"
+export VIMINIT="source $DOTFILESLOC/base/vim/.vimrc"
 
 # Colors for ls
 

@@ -1,5 +1,5 @@
 #shellcheck shell=bash
-if [ "$DEBUG" = "true" ]; then echo "$DOTFILESLOC/profile/.aliases" ; fi
+if [ "$DEBUG" = "true" ]; then echo "$DOTFILESLOC/base/.aliases" ; fi
 
 ulimit -c 10000000
 

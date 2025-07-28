@@ -1,0 +1,30 @@
+# shellcheck shell=bash
+if [ "$DEBUG" = "true" ]; then echo "$DOTFILESLOC/profile/.profile_interactive" ; fi
+
+# shellcheck source=.profile
+source "$DOTFILESLOC/base/.profile"
+
+# shellcheck source=.exports
+source "$DOTFILESLOC/base/.exports"
+
+# shellcheck source=.aliases
+source "$DOTFILESLOC/base/.aliases"
+
+# shellcheck source=.update_check
+bash "$DOTFILESLOC/base/scripts/_profile_update_check.sh"
+
+# These should be the last 2 lines of the file
+# Don't make edits below this
+# shellcheck source=/dev/null
+[[ -f "$DOTFILESLOC/platforms/${OS}/.profile" ]] && source "$DOTFILESLOC/platforms/${OS}/.profile"
+
+# iTerm2 Integrations
+# shellcheck source=core/.iterm2_shell_integration.zsh
+source "$DOTFILESLOC/base/core/.iterm2_shell_integration.zsh"
+
+# shellcheck source=core/.profile_motd
+source "$DOTFILESLOC/base/core/.profile_motd"
+
+# Load any local overwrites if needed
+# shellcheck source=/dev/null
+[[ -f ~/.profile.local ]] && source ~/.profile.local

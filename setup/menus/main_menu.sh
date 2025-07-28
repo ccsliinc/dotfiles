@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# shellcheck source=../../profile/profile/.profile_os
-source "$HOME/.dotfiles/profile/profile/.profile_os" &> /dev/null
+# shellcheck source=../../base/core/.profile_os
+source "$HOME/.dotfiles/base/core/.profile_os" &> /dev/null
 
 mainmenu() {
     echo -ne "
