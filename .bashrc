@@ -13,7 +13,7 @@ else
     return 1
 fi 
 
-source "$DOTFILESLOC/profile/.profile"
+source "$DOTFILESLOC/base/.profile"
 
 # This should be the last line of the file
 # For local changes

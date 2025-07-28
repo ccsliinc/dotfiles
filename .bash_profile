@@ -14,7 +14,7 @@ else
     return 1
 fi 
 
-source "$DOTFILESLOC/profile/.profile_interactive"
+source "$DOTFILESLOC/base/.profile_interactive"
 
 # do not overwrite files on > redirection
 set -o noclobber

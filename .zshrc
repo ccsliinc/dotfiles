@@ -102,7 +102,7 @@ else
     return 1
 fi 
 
-source "$HOME/.dotfiles/profile/.profile_interactive"
+source "$HOME/.dotfiles/base/.profile_interactive"
 
 
 unsetopt nomatch
