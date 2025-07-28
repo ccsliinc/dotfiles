@@ -82,8 +82,8 @@ EOF
         fi
         
         echo -e "${CYAN}# $section${NC}"
-        echo -e "${WHITE}$(printf "%-20s %-30s %s" "COMMAND" "EXAMPLE" "DESCRIPTION")${NC}"
-        echo -e "${WHITE}$(printf "%-20s %-30s %s" "-------" "-------" "-----------")${NC}"
+        echo -e "${WHITE}$(printf "%-24s %-40s %s" "COMMAND" "EXAMPLE" "DESCRIPTION")${NC}"
+        echo -e "${WHITE}$(printf "%-24s %-40s %s" "-------" "-------" "-----------")${NC}"
         
         # Collect aliases and functions separately
         local aliases=()
@@ -134,8 +134,8 @@ EOF
                 fi
                 
                 # Truncate long descriptions
-                if [[ ${#description} -gt 40 ]]; then
-                    description="${description:0:37}..."
+                if [[ ${#description} -gt 50 ]]; then
+                    description="${description:0:47}..."
                 fi
                 
                 aliases+=("$alias_name|$example|$description")
@@ -173,7 +173,7 @@ EOF
                 local example="${temp%%|*}"
                 local desc="${temp#*|}"
                 
-                printf "${GREEN}%-20s${NC} ${YELLOW}%-30s${NC} ${GRAY}%s${NC}\n" "$cmd" "$example" "$desc"
+                printf "${GREEN}%-24s${NC} ${YELLOW}%-40s${NC} ${GRAY}%s${NC}\n" "$cmd" "$example" "$desc"
             done
         fi
         
@@ -189,7 +189,7 @@ EOF
                 local example="${temp%%|*}"
                 local desc="${temp#*|}"
                 
-                printf "${MAGENTA}%-20s${NC} ${YELLOW}%-30s${NC} ${GRAY}%s${NC}\n" "$cmd" "$example" "$desc"
+                printf "${MAGENTA}%-24s${NC} ${YELLOW}%-40s${NC} ${GRAY}%s${NC}\n" "$cmd" "$example" "$desc"
             done
         fi
         
@@ -213,8 +213,8 @@ EOF
     
     # Add my- scripts section
     echo -e "${CYAN}# My- Scripts (Functions)${NC}" >> "$temp_file"
-    echo -e "${WHITE}$(printf "%-20s %-30s %s" "COMMAND" "EXAMPLE" "DESCRIPTION")${NC}" >> "$temp_file"
-    echo -e "${WHITE}$(printf "%-20s %-30s %s" "-------" "-------" "-----------")${NC}" >> "$temp_file"
+    echo -e "${WHITE}$(printf "%-24s %-40s %s" "COMMAND" "EXAMPLE" "DESCRIPTION")${NC}" >> "$temp_file"
+    echo -e "${WHITE}$(printf "%-24s %-40s %s" "-------" "-------" "-----------")${NC}" >> "$temp_file"
     
     # Extract script info from base scripts
     local script_functions=()
@@ -239,8 +239,8 @@ EOF
                 if [[ -n "$purpose" ]]; then
                     description="$purpose"
                     # Truncate long descriptions
-                    if [[ ${#description} -gt 40 ]]; then
-                        description="${description:0:37}..."
+                    if [[ ${#description} -gt 50 ]]; then
+                        description="${description:0:47}..."
                     fi
                 fi
                 
@@ -271,8 +271,8 @@ EOF
                 if [[ -n "$purpose" ]]; then
                     description="$purpose"
                     # Truncate long descriptions
-                    if [[ ${#description} -gt 40 ]]; then
-                        description="${description:0:37}..."
+                    if [[ ${#description} -gt 50 ]]; then
+                        description="${description:0:47}..."
                     fi
                 fi
                 
@@ -289,7 +289,7 @@ EOF
             local example="${temp%%|*}"
             local desc="${temp#*|}"
             
-            printf "${MAGENTA}%-20s${NC} ${YELLOW}%-30s${NC} ${GRAY}%s${NC}\n" "$cmd" "$example" "$desc" >> "$temp_file"
+            printf "${MAGENTA}%-24s${NC} ${YELLOW}%-40s${NC} ${GRAY}%s${NC}\n" "$cmd" "$example" "$desc" >> "$temp_file"
         done < <(printf '%s\n' "${script_functions[@]}" | sort)
     fi
     
