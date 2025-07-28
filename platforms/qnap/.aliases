@@ -24,7 +24,7 @@ alias flushDNS='echo "DNS flush not applicable on QNAP - restart networking if n
 
 # Docker CLI (architecture-specific)
 if [[ "$ARCH" == "armv7l" ]]; then
-    alias docker-cli="$DOTFILESLOC/base/bin/docker-cli-linux-arm64"  # docker-cli: ARM64 version
+    alias docker-cli='$DOTFILESLOC/base/bin/docker-cli-linux-arm64'  # docker-cli: ARM64 version
 else
     alias docker-cli="$DOTFILESLOC/base/bin/docker-cli-linux-x64"   # docker-cli: x64 version
 fi

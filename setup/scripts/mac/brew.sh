@@ -1,7 +1,14 @@
 #!/bin/bash
 
-xcode-select --install
-arch -x86_64 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"
+# Install Xcode command line tools if needed
+if ! xcode-select -p &> /dev/null; then
+    xcode-select --install
+fi
+
+# Install Homebrew if not already installed
+if ! command -v brew >/dev/null 2>&1; then
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+fi
 
 brew install \
   fortune \
@@ -18,5 +25,5 @@ brew install \
   sslyze \
   wp-cli \
   yarn \
-  youtube-dl \
+  yt-dlp \
   zsh

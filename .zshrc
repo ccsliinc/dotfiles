@@ -89,7 +89,7 @@ plugins=(
 
 export DEBUG=false
 
-source $ZSH/oh-my-zsh.sh
+source "$ZSH/oh-my-zsh.sh"
 
 if [[ -d "$HOME/.dotfiles" ]]; then
     DOTFILESLOC="$HOME/.dotfiles"

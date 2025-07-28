@@ -17,7 +17,7 @@ alias ui-start='sudo systemctl start display-manager.service'
 alias apt-clean='sudo apt-get update && sudo apt-get autoclean && sudo apt-get clean && sudo apt-get autoremove'
 
 # Dotfiles management
-alias bootstrap="$HOME/.dotfiles/setup/bootstrap.sh"
+alias bootstrap='$HOME/.dotfiles/setup/bootstrap.sh'
 
 # Auto-sudo for common commands (if not root)
 if [[ $UID != 0 ]] ; then
