@@ -1,0 +1,23 @@
+#!/bin/bash
+# Function: my-localtime
+# Purpose: Convert Unix timestamp to local time
+# Usage: my-localtime <timestamp>
+# Example: my-localtime 1640995200
+# Platform: All (requires Perl)
+# Dependencies: perl
+
+my_localtime() {
+    if [ $# -eq 0 ]; then
+        echo "Usage: my-localtime <timestamp>"
+        echo "Example: my-localtime 1640995200"
+        return 1
+    fi
+    
+    perl -e "print scalar localtime $1";
+    echo;
+}
+
+# Execute if called directly (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    my_localtime "$@"
+fi

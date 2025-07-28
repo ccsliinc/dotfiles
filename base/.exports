@@ -6,8 +6,16 @@ export HISTSIZE=100000
 export HISTFILESIZE=100000
 export HISTCONTROL=ignoreboth
 
-# Add Bin directory to path
-export PATH="$DOTFILESLOC/base/bin:$PATH"
+# Add Bin and Scripts directories to path
+export PATH="$DOTFILESLOC/base/bin:$DOTFILESLOC/base/scripts:$PATH"
+
+# Add OS-specific bin and scripts to path
+if [[ -d "$DOTFILESLOC/platforms/${OS}/bin" ]]; then
+    export PATH="$DOTFILESLOC/platforms/${OS}/bin:$PATH"
+fi
+if [[ -d "$DOTFILESLOC/platforms/${OS}/scripts" ]]; then
+    export PATH="$DOTFILESLOC/platforms/${OS}/scripts:$PATH"
+fi
 
 # Java Home
 if [[ -z "$JAVA_HOME" ]] ; then
@@ -40,6 +48,6 @@ export LS_COLORS="no=00:fi=00:di=01;34:ln=01;36:pi=40;33:so=01;35:do=01;35\
 # These should be the last 2 lines of the file
 # Don't make edits below this
 # shellcheck source=/dev/null
-[[ -f "$DOTFILESLOC/profile/_os/${OS}/.exports" ]] && source "$DOTFILESLOC/profile/_os/${OS}/.exports"
+[[ -f "$DOTFILESLOC/platforms/${OS}/.exports" ]] && source "$DOTFILESLOC/platforms/${OS}/.exports"
 # shellcheck source=/dev/null
 [[ -f ~/.exports.local ]] && source "$HOME/.exports.local"

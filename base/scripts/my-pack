@@ -1,0 +1,22 @@
+#!/bin/bash
+# Function: my-pack
+# Purpose: Compress and base64 encode files
+# Usage: my-pack <files...>
+# Example: my-pack file1.txt file2.txt
+# Platform: All (requires gzip)
+# Dependencies: gzip, my-b64e
+
+my_pack() {
+    if [ $# -eq 0 ]; then
+        echo "Usage: my-pack <files...>"
+        echo "Example: my-pack file1.txt file2.txt"
+        return 1
+    fi
+    
+    gzip -c "$@" | my-b64e
+}
+
+# Execute if called directly (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    my_pack "$@"
+fi

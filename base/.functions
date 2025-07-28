@@ -1,186 +1,27 @@
 # shellcheck shell=bash
 if [ "$DEBUG" = "true" ]; then echo "$DOTFILESLOC/base/.functions" ; fi
 
-_compose_update () {
-    docker compose pull
-    docker compose up -d --remove-orphans
-    docker image prune
-}
-
-_gen_cert () {
-    # Load certificate configuration from ~/.env file
-    # shellcheck source=../.env
-    if [[ -f "$HOME/.env" ]]; then
-        source "$HOME/.env"
-    else
-        echo "Warning: Certificate configuration file not found. Using defaults."
-        CERT_COUNTRY="US"
-        CERT_STATE="State" 
-        CERT_CITY="City"
-        CERT_ORGANIZATION="Organization"
-        CERT_ORG_UNIT="IT Department"
-        CERT_KEY_SIZE="4096"
-        CERT_DAYS="365"
-        CERT_DIGEST="sha256"
-        SSL_DIR="$HOME/ssl"
-    fi
-
-    if [ "$#" -lt 2 ]
-    then
-        echo "Usage: Must supply a domain and IP"
-        echo "Usage: _gen_cert my.office 8.8.8.8"
-        echo "_gen_cert my.office 8.8.8.8 domain.second etc..."
-        return 1
-    fi
-    
-    DOMAIN=$1
-    IP=$2
-    ARGS=( "$@" )
-    YEAR=$(date +%Y)
-
-    # Create SSL directory structure
-    mkdir -p "$SSL_DIR"
-    # Backup existing domain certificate if it exists
-    if [[ -d "$SSL_DIR/$DOMAIN" ]]; then
-        mv "$SSL_DIR/$DOMAIN" "$SSL_DIR/$DOMAIN.$YEAR"
-    fi
-    mkdir -p "$SSL_DIR/$DOMAIN"
-    cd "$SSL_DIR/$DOMAIN" || exit
-    
-    # Generate private key
-    openssl genrsa -out "$DOMAIN.key" "$CERT_KEY_SIZE"
-    
-    # Generate certificate signing request with configurable subject
-    openssl req -new \
-        -key "$DOMAIN.key" \
-        -out "$DOMAIN.csr" \
-        -subj "/C=$CERT_COUNTRY/ST=$CERT_STATE/L=$CERT_CITY/O=$CERT_ORGANIZATION/OU=$CERT_ORG_UNIT/CN=$DOMAIN"
-
-    #echo "authorityKeyIdentifier=keyid,issuer" >> "$DOMAIN.ext"
-
-    cat > "$DOMAIN.ext" << EOF
-authorityKeyIdentifier=keyid,issuer
-basicConstraints=CA:FALSE
-keyUsage = digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment
-subjectAltName = @alt_names
-[alt_names]
-DNS.1 = $DOMAIN
-IP.1 = $IP
-EOF
-    x=2
-    for ((i=3;i<=$#;i++)); do 
-        echo "DNS.$x = ${ARGS[i]}" >> "$DOMAIN.ext"
-        x=$((x+1))
-        #echo "DNS.${$i - 1} = ${!i}" >> "$DOMAIN.ext"
-        #cat >> "$DOMAIN.ext" < "DNS.$($i - 1) = ${!i}"
-    done
-
-    # Generate the certificate using configurable settings
-    openssl x509 -req \
-        -in "$DOMAIN.csr" \
-        -CA ../myCA.pem \
-        -CAkey ../myCA.key \
-        -CAcreateserial \
-        -out "$DOMAIN.crt" \
-        -days "$CERT_DAYS" \
-        -"$CERT_DIGEST" \
-        -extfile "$DOMAIN.ext"
-}
-
-_fix_mysql () {
-    echo "mysql> SELECT plugin from mysql.user where User='root';"
-    echo "mysql> UPDATE mysql.user SET plugin = 'mysql_native_password', authentication_string = PASSWORD('changeme') WHERE User = 'root';"
-    echo "mysql> FLUSH PRIVILEGES;"
-}
-_hosts_edit () {
-    sudo vi /etc/hosts
-}
-
-localtime() {
-	perl -e "print scalar localtime $1";
-	echo;
-}
-
-gmtime() {
-	perl -e "print scalar gmtime $1";
-	echo;
-}
-
-pyhelp() {
-	echo "import $1;help($1)" | python | less
-}
-
-b64e() { perl -e 'use MIME::Base64 qw(encode_base64);$/=undef;print encode_base64(<>);'; }
-b64d() { perl -e 'use MIME::Base64 qw(decode_base64);$/=undef;print decode_base64(<>);'; }
-
-pack() {
-	gzip -c $* | b64e
-}
-
-unpack() {
-	b64d | gunzip
-}
-
-packf() {
-	tar -cf - "$*" | gzip | b64e
-}
-
-unpackf() {
-	b64d | tar -zxf -
-}
-
-# Dump all MySQL databases
-
-mydumpall() {
-
-    for DB in $( echo show databases | mysql -u root -B --skip-column-names "$@"); 
-    do
-        # echo "$DB"
-        echo "$DB"; mysqldump -u root "$DB" "$@" > "$DB.sql"
-    done
-	
-    # for DB in `echo show databases | mysql -B --skip-column-names $*`; do
-	# 	echo "$DB"; mysqldump "$DB" "$*" > "$DB.sql"
-	# done
-}
-
-#   mans:   Search manpage given in agument '1' for term given in argument '2' (case insensitive)
-#           displays paginated result with colored search terms and two lines surrounding each hit.            Example: mans mplayer codec
-#   --------------------------------------------------------------------
-mans () {
-    man "$1" | grep -iC2 --color=always "$2" | less
-}
-
-#   showa: to remind yourself of an alias (given some part of it)
-#   ------------------------------------------------------------
-showa () { /usr/bin/grep --color=always -i -a1 "$@" ~/Library/init/bash/aliases.bash | grep -v '^\s*$' | less -FSRXc ; }
-
-#   extract:  Extract most know archives with one command
-#   ---------------------------------------------------------
-extract () {
-    if [ -f $1 ] ; then
-        case $1 in
-            *.tar.bz2)   tar xjf $1     ;;
-            *.tar.gz)    tar xzf $1     ;;
-            *.bz2)       bunzip2 $1     ;;
-            *.rar)       unrar e $1     ;;
-            *.gz)        gunzip $1      ;;
-            *.tar)       tar xf $1      ;;
-            *.tbz2)      tar xjf $1     ;;
-            *.tgz)       tar xzf $1     ;;
-            *.zip)       unzip $1       ;;
-            *.Z)         uncompress $1  ;;
-            *.7z)        7z x $1        ;;
-            *)     echo "'$1' cannot be extracted via extract()" ;;
-        esac
-    else
-        echo "'$1' is not a valid file"
-    fi
-}
-
-_default_perms() {
-    find . -type f -exec chmod 664 {} \; && find . -type d -exec chmod 775 {} \;
-}
+# All functions have been modularized into individual my- prefixed scripts
+# in base/scripts/ which are now available in PATH for tab completion.
+#
+# Function -> Script mapping:
+# _compose_update  -> my-compose-update
+# _gen_cert        -> my-gen-cert  
+# _fix_mysql       -> my-fix-mysql
+# _hosts_edit      -> my-hosts-edit
+# _default_perms   -> my-default-perms
+# localtime        -> my-localtime
+# gmtime           -> my-gmtime
+# pyhelp           -> my-pyhelp
+# b64e/b64d        -> my-b64e/my-b64d
+# pack/unpack      -> my-pack/my-unpack
+# packf/unpackf    -> my-packf/my-unpackf
+# mydumpall        -> my-mydumpall
+# mans             -> my-mans
+# showa            -> my-showa
+# extract          -> my-extract
+#
+# Type 'my-' and press TAB TAB to see all available custom functions!
 
 # These should be the last 2 lines of the file
 # Don't make edits below this

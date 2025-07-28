@@ -1,0 +1,23 @@
+#!/bin/bash
+# Function: my-gmtime
+# Purpose: Convert Unix timestamp to GMT/UTC time
+# Usage: my-gmtime <timestamp>
+# Example: my-gmtime 1640995200
+# Platform: All (requires Perl)
+# Dependencies: perl
+
+my_gmtime() {
+    if [ $# -eq 0 ]; then
+        echo "Usage: my-gmtime <timestamp>"
+        echo "Example: my-gmtime 1640995200"
+        return 1
+    fi
+    
+    perl -e "print scalar gmtime $1";
+    echo;
+}
+
+# Execute if called directly (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    my_gmtime "$@"
+fi
