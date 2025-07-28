@@ -58,92 +58,113 @@ EOF
     echo "================="
     echo ""
     
-    # Collect aliases from different sources
-    local temp_file=$(mktemp)
-    local has_results=false
+    local temp_file
+    temp_file=$(mktemp)
     
-    # Base aliases
-    if [[ "$show_platform" != true ]]; then
-        echo "# Base Aliases (Cross-platform)" >> "$temp_file"
-        if [[ -f "$DOTFILESLOC/base/.aliases" ]]; then
-            grep -E "^alias [^=]+=" "$DOTFILESLOC/base/.aliases" | \
-            sed 's/alias \([^=]*\)=.*/\1/' | \
-            while read -r alias_name; do
-                local alias_def=$(grep "^alias $alias_name=" "$DOTFILESLOC/base/.aliases" | head -1)
-                local comment=$(grep -A1 -B1 "^alias $alias_name=" "$DOTFILESLOC/base/.aliases" | grep "#" | tail -1 | sed 's/.*# *//')
-                if [[ -n "$comment" && "$comment" != *"alias $alias_name="* ]]; then
-                    echo "  $alias_name - $comment"
-                else
-                    echo "  $alias_name - ${alias_def#alias $alias_name=}"
-                fi
-            done >> "$temp_file"
-            has_results=true
+    # Function to extract and format aliases from a file
+    extract_aliases() {
+        local file="$1"
+        local section="$2"
+        
+        if [[ ! -f "$file" ]]; then
+            return
         fi
-        echo "" >> "$temp_file"
+        
+        echo "# $section"
+        echo ""
+        
+        # Get all alias lines with their context
+        local current_comment=""
+        while IFS= read -r line; do
+            # Skip empty lines and section headers
+            if [[ -z "$line" || "$line" =~ ^[[:space:]]*$ ]]; then
+                continue
+            fi
+            
+            # Capture comments (but skip section dividers)
+            if [[ "$line" =~ ^[[:space:]]*#[[:space:]]* ]]; then
+                local clean_comment="${line#*#}"
+                clean_comment="${clean_comment## }"
+                
+                # Skip section dividers and shellcheck
+                if [[ ! "$clean_comment" =~ ^=+ ]] && [[ ! "$clean_comment" =~ shellcheck ]]; then
+                    if [[ ${#clean_comment} -gt 3 ]]; then
+                        current_comment="$clean_comment"
+                    fi
+                fi
+                continue
+            fi
+            
+            # Process alias definitions
+            if [[ "$line" =~ ^[[:space:]]*alias[[:space:]]+([^=]+)=(.*)$ ]]; then
+                local alias_name="${BASH_REMATCH[1]}"
+                local alias_def="${BASH_REMATCH[2]}"
+                
+                # Clean up alias name and definition
+                alias_name="${alias_name// /}"
+                alias_def="${alias_def#\'}"
+                alias_def="${alias_def%\'}"
+                alias_def="${alias_def#\"}"
+                alias_def="${alias_def%\"}"
+                
+                # Truncate long definitions
+                if [[ ${#alias_def} -gt 50 ]]; then
+                    alias_def="${alias_def:0:47}..."
+                fi
+                
+                # Use comment if available, otherwise show definition
+                if [[ -n "$current_comment" ]]; then
+                    printf "  %-18s %s\n" "$alias_name" "$current_comment"
+                    current_comment=""
+                else
+                    printf "  %-18s %s\n" "$alias_name" "$alias_def"
+                fi
+            fi
+            
+            # Process function definitions
+            if [[ "$line" =~ ^[[:space:]]*([a-zA-Z_][a-zA-Z0-9_]*)[[:space:]]*\(\) ]]; then
+                local func_name="${BASH_REMATCH[1]}()"
+                
+                if [[ -n "$current_comment" ]]; then
+                    printf "  %-18s %s\n" "$func_name" "$current_comment"
+                    current_comment=""
+                else
+                    printf "  %-18s %s\n" "$func_name" "Function"
+                fi
+            fi
+            
+            # Reset comment on non-comment lines that aren't aliases/functions
+            if [[ ! "$line" =~ ^[[:space:]]*# ]] && [[ ! "$line" =~ ^[[:space:]]*alias ]] && [[ ! "$line" =~ \(\) ]]; then
+                current_comment=""
+            fi
+            
+        done < "$file"
+        
+        echo ""
+    }
+    
+    # Base aliases  
+    if [[ "$show_platform" != true ]]; then
+        extract_aliases "$DOTFILESLOC/base/.aliases" "Base Aliases (Cross-platform)" >> "$temp_file"
     fi
     
     # Platform-specific aliases
     if [[ -n "$OS" && -f "$DOTFILESLOC/platforms/$OS/.aliases" ]]; then
-        echo "# Platform Aliases ($OS)" >> "$temp_file"
-        grep -E "^alias [^=]+=" "$DOTFILESLOC/platforms/$OS/.aliases" | \
-        sed 's/alias \([^=]*\)=.*/\1/' | \
-        while read -r alias_name; do
-            local alias_def=$(grep "^alias $alias_name=" "$DOTFILESLOC/platforms/$OS/.aliases" | head -1)
-            local comment=$(grep -A1 -B1 "^alias $alias_name=" "$DOTFILESLOC/platforms/$OS/.aliases" | grep "#" | tail -1 | sed 's/.*# *//')
-            if [[ -n "$comment" && "$comment" != *"alias $alias_name="* ]]; then
-                echo "  $alias_name - $comment"
-            else
-                echo "  $alias_name - ${alias_def#alias $alias_name=}"
-            fi
-        done >> "$temp_file"
-        has_results=true
-        echo "" >> "$temp_file"
+        extract_aliases "$DOTFILESLOC/platforms/$OS/.aliases" "Platform Aliases ($OS)" >> "$temp_file"
     fi
     
-    # Functions defined as aliases (like cd, trash, etc.)
-    echo "# Function Aliases" >> "$temp_file"
-    if [[ -f "$DOTFILESLOC/base/.aliases" ]]; then
-        grep -E "^[a-zA-Z_][a-zA-Z0-9_]*\(\)" "$DOTFILESLOC/base/.aliases" | \
-        sed 's/() {.*//' | \
-        while read -r func_name; do
-            local comment=$(grep -B2 -A1 "^$func_name()" "$DOTFILESLOC/base/.aliases" | grep "#" | tail -1 | sed 's/.*# *//')
-            if [[ -n "$comment" ]]; then
-                echo "  $func_name() - $comment"
-            else
-                echo "  $func_name() - Function defined in aliases"
-            fi
-        done >> "$temp_file"
-    fi
-    
-    if [[ -n "$OS" && -f "$DOTFILESLOC/platforms/$OS/.aliases" ]]; then
-        grep -E "^[a-zA-Z_][a-zA-Z0-9_]*\(\)" "$DOTFILESLOC/platforms/$OS/.aliases" | \
-        sed 's/() {.*//' | \
-        while read -r func_name; do
-            local comment=$(grep -B2 -A1 "^$func_name()" "$DOTFILESLOC/platforms/$OS/.aliases" | grep "#" | tail -1 | sed 's/.*# *//')
-            if [[ -n "$comment" ]]; then
-                echo "  $func_name() - $comment"
-            else
-                echo "  $func_name() - Platform-specific function"
-            fi
-        done >> "$temp_file"
-    fi
-    echo "" >> "$temp_file"
-    
-    # Local aliases if they exist
+    # Local aliases
     if [[ "$show_platform" != true && -f ~/.aliases.local ]]; then
-        echo "# Local Aliases (Personal)" >> "$temp_file"
-        grep -E "^alias [^=]+=" ~/.aliases.local | \
-        sed 's/alias \([^=]*\)=.*/\1/' | \
-        while read -r alias_name; do
-            local alias_def=$(grep "^alias $alias_name=" ~/.aliases.local | head -1)
-            echo "  $alias_name - ${alias_def#alias $alias_name=}"
-        done >> "$temp_file"
-        echo "" >> "$temp_file"
+        extract_aliases ~/.aliases.local "Local Aliases (Personal)" >> "$temp_file"
     fi
     
     # Apply pattern filter and display
     if [[ -n "$pattern" ]]; then
-        grep -i "$pattern" "$temp_file" || echo "No aliases found matching pattern: $pattern"
+        if grep -i "$pattern" "$temp_file"; then
+            :
+        else
+            echo "No aliases found matching pattern: $pattern"
+        fi
     else
         cat "$temp_file"
     fi
@@ -151,8 +172,10 @@ EOF
     rm -f "$temp_file"
     
     echo ""
-    echo "TIP: Use 'my-list-functions' to see available my- scripts"
-    echo "TIP: Use 'alias <name>' to see the definition of a specific alias"
+    echo "USAGE TIPS:"
+    echo "- Use 'my-list-functions' to see available my- scripts"
+    echo "- Use 'alias <name>' to see the full definition of a specific alias"
+    echo "- Use 'type <name>' to see if something is an alias, function, or command"
 }
 
 # Execute if called directly (not sourced)
