@@ -2,6 +2,24 @@
 
 Installation instructions for all platforms.
 
+## Configuration
+
+### Environment Variables (.env)
+Some functions require local configuration. Copy the sample environment file and customize:
+
+```bash
+# Copy the sample .env file to your local files
+cp .env.sample _reference.local/local_files/mac/.env
+
+# Create symlink to home directory
+ln -sf ~/.dotfiles/_reference.local/local_files/mac/.env ~/.env
+
+# Edit the configuration as needed
+vi _reference.local/local_files/mac/.env
+```
+
+**Note**: The `.env` file contains local configuration and is not committed to git.
+
 ## Linux & Raspberry Pi
 
 ### Linux Profile Install
