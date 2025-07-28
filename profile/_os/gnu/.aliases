@@ -1,6 +1,0 @@
-# shellcheck shell=bash
-
-alias chkconfig='sudo sysv-rc-conf'
-alias which='which'
-alias netstatt='netstat -tulpen'
-alias gdrive='gdrive_linux_x86'

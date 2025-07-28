@@ -17,8 +17,8 @@ exit_abnormal() {
     exit 1
 }
 
-# shellcheck source=../../../profile/profile/.profile_os
-source ~/.dotfiles/profile/profile/.profile_os
+# shellcheck source=../../../base/core/.profile_os
+source ~/.dotfiles/base/core/.profile_os
 
 if [[ $OS == "qnap" ]]; then
     shell="/opt/bin/zsh"
