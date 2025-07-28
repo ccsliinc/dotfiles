@@ -8,12 +8,29 @@ _compose_update () {
 }
 
 _gen_cert () {
+    # Load certificate configuration from .env file
+    # shellcheck source=.env
+    if [[ -f "$DOTFILESLOC/profile/.env" ]]; then
+        source "$DOTFILESLOC/profile/.env"
+    else
+        echo "Warning: Certificate configuration file not found. Using defaults."
+        CERT_COUNTRY="US"
+        CERT_STATE="State" 
+        CERT_CITY="City"
+        CERT_ORGANIZATION="Organization"
+        CERT_ORG_UNIT="IT Department"
+        CERT_KEY_SIZE="4096"
+        CERT_DAYS="365"
+        CERT_DIGEST="sha256"
+        SSL_DIR="$HOME/ssl"
+    fi
+
     if [ "$#" -lt 2 ]
     then
-    echo "Usage: Must supply a domain and IP"
-    echo "Usage: _gen_cert my.office 8.8.8.8"
-    echo "_gen_cert my.office 8.8.8.8 domain.second etc..."
-    return 1
+        echo "Usage: Must supply a domain and IP"
+        echo "Usage: _gen_cert my.office 8.8.8.8"
+        echo "_gen_cert my.office 8.8.8.8 domain.second etc..."
+        return 1
     fi
     
     DOMAIN=$1
@@ -21,16 +38,23 @@ _gen_cert () {
     ARGS=( "$@" )
     YEAR=$(date +%Y)
 
-    #cd ~/ssl
-    mv ~/ssl/"$DOMAIN" ~/ssl/"$DOMAIN"."$YEAR"
-    mkdir -p "$HOME/ssl/$DOMAIN"
-    cd "$HOME/ssl/$DOMAIN" || exit
+    # Create SSL directory structure
+    mkdir -p "$SSL_DIR"
+    # Backup existing domain certificate if it exists
+    if [[ -d "$SSL_DIR/$DOMAIN" ]]; then
+        mv "$SSL_DIR/$DOMAIN" "$SSL_DIR/$DOMAIN.$YEAR"
+    fi
+    mkdir -p "$SSL_DIR/$DOMAIN"
+    cd "$SSL_DIR/$DOMAIN" || exit
     
-    openssl genrsa -out "$DOMAIN.key" 4096
+    # Generate private key
+    openssl genrsa -out "$DOMAIN.key" "$CERT_KEY_SIZE"
+    
+    # Generate certificate signing request with configurable subject
     openssl req -new \
         -key "$DOMAIN.key" \
         -out "$DOMAIN.csr" \
-        -subj "/C=US/ST=New York/L=Amityville/O=Security/OU=IT Department/CN=$DOMAIN"
+        -subj "/C=$CERT_COUNTRY/ST=$CERT_STATE/L=$CERT_CITY/O=$CERT_ORGANIZATION/OU=$CERT_ORG_UNIT/CN=$DOMAIN"
 
     #echo "authorityKeyIdentifier=keyid,issuer" >> "$DOMAIN.ext"
 
@@ -51,14 +75,15 @@ EOF
         #cat >> "$DOMAIN.ext" < "DNS.$($i - 1) = ${!i}"
     done
 
+    # Generate the certificate using configurable settings
     openssl x509 -req \
         -in "$DOMAIN.csr" \
         -CA ../myCA.pem \
         -CAkey ../myCA.key \
         -CAcreateserial \
         -out "$DOMAIN.crt" \
-        -days 365 \
-        -sha256 \
+        -days "$CERT_DAYS" \
+        -"$CERT_DIGEST" \
         -extfile "$DOMAIN.ext"
 }
 
