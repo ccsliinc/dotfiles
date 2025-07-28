@@ -54,8 +54,19 @@ EOF
         return 0
     fi
     
-    echo "Available Aliases"
-    echo "================="
+    # Color definitions
+    local RED='\033[0;31m'
+    local GREEN='\033[0;32m'
+    local YELLOW='\033[1;33m'
+    local BLUE='\033[0;34m'
+    local MAGENTA='\033[0;35m'
+    local CYAN='\033[0;36m'
+    local WHITE='\033[1;37m'
+    local GRAY='\033[0;37m'
+    local NC='\033[0m' # No Color
+    
+    echo -e "${WHITE}Available Aliases${NC}"
+    echo -e "${WHITE}=================${NC}"
     echo ""
     
     local temp_file
@@ -70,11 +81,13 @@ EOF
             return
         fi
         
-        echo "# $section"
+        echo -e "${CYAN}# $section${NC}"
         echo ""
         
-        # Get all alias lines with their context
+        # Collect all aliases and functions first
+        local aliases=()
         local current_comment=""
+        
         while IFS= read -r line; do
             # Skip empty lines and section headers
             if [[ -z "$line" || "$line" =~ ^[[:space:]]*$ ]]; then
@@ -108,16 +121,16 @@ EOF
                 alias_def="${alias_def%\"}"
                 
                 # Truncate long definitions
-                if [[ ${#alias_def} -gt 50 ]]; then
-                    alias_def="${alias_def:0:47}..."
+                if [[ ${#alias_def} -gt 65 ]]; then
+                    alias_def="${alias_def:0:62}..."
                 fi
                 
                 # Use comment if available, otherwise show definition
                 if [[ -n "$current_comment" ]]; then
-                    printf "  %-18s %s\n" "$alias_name" "$current_comment"
+                    aliases+=("$alias_name|$current_comment")
                     current_comment=""
                 else
-                    printf "  %-18s %s\n" "$alias_name" "$alias_def"
+                    aliases+=("$alias_name|$alias_def")
                 fi
             fi
             
@@ -126,10 +139,10 @@ EOF
                 local func_name="${BASH_REMATCH[1]}()"
                 
                 if [[ -n "$current_comment" ]]; then
-                    printf "  %-18s %s\n" "$func_name" "$current_comment"
+                    aliases+=("$func_name|$current_comment")
                     current_comment=""
                 else
-                    printf "  %-18s %s\n" "$func_name" "Function"
+                    aliases+=("$func_name|Function")
                 fi
             fi
             
@@ -139,6 +152,49 @@ EOF
             fi
             
         done < "$file"
+        
+        # Format in 3 columns
+        local total=${#aliases[@]}
+        if [[ $total -eq 0 ]]; then
+            echo ""
+            return
+        fi
+        
+        local rows=$(( (total + 2) / 3 ))  # Round up division
+        
+        for (( row=0; row<rows; row++ )); do
+            local col1_idx=$row
+            local col2_idx=$((row + rows))
+            local col3_idx=$((row + 2 * rows))
+            
+            local line_output=""
+            
+            # Column 1
+            if [[ $col1_idx -lt $total ]]; then
+                local alias_info="${aliases[$col1_idx]}"
+                local alias_name="${alias_info%|*}"
+                local alias_desc="${alias_info#*|}"
+                line_output+=$(printf "  ${GREEN}%-22s${NC} ${GRAY}%s${NC}" "$alias_name" "${alias_desc:0:45}")
+            fi
+            
+            # Column 2
+            if [[ $col2_idx -lt $total ]]; then
+                local alias_info="${aliases[$col2_idx]}"
+                local alias_name="${alias_info%|*}" 
+                local alias_desc="${alias_info#*|}"
+                line_output+=$(printf "  ${GREEN}%-22s${NC} ${GRAY}%s${NC}" "$alias_name" "${alias_desc:0:45}")
+            fi
+            
+            # Column 3
+            if [[ $col3_idx -lt $total ]]; then
+                local alias_info="${aliases[$col3_idx]}"
+                local alias_name="${alias_info%|*}"
+                local alias_desc="${alias_info#*|}"
+                line_output+=$(printf "  ${GREEN}%-22s${NC} ${GRAY}%s${NC}" "$alias_name" "${alias_desc:0:45}")
+            fi
+            
+            echo -e "$line_output"
+        done
         
         echo ""
     }
@@ -172,10 +228,10 @@ EOF
     rm -f "$temp_file"
     
     echo ""
-    echo "USAGE TIPS:"
-    echo "- Use 'my-list-functions' to see available my- scripts"
-    echo "- Use 'alias <name>' to see the full definition of a specific alias"
-    echo "- Use 'type <name>' to see if something is an alias, function, or command"
+    echo -e "${YELLOW}USAGE TIPS:${NC}"
+    echo -e "- Use ${GREEN}'my-list-functions'${NC} to see available my- scripts"  
+    echo -e "- Use ${GREEN}'alias <name>'${NC} to see the full definition of a specific alias"
+    echo -e "- Use ${GREEN}'type <name>'${NC} to see if something is an alias, function, or command"
 }
 
 # Execute if called directly (not sourced)
