@@ -41,7 +41,7 @@ if [ "$DEBUG" = "true" ]; then echo "$DOTFILESLOC/base/shared/bash_colors.sh" ; 
 
 
   # Reset
-Color_Off='\033[0m'       # Text Reset
+printf -v Color_Off '\033[0m'       # Text Reset
 
 # Regular Colors
 Black='\033[0;30m'        # Black
@@ -94,4 +94,43 @@ ICyan='\033[0;96m'        # Cyan
 IWhite='\033[0;97m'       # White
 
 # Bold High Intensity
-BIBlack='\033[1;90m'      # Black
+printf -v BIBlack '\033[1;90m'      # Black
+printf -v BIRed '\033[1;91m'        # Red
+printf -v BIGreen '\033[1;92m'      # Green
+printf -v BIYellow '\033[1;93m'     # Yellow
+printf -v BIBlue '\033[1;94m'       # Blue
+printf -v BIPurple '\033[1;95m'     # Purple
+printf -v BICyan '\033[1;96m'       # Cyan
+printf -v BIWhite '\033[1;97m'      # White
+
+# Modern UI Elements
+CHECKMARK='\033[1;32m✓'   # Green checkmark
+CROSS='\033[1;31m✗'       # Red cross
+ARROW='\033[1;36m➤'       # Cyan arrow
+BULLET='\033[1;33m●'      # Yellow bullet
+SPINNER='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'  # Spinner frames
+
+# Box drawing characters
+BOX_H='─'                 # Horizontal line
+BOX_V='│'                 # Vertical line  
+BOX_TL='┌'                # Top left corner
+BOX_TR='┐'                # Top right corner
+BOX_BL='└'                # Bottom left corner
+BOX_BR='┘'                # Bottom right corner
+BOX_CROSS='┼'             # Cross
+BOX_T='┬'                 # T top
+BOX_B='┴'                 # T bottom
+BOX_L='├'                 # T left
+BOX_R='┤'                 # T right
+
+# Progress bar characters
+PROGRESS_FULL='█'         # Full block
+PROGRESS_EMPTY='░'        # Light shade
+PROGRESS_PARTIAL='▒'      # Medium shade
+
+# Status icons
+ICON_SUCCESS='\033[1;32m✓\033[0m'
+ICON_ERROR='\033[1;31m✗\033[0m'
+ICON_WARNING='\033[1;33m⚠\033[0m'
+ICON_INFO='\033[1;36mℹ\033[0m'
+ICON_WORKING='\033[1;33m⚙\033[0m'
