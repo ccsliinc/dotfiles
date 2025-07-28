@@ -26,6 +26,10 @@ if [ "$DEBUG" = "true" ]; then echo "$DOTFILESLOC/base/.functions" ; fi
 # _openvas_update_start.sh -> my-openvas-update-start
 # _profile_update_check.sh -> my-profile-update-check
 # clean_mysql.sh       -> my-clean-mysql
+# 
+# NEW UTILITY COMMANDS:
+# my-list-functions    -> List all available my- scripts with descriptions
+# my-list-aliases      -> List all available aliases with descriptions
 #
 # Type 'my-' and press TAB TAB to see all available custom functions!
 #

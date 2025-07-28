@@ -1,0 +1,168 @@
+#!/bin/bash
+# Function: my-list-functions
+# Purpose: List all available my- scripts with descriptions and sources
+# Usage: my-list-functions [--help] [--platform] [--base] [pattern]
+# Platform: All
+# Dependencies: grep, sort
+
+my_list_functions() {
+    local show_help=false
+    local show_platform=false
+    local show_base=false
+    local pattern=""
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -h|--help)
+                show_help=true
+                shift
+                ;;
+            -p|--platform)
+                show_platform=true
+                shift
+                ;;
+            -b|--base)
+                show_base=true
+                shift
+                ;;
+            *)
+                pattern="$1"
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ "$show_help" == true ]]; then
+        cat << EOF
+Usage: my-list-functions [OPTIONS] [PATTERN]
+
+List all available my- scripts with descriptions and usage information.
+
+OPTIONS:
+    -h, --help      Show this help message
+    -p, --platform  Show only platform-specific scripts
+    -b, --base      Show only base (cross-platform) scripts
+    PATTERN         Filter scripts matching pattern (grep-style)
+
+EXAMPLES:
+    my-list-functions                 # List all available my- scripts
+    my-list-functions docker          # Find scripts containing 'docker'
+    my-list-functions --platform      # Show only platform-specific scripts
+    my-list-functions --base          # Show only base scripts
+    my-list-functions "^my-setup"     # Show setup scripts
+
+SCRIPT SOURCES:
+    - Base scripts: Cross-platform tools available everywhere
+    - Platform scripts: OS-specific tools for current platform
+
+USAGE TIPS:
+    - All scripts support --help for detailed usage information
+    - Use TAB completion: type 'my-' and press TAB TAB
+    - Scripts are automatically in PATH when platform is detected
+
+EOF
+        return 0
+    fi
+    
+    echo "Available Functions (my- scripts)"
+    echo "================================="
+    echo ""
+    
+    local temp_file=$(mktemp)
+    local has_results=false
+    
+    # Function to extract script info
+    extract_script_info() {
+        local script_path="$1"
+        local script_name=$(basename "$script_path")
+        
+        # Extract header information
+        local purpose=$(grep "^# Purpose:" "$script_path" 2>/dev/null | head -1 | sed 's/^# Purpose: *//')
+        local usage=$(grep "^# Usage:" "$script_path" 2>/dev/null | head -1 | sed 's/^# Usage: *//')
+        local platform=$(grep "^# Platform:" "$script_path" 2>/dev/null | head -1 | sed 's/^# Platform: *//')
+        
+        # Display format
+        if [[ -n "$purpose" ]]; then
+            echo "  $script_name - $purpose"
+        else
+            echo "  $script_name - (no description available)"
+        fi
+        
+        if [[ -n "$usage" ]]; then
+            echo "    Usage: $usage"
+        fi
+        
+        if [[ -n "$platform" ]]; then
+            echo "    Platform: $platform"
+        fi
+        
+        echo ""
+    }
+    
+    # Base scripts
+    if [[ "$show_platform" != true ]]; then
+        echo "# Base Scripts (Cross-platform)" >> "$temp_file"
+        if [[ -d "$DOTFILESLOC/base/scripts" ]]; then
+            for script in "$DOTFILESLOC/base/scripts"/my-*; do
+                if [[ -f "$script" && -x "$script" ]]; then
+                    extract_script_info "$script" >> "$temp_file"
+                    has_results=true
+                fi
+            done
+        fi
+        echo "" >> "$temp_file"
+    fi
+    
+    # Platform-specific scripts
+    if [[ "$show_base" != true && -n "$OS" && -d "$DOTFILESLOC/platforms/$OS/scripts" ]]; then
+        echo "# Platform Scripts ($OS)" >> "$temp_file"
+        for script in "$DOTFILESLOC/platforms/$OS/scripts"/my-*; do
+            if [[ -f "$script" && -x "$script" ]]; then
+                extract_script_info "$script" >> "$temp_file"
+                has_results=true
+            fi
+        done
+        echo "" >> "$temp_file"
+    fi
+    
+    # Apply pattern filter and display
+    if [[ -n "$pattern" ]]; then
+        grep -i "$pattern" "$temp_file" || echo "No scripts found matching pattern: $pattern"
+    else
+        cat "$temp_file"
+    fi
+    
+    rm -f "$temp_file"
+    
+    if [[ "$has_results" != true ]]; then
+        echo "No my- scripts found."
+        echo ""
+        echo "This might mean:"
+        echo "- Scripts directory doesn't exist"
+        echo "- OS detection failed (OS=$OS)"
+        echo "- Scripts aren't executable"
+        return 1
+    fi
+    
+    echo ""
+    echo "USAGE TIPS:"
+    echo "- Run any script with --help for detailed information"
+    echo "- Use TAB completion: type 'my-' and press TAB TAB"
+    echo "- Use 'my-list-aliases' to see available aliases"
+    
+    # Show current platform info
+    if [[ -n "$OS" ]]; then
+        echo "- Current platform: $OS"
+        local script_count=$(find "$DOTFILESLOC/platforms/$OS/scripts" -name "my-*" -type f -executable 2>/dev/null | wc -l)
+        echo "- Platform-specific scripts available: $script_count"
+    fi
+    
+    local base_count=$(find "$DOTFILESLOC/base/scripts" -name "my-*" -type f -executable 2>/dev/null | wc -l)
+    echo "- Base scripts available: $base_count"
+}
+
+# Execute if called directly (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    my_list_functions "$@"
+fi

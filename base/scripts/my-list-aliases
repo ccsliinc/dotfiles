@@ -1,0 +1,161 @@
+#!/bin/bash
+# Function: my-list-aliases
+# Purpose: List all available aliases with descriptions and sources
+# Usage: my-list-aliases [--help] [--platform] [pattern]
+# Platform: All
+# Dependencies: grep, sort
+
+my_list_aliases() {
+    local show_help=false
+    local show_platform=false
+    local pattern=""
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -h|--help)
+                show_help=true
+                shift
+                ;;
+            -p|--platform)
+                show_platform=true
+                shift
+                ;;
+            *)
+                pattern="$1"
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ "$show_help" == true ]]; then
+        cat << EOF
+Usage: my-list-aliases [OPTIONS] [PATTERN]
+
+List all available aliases with descriptions and sources.
+
+OPTIONS:
+    -h, --help      Show this help message
+    -p, --platform  Show only platform-specific aliases
+    PATTERN         Filter aliases matching pattern (grep-style)
+
+EXAMPLES:
+    my-list-aliases                 # List all aliases
+    my-list-aliases ls              # Find aliases containing 'ls'
+    my-list-aliases --platform      # Show only platform-specific aliases
+    my-list-aliases "^cd"           # Show aliases starting with 'cd'
+
+ALIAS SOURCES:
+    - Base aliases: Cross-platform defaults
+    - Platform aliases: OS-specific overrides and additions
+    - Local aliases: Personal customizations (~/.aliases.local)
+
+EOF
+        return 0
+    fi
+    
+    echo "Available Aliases"
+    echo "================="
+    echo ""
+    
+    # Collect aliases from different sources
+    local temp_file=$(mktemp)
+    local has_results=false
+    
+    # Base aliases
+    if [[ "$show_platform" != true ]]; then
+        echo "# Base Aliases (Cross-platform)" >> "$temp_file"
+        if [[ -f "$DOTFILESLOC/base/.aliases" ]]; then
+            grep -E "^alias [^=]+=" "$DOTFILESLOC/base/.aliases" | \
+            sed 's/alias \([^=]*\)=.*/\1/' | \
+            while read -r alias_name; do
+                local alias_def=$(grep "^alias $alias_name=" "$DOTFILESLOC/base/.aliases" | head -1)
+                local comment=$(grep -A1 -B1 "^alias $alias_name=" "$DOTFILESLOC/base/.aliases" | grep "#" | tail -1 | sed 's/.*# *//')
+                if [[ -n "$comment" && "$comment" != *"alias $alias_name="* ]]; then
+                    echo "  $alias_name - $comment"
+                else
+                    echo "  $alias_name - ${alias_def#alias $alias_name=}"
+                fi
+            done >> "$temp_file"
+            has_results=true
+        fi
+        echo "" >> "$temp_file"
+    fi
+    
+    # Platform-specific aliases
+    if [[ -n "$OS" && -f "$DOTFILESLOC/platforms/$OS/.aliases" ]]; then
+        echo "# Platform Aliases ($OS)" >> "$temp_file"
+        grep -E "^alias [^=]+=" "$DOTFILESLOC/platforms/$OS/.aliases" | \
+        sed 's/alias \([^=]*\)=.*/\1/' | \
+        while read -r alias_name; do
+            local alias_def=$(grep "^alias $alias_name=" "$DOTFILESLOC/platforms/$OS/.aliases" | head -1)
+            local comment=$(grep -A1 -B1 "^alias $alias_name=" "$DOTFILESLOC/platforms/$OS/.aliases" | grep "#" | tail -1 | sed 's/.*# *//')
+            if [[ -n "$comment" && "$comment" != *"alias $alias_name="* ]]; then
+                echo "  $alias_name - $comment"
+            else
+                echo "  $alias_name - ${alias_def#alias $alias_name=}"
+            fi
+        done >> "$temp_file"
+        has_results=true
+        echo "" >> "$temp_file"
+    fi
+    
+    # Functions defined as aliases (like cd, trash, etc.)
+    echo "# Function Aliases" >> "$temp_file"
+    if [[ -f "$DOTFILESLOC/base/.aliases" ]]; then
+        grep -E "^[a-zA-Z_][a-zA-Z0-9_]*\(\)" "$DOTFILESLOC/base/.aliases" | \
+        sed 's/() {.*//' | \
+        while read -r func_name; do
+            local comment=$(grep -B2 -A1 "^$func_name()" "$DOTFILESLOC/base/.aliases" | grep "#" | tail -1 | sed 's/.*# *//')
+            if [[ -n "$comment" ]]; then
+                echo "  $func_name() - $comment"
+            else
+                echo "  $func_name() - Function defined in aliases"
+            fi
+        done >> "$temp_file"
+    fi
+    
+    if [[ -n "$OS" && -f "$DOTFILESLOC/platforms/$OS/.aliases" ]]; then
+        grep -E "^[a-zA-Z_][a-zA-Z0-9_]*\(\)" "$DOTFILESLOC/platforms/$OS/.aliases" | \
+        sed 's/() {.*//' | \
+        while read -r func_name; do
+            local comment=$(grep -B2 -A1 "^$func_name()" "$DOTFILESLOC/platforms/$OS/.aliases" | grep "#" | tail -1 | sed 's/.*# *//')
+            if [[ -n "$comment" ]]; then
+                echo "  $func_name() - $comment"
+            else
+                echo "  $func_name() - Platform-specific function"
+            fi
+        done >> "$temp_file"
+    fi
+    echo "" >> "$temp_file"
+    
+    # Local aliases if they exist
+    if [[ "$show_platform" != true && -f ~/.aliases.local ]]; then
+        echo "# Local Aliases (Personal)" >> "$temp_file"
+        grep -E "^alias [^=]+=" ~/.aliases.local | \
+        sed 's/alias \([^=]*\)=.*/\1/' | \
+        while read -r alias_name; do
+            local alias_def=$(grep "^alias $alias_name=" ~/.aliases.local | head -1)
+            echo "  $alias_name - ${alias_def#alias $alias_name=}"
+        done >> "$temp_file"
+        echo "" >> "$temp_file"
+    fi
+    
+    # Apply pattern filter and display
+    if [[ -n "$pattern" ]]; then
+        grep -i "$pattern" "$temp_file" || echo "No aliases found matching pattern: $pattern"
+    else
+        cat "$temp_file"
+    fi
+    
+    rm -f "$temp_file"
+    
+    echo ""
+    echo "TIP: Use 'my-list-functions' to see available my- scripts"
+    echo "TIP: Use 'alias <name>' to see the definition of a specific alias"
+}
+
+# Execute if called directly (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    my_list_aliases "$@"
+fi
