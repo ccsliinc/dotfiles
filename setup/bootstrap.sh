@@ -8,12 +8,14 @@ if [[ -z $BASH ]] || [[ "$BASH" != "/bin/bash" ]] ;then
 	exit 1
 fi
 
-# shellcheck source=../base/.profile_os
-source "$HOME/.dotfiles/base/.profile_os" &> /dev/null
+# shellcheck source=../base/.profile
+source "$HOME/.dotfiles/base/.profile"  
 # shellcheck source=../base/shared/bash_colors.sh
-source "$HOME/.dotfiles/base/shared/bash_colors.sh" &> /dev/null
+source "$HOME/.dotfiles/base/shared/bash_colors.sh"
+# shellcheck source=scripts/common/ui_helpers.sh
+source "$HOME/.dotfiles/setup/scripts/common/ui_helpers.sh"
 # shellcheck source=/menus/main_menu.sh
-source "$HOME/.dotfiles/setup/menus/main_menu.sh" &> /dev/null
+source "$HOME/.dotfiles/setup/menus/main_menu.sh"
 
 # Check to make sure root is not running this script or sudo was used
 if [ "$EUID" -eq 0 ]; then
@@ -81,7 +83,7 @@ checkSudoWithoutPassword(){
 
 
 termwidth="80"
-line="$(printf "%0.1s" "_"{1..80})"
+# Remove unused line variable
 
 center() {	
 	printf "%*s %s %*s\n" "$(((termwidth-2-${#1})/2))" "" "$1" "$(((termwidth-1-${#1})/2))" ""
@@ -89,81 +91,87 @@ center() {
 
 showSetup(){
 	clear
-	printf "${LBLUE}%s\n" "$line"
-	printf "${LRED}%s" ""
-	center "Profile Setup & Configure"
-	printf "${LBLUE}%s\n" "$line"
-	printf "\n"
-	printf "${LCYAN}%-40s%40s\n" "$(date)" "Host : $(hostname)"
-	printf "\n"
-	printf "${LYELLOW}%14s : %-18s | %14s : %-35s\n" "Model" "$MODEL" "OS Version" "$OS_VERSION"
-	printf "${LYELLOW}%14s : %-18s | %14s : %-35s\n" "Architecture" "$ARCH" "Uname" "$(uname -s -r -m -p)"
-	printf "${LYELLOW}%14s : %-18s | %14s : %-35s\n" "User" "$(whoami)" "Shell" "$SHELL"
-	printf "\n"
-	printf "${LGRAY}%-18s : %-40s\n" "Current Directory" "$(pwd)"
-	printf "${LBLUE}%s\n" "$line"
-	printf "\n"
-
-# ROW1
+	
+	# Modern header
+	show_header "🔧 Dotfiles Setup & Configuration" "Interactive System Setup"
+	
+	# System information without box
+	printf "%s💻 System Information:%s\n" "${BIWhite}" "${Color_Off}"
+	printf "%s%s%s\n" "${BICyan}" "$(printf "%0.s─" {1..60})" "${Color_Off}"
+	echo
+	printf "  📅  %-14s %-s\n" "Date:" "$(date '+%Y-%m-%d %H:%M:%S')"
+	printf "  🖥️  %-14s %-s\n" "Host:" "$(hostname)"
+	printf "  💾  %-14s %-s\n" "Model:" "$MODEL"
+	printf "  🔧  %-14s %-s\n" "OS Version:" "$OS_VERSION"
+	printf "  ⚙️  %-14s %-s\n" "Architecture:" "$ARCH"
+	printf "  🔩  %-14s %-s\n" "Kernel:" "$(uname -s -r)"
+	printf "  👤  %-14s %-s\n" "User:" "$(whoami)"
+	printf "  🐚  %-14s %-s\n" "Shell:" "$SHELL"
+	printf "  📁  %-14s %-s\n" "Directory:" "$(pwd)"
+	echo
+	
+	# Status checks in a clean list format
+	printf "%s🔍 System Status Checks:%s\n" "${BIWhite}" "${Color_Off}"
+	printf "%s%s%s\n\n" "${BICyan}" "$(printf "%0.s─" {1..40})" "${Color_Off}"
+	
+	# Platform detection
 	if checkPlatform; then
-	printf "${LGREEN}%-22s : %-15s${NOCOLOR}" "Detected OS" "✔ $OS"
+		printf "  ${BIGreen}✓${Color_Off} %-25s ${BIGreen}%s${Color_Off}\n" "Platform Detection" "$OS"
 	else
-	printf "${LRED}%-22s : %-15s${NOCOLOR}" "Detected OS" "⍻ No"
-	fi
-
-	printf " %s " "|"
-
-	if checkOhMyZsh; then 
-	printf "${LGREEN}%-22s : %-15s${NOCOLOR}" "Detected OhMyZsh" "✔ Yes"
-	else
-	printf "${LRED}%-22s : %-15s${NOCOLOR}" "Detected OhMyZsh" "⍻ No"
+		printf "  ${BIRed}✗${Color_Off} %-25s ${BIRed}%s${Color_Off}\n" "Platform Detection" "Unknown"
 	fi
 	
-	printf "\n"
-# END ROW1
-
-# ROW2
+	# Oh-My-Zsh detection  
+	if checkOhMyZsh; then
+		printf "  ${BIGreen}✓${Color_Off} %-25s ${BIGreen}%s${Color_Off}\n" "Oh-My-Zsh Framework" "Installed"
+	else
+		printf "  ${BIYellow}⚠${Color_Off} %-25s ${BIYellow}%s${Color_Off}\n" "Oh-My-Zsh Framework" "Not installed"
+	fi
+	
+	# Dotfiles structure
 	if checkDotFiles; then
-	printf "${LGREEN}%-22s : %-15s${NOCOLOR}" "Dotfiles Location " "✔ Yes"
+		printf "  ${BIGreen}✓${Color_Off} %-25s ${BIGreen}%s${Color_Off}\n" "Dotfiles Structure" "Valid"
 	else
-	printf "${LRED}%-22s : %-15s${NOCOLOR}" "Dotfiles Location " "⍻ No"
-	fi
-
-	printf " %s " "|"
-
-	if checkSymLinks; then 
-	printf "${LGREEN}%-22s : %-15s${NOCOLOR}" "Symlinks" "✔ Yes"
-	else
-	printf "${LRED}%-22s : %-15s${NOCOLOR}" "Symlinks" "⍻ No"
+		printf "  ${BIRed}✗${Color_Off} %-25s ${BIRed}%s${Color_Off}\n" "Dotfiles Structure" "Invalid"
 	fi
 	
-	printf "\n"
-# END ROW2
-
-# ROW3
-	if [[ $SHELL == *"/zsh" ]]; then 
-	printf "${LGREEN}%-22s : %-15s${NOCOLOR}" "Shell" "✔ Yes"
+	# Symbolic links
+	if checkSymLinks; then
+		printf "  ${BIGreen}✓${Color_Off} %-25s ${BIGreen}%s${Color_Off}\n" "Symbolic Links" "Configured"
 	else
-	printf "${LRED}%-22s : %-15s${NOCOLOR}" "Shell" "⍻ No"
-	fi
-
-	printf " %s " "|"
-
-	if checkSudoWithoutPassword; then 
-	printf "${LGREEN}%-22s : %-15s${NOCOLOR}" "Sudo Without Password" "✔ Yes"
-	else
-	printf "${LRED}%-22s : %-15s${NOCOLOR}" "Sudo Without Password" "⍻ No"
+		printf "  ${BIYellow}⚠${Color_Off} %-25s ${BIYellow}%s${Color_Off}\n" "Symbolic Links" "Not linked"
 	fi
 	
-	printf "\n"
-# END ROW3
-
-	printf "${LBLUE}%s\n" "$line"
-	if [[ $1 != "" ]] ; then
-		printf "${LPURPLE}%s\n"
-		center "$1"
-		printf "${NOCOLOR}%s\n"
+	# Shell type
+	if [[ $SHELL == *"/zsh" ]]; then
+		printf "  ${BIGreen}✓${Color_Off} %-25s ${BIGreen}%s${Color_Off}\n" "Default Shell" "zsh"
+	else
+		printf "  ${BICyan}ℹ${Color_Off} %-25s ${BICyan}%s${Color_Off}\n" "Default Shell" "$(basename "$SHELL")"
 	fi
+	
+	# Sudo configuration
+	if checkSudoWithoutPassword; then
+		printf "  ${BIGreen}✓${Color_Off} %-25s ${BIGreen}%s${Color_Off}\n" "Sudo Access" "Passwordless"
+	else
+		printf "  ${BICyan}ℹ${Color_Off} %-25s ${BICyan}%s${Color_Off}\n" "Sudo Access" "Password required"
+	fi
+	
+	echo
+	
+	# Status message if provided
+	if [[ -n "$1" ]]; then
+		echo
+		printf "${BIGreen}✨ %s${Color_Off}\n" "$1"
+		echo
+	fi
+	
+	# Separator
+	local width
+	read -r width _ <<< "$(get_terminal_size)"
+	width=$((width > 80 ? 80 : width))
+	printf "${BICyan}"
+	for ((i=0; i<width; i++)); do printf "═"; done
+	printf "${Color_Off}\n\n"
 }
 
 showSetup
