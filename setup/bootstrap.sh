@@ -2,11 +2,14 @@
 
 # Check for bash shell
 if [[ -z $BASH ]] || [[ "$BASH" != "/bin/bash" ]] ;then
-	echo 
+	echo
 	echo "${LRED}Please run this script $0 with bash.${NOCOLOR}"
-	echo 
+	echo
 	exit 1
 fi
+
+# Set DOTFILESLOC before sourcing profile
+export DOTFILESLOC="$HOME/.dotfiles"
 
 # shellcheck source=../base/.profile
 source "$HOME/.dotfiles/base/.profile"  
@@ -36,7 +39,7 @@ checkPlatform(){
 		qnap)
 			return 0
 			;;
-		gnu)
+		linux)
 			return 0
 			;;
 		*)
