@@ -68,8 +68,7 @@ my_update_mac() {
         cp -f /etc/hosts "$backup_dir/hosts/" 2>/dev/null || true
         
         echo "Backing up Homebrew bundle..."
-        brew bundle dump --force
-        mv -f ~/Brewfile "$backup_dir/brew/" 2>/dev/null || true
+        brew bundle dump --force --file="$backup_dir/brew/Brewfile"
         
         echo "Backing up global npm packages..."
         npm list --global --parseable --depth=0 2>/dev/null | sed '1d' | awk '{gsub(/\/.*\//,"",$1); print}' > "$backup_dir/npm/npm.txt" 2>/dev/null || true
