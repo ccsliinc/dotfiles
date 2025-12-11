@@ -2,6 +2,16 @@
 
 A modern, comprehensive dotfiles system supporting macOS, Linux, Raspberry Pi, and QNAP NAS platforms with automated setup, script discovery, and hierarchical configuration management.
 
+## Philosophy
+
+This dotfiles system is designed around one core principle: **a familiar, consistent terminal experience across all your machines** - from your MacBook to your Linux servers to your QNAP NAS.
+
+The architecture supports:
+- **Hierarchical Configuration**: Base → Platform → Machine-level overrides
+- **Deliberate Sourcing Order**: Every source statement is intentional, allowing you to define defaults at higher levels and override them at lower levels
+- **Non-Interactive Shell Support**: Scripts, cron jobs, and SSH commands all get the same environment as interactive shells
+- **Flexible Installation**: Install anywhere, not just `~/.dotfiles`
+
 ## Features
 
 - 🚀 **Modern Interactive Setup** - Professional UI with progress tracking and system detection
@@ -54,10 +64,50 @@ The system uses a hierarchical configuration approach:
 
 **Base** → **Platform** → **Local** overrides
 
+```
+Shell Startup Flow:
+┌─────────────────────────────────────────────────────────────────────┐
+│  .zshenv / .bashenv                                                 │
+│  └── base/.env_common          # Sets DOTFILESLOC, loads exports    │
+├─────────────────────────────────────────────────────────────────────┤
+│  .zshrc / .bash_profile        # Interactive shells                 │
+│  └── base/.profile_interactive                                      │
+│      ├── base/.profile         # Core profile                       │
+│      │   ├── base/core/.profile_os    # OS detection ($OS variable) │
+│      │   ├── base/.functions          # Shell functions             │
+│      │   └── base/.exports            # PATH, environment vars      │
+│      │       └── platforms/$OS/.exports   # Platform additions      │
+│      ├── base/.aliases                # Common aliases              │
+│      │   └── platforms/$OS/.aliases       # Platform additions      │
+│      └── platforms/$OS/.profile       # Platform-specific profile   │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### Directory Structure
+
 - `base/` - Core cross-platform configuration and 20+ universal scripts
 - `platforms/[os]/` - Platform-specific configurations and tools
 - `setup/` - Modern interactive installation and setup system
 - Root shell files (`.zshrc`, `.bashrc`, etc.) - Symlinked from home directory
+
+### Environment Files
+
+For non-interactive shells (scripts, cron, SSH commands):
+
+| File | Shell | Purpose |
+|------|-------|---------|
+| `.zshenv` | zsh | Automatically sourced for ALL zsh invocations |
+| `.bashenv` | bash | Sourced via `BASH_ENV` variable |
+| `base/.env_common` | both | Shared logic for setting up environment |
+
+### Custom Install Location
+
+By default, dotfiles are expected at `~/.dotfiles`. To install elsewhere:
+
+```bash
+# Create ~/.dotfiles_location with your custom path
+echo 'export DOTFILESLOC="/your/custom/path"' > ~/.dotfiles_location
+```
 
 ## Platform-Specific Scripts
 
@@ -136,21 +186,40 @@ For detailed platform-specific information, see:
 
 ```
 ~/.dotfiles/
-├── base/                    # Core cross-platform configuration
-│   ├── scripts/            # Universal utility scripts (20+)
-│   ├── .aliases            # Common aliases
-│   ├── .exports            # Environment variables
-│   └── .functions          # Shell functions
-├── platforms/              # Platform-specific code
-│   ├── mac/               # macOS configuration
-│   ├── linux/             # Linux server setup
-│   ├── qnap/              # QNAP NAS tools
-│   ├── raspi/             # Raspberry Pi config
-│   └── _skeleton/         # Template for new platforms
-├── setup/                  # Installation and setup system
-│   ├── bootstrap.sh       # Main setup script
-│   └── scripts/           # Setup utilities
-└── Root shell configs     # .zshrc, .bashrc, .bash_profile
+├── base/                       # Core cross-platform configuration
+│   ├── .env_common            # Shared environment setup (non-interactive)
+│   ├── .profile               # Core profile (loads OS, functions, exports)
+│   ├── .profile_interactive   # Interactive shell additions
+│   ├── .aliases               # Common aliases
+│   ├── .exports               # PATH, environment variables
+│   ├── .functions             # Shell functions
+│   ├── core/                  # Core modules
+│   │   ├── .profile_os        # OS detection ($OS, $MODEL, $ARCH)
+│   │   ├── .profile_motd      # Message of the day
+│   │   └── .iterm2_shell_integration.zsh
+│   ├── scripts/               # Universal utility scripts (20+)
+│   ├── bin/                   # Binary tools (gdrive, docker-cli)
+│   ├── shared/                # Shared resources
+│   │   └── bash_colors.sh     # Color definitions and UI elements
+│   └── vim/                   # Vim configuration
+├── platforms/                  # Platform-specific overrides
+│   ├── mac/                   # macOS (Homebrew, dev tools)
+│   ├── linux/                 # Linux servers
+│   ├── qnap/                  # QNAP NAS (Entware, Docker)
+│   │   └── boot/              # Boot scripts (autorunmaster.sh)
+│   ├── raspi/                 # Raspberry Pi (IoT, kiosk)
+│   └── _skeleton/             # Template for new platforms
+├── setup/                      # Installation system
+│   ├── bootstrap.sh           # Main interactive setup
+│   ├── menus/                 # Setup menu system
+│   └── scripts/               # Setup utilities
+│       ├── common/            # Cross-platform setup scripts
+│       └── setup/             # Platform-specific setup
+├── .zshrc                      # Zsh interactive config (symlinked)
+├── .zshenv                     # Zsh environment (all shells)
+├── .bash_profile               # Bash login config (symlinked)
+├── .bashrc                     # Bash interactive config (symlinked)
+└── .bashenv                    # Bash environment (via BASH_ENV)
 ```
 
 ---

@@ -1,0 +1,26 @@
+# shellcheck shell=bash
+# .bashenv - Environment setup for non-interactive bash shells
+# ============================================================================
+# Unlike zsh's .zshenv, bash doesn't automatically read this file.
+#
+# To enable, set BASH_ENV in your system/user environment:
+#   export BASH_ENV="$HOME/.bashenv"
+#
+# This can be set in:
+#   - /etc/environment (system-wide)
+#   - ~/.pam_environment (user, if PAM supports it)
+#   - Desktop environment settings
+#   - Or via the autorunmaster.sh on QNAP
+#
+# Purpose:
+#   - Set up DOTFILESLOC for non-interactive shells
+#   - Load PATH and exports for scripts, cron, SSH commands
+# ============================================================================
+
+# Source shared environment setup
+if [[ -f "$HOME/.dotfiles/base/.env_common" ]]; then
+    source "$HOME/.dotfiles/base/.env_common"
+elif [[ -f "$HOME/.dotfiles_location" ]]; then
+    source "$HOME/.dotfiles_location"
+    [[ -f "$DOTFILESLOC/base/.env_common" ]] && source "$DOTFILESLOC/base/.env_common"
+fi

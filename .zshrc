@@ -110,25 +110,4 @@ unsetopt nomatch
 # This should be the last line of the file
 # For local changes
 # Don't make edits below this
-[[ -f .zshrc.local ]] && source ".zshrc.local"
-
-
-# Herd injected PHP 8.3 configuration.
-export HERD_PHP_83_INI_SCAN_DIR="/Users/jsugamele/Library/Application Support/Herd/config/php/83/"
-
-
-# Herd injected PHP 8.2 configuration.
-export HERD_PHP_82_INI_SCAN_DIR="/Users/jsugamele/Library/Application Support/Herd/config/php/82/"
-
-
-# Herd injected PHP 8.1 configuration.
-export HERD_PHP_81_INI_SCAN_DIR="/Users/jsugamele/Library/Application Support/Herd/config/php/81/"
-
-
-# Herd injected NVM configuration
-export NVM_DIR="/Users/jsugamele/Library/Application Support/Herd/config/nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
-
-[[ -f "/Applications/Herd.app/Contents/Resources/config/shell/zshrc.zsh" ]] && builtin source "/Applications/Herd.app/Contents/Resources/config/shell/zshrc.zsh"
-
-alias sail="./vendor/bin/sail"
+[[ -f ~/.zshrc.local ]] && source "$HOME/.zshrc.local"
