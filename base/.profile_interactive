@@ -2,10 +2,8 @@
 if [ "$DEBUG" = "true" ]; then echo "$DOTFILESLOC/profile/.profile_interactive" ; fi
 
 # shellcheck source=.profile
+# This also loads .exports (for PATH, etc.)
 source "$DOTFILESLOC/base/.profile"
-
-# shellcheck source=.exports
-source "$DOTFILESLOC/base/.exports"
 
 # shellcheck source=.aliases
 source "$DOTFILESLOC/base/.aliases"
