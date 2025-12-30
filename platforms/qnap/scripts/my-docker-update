@@ -196,9 +196,9 @@ check_image_update() {
     
     print_status "Checking for updates to image: $image"
     
-    # Check if helper script exists
-    if [[ -f "_docker_check_image_latest.sh" ]]; then
-        if /bin/bash _docker_check_image_latest.sh "$image"; then
+    # Check if helper script exists (use command -v for scripts in PATH)
+    if command -v my-docker-check-image-latest &> /dev/null; then
+        if my-docker-check-image-latest "$image"; then
             return 1  # Update available
         else
             return 0  # No update needed
