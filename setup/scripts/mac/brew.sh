@@ -20,6 +20,7 @@ brew install \
   mas \
   node \
   nvm \
+  ollama \
   rclone \
   shellcheck \
   sslyze \

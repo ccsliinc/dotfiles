@@ -1,0 +1,126 @@
+#!/bin/bash
+# Function: my-setup-ollama
+# Purpose: Setup Ollama with llm CLI for local AI model interaction
+# Usage: my-setup-ollama [--model MODEL]
+# Platform: macOS (requires Homebrew, Python 3)
+# Dependencies: brew, pip3, ollama
+# Example: my-setup-ollama --model qwen2.5:7b
+
+my_setup_ollama() {
+    local model="qwen2.5:7b"
+
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -m|--model)
+                model="$2"
+                shift 2
+                ;;
+            -h|--help)
+                echo "Usage: my-setup-ollama [--model MODEL]"
+                echo ""
+                echo "Options:"
+                echo "  --model, -m    Ollama model to pull (default: qwen2.5:7b)"
+                echo ""
+                echo "This script sets up:"
+                echo "  - Ollama (local LLM runtime)"
+                echo "  - llm CLI tool (pip package)"
+                echo "  - llm-ollama plugin"
+                echo ""
+                echo "After setup, use: llm -m $model \"your question\""
+                return 0
+                ;;
+            *)
+                echo "Invalid argument: $1"
+                echo "Try: my-setup-ollama --help"
+                return 1
+                ;;
+        esac
+    done
+
+    echo "Ollama + LLM CLI Setup"
+    echo "======================"
+    echo ""
+
+    # Check for Homebrew
+    if ! command -v brew &> /dev/null; then
+        echo "Error: Homebrew not installed"
+        echo "Install with: /bin/bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""
+        return 1
+    fi
+
+    # Install/update Ollama
+    echo "## Installing Ollama..."
+    if command -v ollama &> /dev/null; then
+        echo "Ollama already installed: $(ollama --version 2>/dev/null || echo 'version unknown')"
+    else
+        brew install ollama
+    fi
+
+    # Install pipx for Python CLI tools (respects PEP 668)
+    if ! command -v pipx &> /dev/null; then
+        echo ""
+        echo "## Installing pipx..."
+        brew install pipx
+        pipx ensurepath
+    fi
+
+    # Install llm CLI via pipx
+    echo ""
+    echo "## Installing llm CLI tool..."
+    if pipx list | grep -q "llm"; then
+        pipx upgrade llm
+    else
+        pipx install llm
+    fi
+
+    # Install llm-ollama plugin
+    echo ""
+    echo "## Installing llm-ollama plugin..."
+    pipx inject llm llm-ollama
+
+    # Start Ollama service if not running
+    echo ""
+    echo "## Starting Ollama service..."
+    if ! pgrep -x "ollama" > /dev/null; then
+        ollama serve &>/dev/null &
+        sleep 2
+    fi
+
+    # Pull the model
+    echo ""
+    echo "## Pulling model: $model"
+    echo "This may take a few minutes depending on model size..."
+    ollama pull "$model"
+
+    # Set default model
+    echo ""
+    echo "## Setting default model to $model..."
+    llm models default "$model"
+
+    # Verify setup
+    echo ""
+    echo "## Verifying setup..."
+    echo ""
+
+    if command -v llm &> /dev/null && ollama list | grep -q "$model"; then
+        echo "Setup complete!"
+        echo ""
+        echo "Usage:"
+        echo "  llm \"What is the capital of France?\""
+        echo ""
+        echo "For scripting:"
+        echo "  RESULT=\$(cat error.log | llm \"list critical errors, one per line\")"
+        echo ""
+        echo "Available models:"
+        ollama list
+    else
+        echo "Warning: Setup may be incomplete. Check the output above for errors."
+        return 1
+    fi
+}
+
+# Execute if called directly (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    my_setup_ollama "$@"
+fi
