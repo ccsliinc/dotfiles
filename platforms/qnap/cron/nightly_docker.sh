@@ -1,14 +1,19 @@
 #!/bin/bash
 # ============================================================================
-# QNAP Nightly Docker Maintenance
+# QNAP Nightly Docker Maintenance (REFERENCE ONLY)
 # ============================================================================
 # Purpose: Nightly Docker container restart for configured containers
-# Schedule: Recommended to run at 2-3 AM daily via cron
-# Usage: Add to crontab: 0 2 * * * /path/to/nightly_docker.sh
+# Schedule: Disabled - kept for reference
+# CRON: DISABLED
+# ============================================================================
+# Note: This script is no longer used but kept for reference.
+# It was previously used to restart all Docker containers nightly.
 # ============================================================================
 
 # Set HOME for root user (QNAP default)
 HOME=/root
 
 # Run docker restart for all configured containers
-/share/CACHEDEV1_DATA/custom/custom/.dotfiles/platforms/qnap/scripts/my-docker-restart-all
+# Uses DOTFILESLOC from environment or falls back to standard location
+DOTFILESLOC="${DOTFILESLOC:-$HOME/.dotfiles}"
+"$DOTFILESLOC/platforms/qnap/scripts/my-docker-restart-all"
