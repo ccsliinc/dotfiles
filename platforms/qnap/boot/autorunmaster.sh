@@ -16,8 +16,8 @@
 # CONFIGURATION
 # ============================================================================
 
-# Detect primary QNAP user (first user in /share/homes)
-QNAP_USER=$(ls /share/homes 2>/dev/null | head -n 1)
+# Detect primary QNAP user (first real user in /share/homes, excluding system dirs)
+QNAP_USER=$(ls /share/homes 2>/dev/null | grep -v "^@" | grep -v "^lost+found" | head -n 1)
 USER_HOME="/share/homes/$QNAP_USER"
 
 # Get DOTFILESLOC from user's config or use standard location
