@@ -81,6 +81,14 @@ my_update_mac() {
     echo "## Updating Homebrew..."
     brew update
     brew upgrade
+
+    # Fix PHP permissions before cleanup (php-fpm runs as root and changes ownership)
+    if [[ -d "/opt/homebrew/Cellar/php" ]]; then
+        echo "Fixing PHP Cellar permissions..."
+        sudo chown -R $(whoami):admin /opt/homebrew/Cellar/php 2>/dev/null || true
+        sudo chmod -R u+rw /opt/homebrew/Cellar/php 2>/dev/null || true
+    fi
+
     brew cleanup -s
     
     echo ""

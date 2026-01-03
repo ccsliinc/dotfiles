@@ -1,6 +1,6 @@
 *.local
+*.local/
 .oh-my-zsh
 .dotfiles_location
 .idea
 .DS_Store
-_reference.local.env
