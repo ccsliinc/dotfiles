@@ -1,0 +1,202 @@
+#!/bin/bash
+# Function: my-backup-claude
+# Purpose: Commit and push ~/.claude config changes to Gogs
+# Usage: my-backup-claude [options]
+# Platform: macOS (requires git, Gogs remote configured)
+# Dependencies: git
+# Version: 1.0
+
+my_backup_claude() {
+    local SCRIPT_NAME=$(basename "$0")
+    local VERSION='1.0'
+    local CLAUDE_DIR="$HOME/.claude"
+
+    # Default values
+    local DRY_RUN=false
+    local CUSTOM_MESSAGE=""
+
+    # Colors for output
+    local RED='\033[0;31m'
+    local GREEN='\033[0;32m'
+    local YELLOW='\033[1;33m'
+    local CYAN='\033[0;36m'
+    local NC='\033[0m' # No Color
+
+    # Icons
+    local ICON_SUCCESS="${GREEN}✓${NC}"
+    local ICON_ERROR="${RED}✗${NC}"
+    local ICON_INFO="${CYAN}ℹ${NC}"
+    local ICON_WARNING="${YELLOW}⚠${NC}"
+
+    # Function to display usage
+    usage() {
+        cat << EOF
+Usage: $SCRIPT_NAME [OPTIONS]
+
+Commit and push ~/.claude config changes to Gogs backup server.
+
+OPTIONS:
+    -d, --dry-run           Show what would be committed without committing
+    -m, --message MSG       Use custom commit message instead of auto-generated
+    -h, --help              Display this help message
+    -v, --version           Display version information
+
+EXAMPLES:
+    $SCRIPT_NAME                           # Auto-commit and push changes
+    $SCRIPT_NAME --dry-run                 # Preview changes without committing
+    $SCRIPT_NAME -m "Updated hooks"        # Commit with custom message
+
+EOF
+    }
+
+    # Helper functions
+    info() {
+        echo -e "${ICON_INFO}  $1"
+    }
+
+    success() {
+        echo -e "${ICON_SUCCESS}  $1"
+    }
+
+    warn() {
+        echo -e "${ICON_WARNING}  $1"
+    }
+
+    error() {
+        echo -e "${ICON_ERROR}  $1"
+        return 1
+    }
+
+    # Check if directory is a git repo
+    check_git_repo() {
+        if [[ ! -d "$CLAUDE_DIR/.git" ]]; then
+            error "~/.claude is not a git repository"
+            return 1
+        fi
+    }
+
+    # Check for changes
+    has_changes() {
+        cd "$CLAUDE_DIR" || return 1
+        git status --porcelain | grep -q .
+    }
+
+    # Show status of what would be committed
+    show_status() {
+        cd "$CLAUDE_DIR" || return 1
+
+        echo ""
+        echo -e "${CYAN}Git Status:${NC}"
+        echo "─────────────────────────────────────"
+        git status --short
+        echo "─────────────────────────────────────"
+        echo ""
+    }
+
+    # Perform backup
+    do_backup() {
+        cd "$CLAUDE_DIR" || return 1
+
+        # Generate commit message
+        local commit_msg
+        if [[ -n "$CUSTOM_MESSAGE" ]]; then
+            commit_msg="$CUSTOM_MESSAGE"
+        else
+            commit_msg="Backup: $(date '+%Y-%m-%d %H:%M') - auto"
+        fi
+
+        # Stage all changes
+        info "Staging changes..."
+        git add -A
+
+        # Commit
+        info "Committing with message: ${YELLOW}${commit_msg}${NC}"
+        if git commit -m "$commit_msg"; then
+            success "Changes committed"
+        else
+            error "Commit failed"
+            return 1
+        fi
+
+        # Push to Gogs
+        info "Pushing to Gogs..."
+        if git push gogs master 2>&1; then
+            success "Pushed to Gogs successfully"
+        else
+            error "Push to Gogs failed - is the server reachable?"
+            return 1
+        fi
+    }
+
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -d|--dry-run)
+                DRY_RUN=true
+                shift
+                ;;
+            -m|--message)
+                CUSTOM_MESSAGE="$2"
+                shift 2
+                ;;
+            -h|--help)
+                usage
+                return 0
+                ;;
+            -v|--version)
+                echo "$SCRIPT_NAME version $VERSION"
+                return 0
+                ;;
+            *)
+                echo "Unknown option: $1"
+                usage
+                return 1
+                ;;
+        esac
+    done
+
+    # Main execution
+    echo ""
+    echo -e "${CYAN}Claude Config Backup${NC}"
+    echo "═══════════════════════════════════════"
+    echo ""
+
+    # Check prerequisites
+    if ! check_git_repo; then
+        return 1
+    fi
+
+    # Check for changes
+    if ! has_changes; then
+        success "No changes to backup"
+        echo ""
+        return 0
+    fi
+
+    # Show what would be committed
+    show_status
+
+    # Dry run - just show status and exit
+    if [[ "$DRY_RUN" == true ]]; then
+        warn "Dry run mode - no changes made"
+        echo ""
+        return 0
+    fi
+
+    # Perform the backup
+    if do_backup; then
+        echo ""
+        success "Claude config backup complete!"
+        echo ""
+        return 0
+    else
+        echo ""
+        error "Backup failed"
+        return 1
+    fi
+}
+
+# Execute if called directly (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    my_backup_claude "$@"
+fi

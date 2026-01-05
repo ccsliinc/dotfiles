@@ -1,0 +1,383 @@
+#!/bin/bash
+# Function: my-backup-mac
+# Purpose: Orchestrate all Mac backup operations in one command
+# Usage: my-backup-mac [options]
+# Platform: macOS (requires brew, npm, composer, git)
+# Dependencies: brew, npm, composer, git, my-backup-claude
+# Version: 1.0
+
+my_backup_mac() {
+    local SCRIPT_NAME=$(basename "$0")
+    local VERSION='1.0'
+    local BACKUP_DIR="$HOME/Library/Mobile Documents/com~apple~CloudDocs/Apps"
+    local SCRIPT_DIR="$(dirname "$0")"
+
+    # Default values
+    local DRY_RUN=false
+    local SKIP_GOGS=false
+    local VERBOSE=false
+
+    # Colors for output
+    local RED='\033[0;31m'
+    local GREEN='\033[0;32m'
+    local YELLOW='\033[1;33m'
+    local CYAN='\033[0;36m'
+    local BOLD='\033[1m'
+    local NC='\033[0m'
+
+    # Icons
+    local ICON_SUCCESS="${GREEN}✓${NC}"
+    local ICON_ERROR="${RED}✗${NC}"
+    local ICON_INFO="${CYAN}ℹ${NC}"
+    local ICON_WARNING="${YELLOW}⚠${NC}"
+    local ICON_WORKING="${YELLOW}⚙${NC}"
+
+    # Tracking results (individual variables for bash 3 compatibility)
+    local RESULT_CLAUDE=""
+    local RESULT_BREW=""
+    local RESULT_HOSTS=""
+    local RESULT_NPM=""
+    local RESULT_COMPOSER=""
+    local RESULT_ITERM=""
+
+    # Function to display usage
+    usage() {
+        cat << EOF
+Usage: $SCRIPT_NAME [OPTIONS]
+
+Orchestrate all Mac backup operations in one command.
+
+BACKUP TARGETS:
+    • Claude Config     → Gogs (git push)
+    • Homebrew state    → iCloud (Brewfile)
+    • Hosts file        → iCloud
+    • npm packages      → iCloud
+    • Composer packages → iCloud
+    • iTerm config      → iCloud
+
+OPTIONS:
+    -d, --dry-run       Preview all operations without executing
+    -s, --skip-gogs     Skip git push operations (offline mode)
+    -v, --verbose       Show detailed output for each operation
+    -h, --help          Display this help message
+    --version           Display version information
+
+EXAMPLES:
+    $SCRIPT_NAME                  # Run all backups
+    $SCRIPT_NAME --dry-run        # Preview what would be backed up
+    $SCRIPT_NAME --skip-gogs      # Run without pushing to Gogs
+
+EOF
+    }
+
+    # Helper functions
+    info() {
+        echo -e "${ICON_INFO}  $1"
+    }
+
+    success() {
+        echo -e "${ICON_SUCCESS}  $1"
+    }
+
+    warn() {
+        echo -e "${ICON_WARNING}  $1"
+    }
+
+    error() {
+        echo -e "${ICON_ERROR}  $1"
+    }
+
+    working() {
+        echo -e "${ICON_WORKING}  $1"
+    }
+
+    section_header() {
+        echo ""
+        echo -e "${BOLD}${CYAN}$1${NC}"
+        echo "───────────────────────────────────"
+    }
+
+    # Check if iCloud backup directory exists
+    check_icloud() {
+        if [[ ! -d "$BACKUP_DIR" ]]; then
+            error "iCloud backup directory not found: $BACKUP_DIR"
+            return 1
+        fi
+        return 0
+    }
+
+    # Backup Claude config to Gogs
+    backup_claude() {
+        section_header "Claude Config → Gogs"
+
+        if [[ "$SKIP_GOGS" == true ]]; then
+            warn "Skipped (--skip-gogs)"
+            RESULT_CLAUDE="skipped"
+            return 0
+        fi
+
+        if [[ "$DRY_RUN" == true ]]; then
+            info "Would run: my-backup-claude"
+            RESULT_CLAUDE="dry-run"
+            return 0
+        fi
+
+        # Call my-backup-claude script
+        if "$SCRIPT_DIR/my-backup-claude"; then
+            RESULT_CLAUDE="success"
+            return 0
+        else
+            RESULT_CLAUDE="failed"
+            return 1
+        fi
+    }
+
+    # Backup Homebrew state
+    backup_brew() {
+        section_header "Homebrew State → iCloud"
+        local brew_dir="$BACKUP_DIR/brew"
+
+        if [[ "$DRY_RUN" == true ]]; then
+            info "Would run: brew bundle dump --force --file=$brew_dir/Brewfile"
+            RESULT_BREW="dry-run"
+            return 0
+        fi
+
+        mkdir -p "$brew_dir"
+        if brew bundle dump --force --file="$brew_dir/Brewfile" 2>/dev/null; then
+            success "Brewfile saved to iCloud"
+            RESULT_BREW="success"
+        else
+            error "Failed to dump Brewfile"
+            RESULT_BREW="failed"
+            return 1
+        fi
+    }
+
+    # Backup hosts file
+    backup_hosts() {
+        section_header "Hosts File → iCloud"
+        local hosts_dir="$BACKUP_DIR/hosts"
+
+        if [[ "$DRY_RUN" == true ]]; then
+            info "Would copy: /etc/hosts → $hosts_dir/"
+            RESULT_HOSTS="dry-run"
+            return 0
+        fi
+
+        mkdir -p "$hosts_dir"
+        if cp -f /etc/hosts "$hosts_dir/" 2>/dev/null; then
+            success "hosts file saved to iCloud"
+            RESULT_HOSTS="success"
+        else
+            error "Failed to copy hosts file"
+            RESULT_HOSTS="failed"
+            return 1
+        fi
+    }
+
+    # Backup npm packages
+    backup_npm() {
+        section_header "NPM Packages → iCloud"
+        local npm_dir="$BACKUP_DIR/npm"
+
+        if ! command -v npm &>/dev/null; then
+            warn "npm not installed - skipping"
+            RESULT_NPM="skipped"
+            return 0
+        fi
+
+        if [[ "$DRY_RUN" == true ]]; then
+            info "Would run: npm list --global --parseable --depth=0"
+            RESULT_NPM="dry-run"
+            return 0
+        fi
+
+        mkdir -p "$npm_dir"
+        if npm list --global --parseable --depth=0 2>/dev/null | sed '1d' | awk '{gsub(/\/.*\//,"",$1); print}' > "$npm_dir/npm.txt"; then
+            success "npm packages list saved to iCloud"
+            RESULT_NPM="success"
+        else
+            error "Failed to list npm packages"
+            RESULT_NPM="failed"
+            return 1
+        fi
+    }
+
+    # Backup composer packages
+    backup_composer() {
+        section_header "Composer Packages → iCloud"
+        local composer_dir="$BACKUP_DIR/composer"
+
+        if ! command -v composer &>/dev/null; then
+            warn "composer not installed - skipping"
+            RESULT_COMPOSER="skipped"
+            return 0
+        fi
+
+        if [[ "$DRY_RUN" == true ]]; then
+            info "Would run: composer global show"
+            RESULT_COMPOSER="dry-run"
+            return 0
+        fi
+
+        mkdir -p "$composer_dir"
+        if composer global show > "$composer_dir/composer.txt" 2>/dev/null; then
+            success "composer packages list saved to iCloud"
+            RESULT_COMPOSER="success"
+        else
+            error "Failed to list composer packages"
+            RESULT_COMPOSER="failed"
+            return 1
+        fi
+    }
+
+    # Backup iTerm config
+    backup_iterm() {
+        section_header "iTerm Config → iCloud"
+        local iterm_dir="$BACKUP_DIR/iTerm"
+        local iterm_plist="$HOME/Library/Preferences/com.googlecode.iterm2.plist"
+
+        if [[ ! -f "$iterm_plist" ]]; then
+            warn "iTerm config not found - skipping"
+            RESULT_ITERM="skipped"
+            return 0
+        fi
+
+        if [[ "$DRY_RUN" == true ]]; then
+            info "Would copy: iTerm preferences to $iterm_dir/"
+            RESULT_ITERM="dry-run"
+            return 0
+        fi
+
+        mkdir -p "$iterm_dir"
+        if cp -f "$iterm_plist" "$iterm_dir/" 2>/dev/null; then
+            success "iTerm config saved to iCloud"
+            RESULT_ITERM="success"
+        else
+            error "Failed to copy iTerm config"
+            RESULT_ITERM="failed"
+            return 1
+        fi
+    }
+
+    # Print summary
+    print_summary() {
+        echo ""
+        echo ""
+        echo -e "${BOLD}${CYAN}═══════════════════════════════════════${NC}"
+        echo -e "${BOLD}${CYAN}         BACKUP SUMMARY${NC}"
+        echo -e "${BOLD}${CYAN}═══════════════════════════════════════${NC}"
+        echo ""
+
+        local succeeded=0
+        local failed=0
+        local skipped=0
+
+        # Helper to print status line
+        print_status() {
+            local name="$1"
+            local status="$2"
+            local icon
+            case "$status" in
+                success)
+                    icon="$ICON_SUCCESS"
+                    ((succeeded++))
+                    ;;
+                failed)
+                    icon="$ICON_ERROR"
+                    ((failed++))
+                    ;;
+                skipped|dry-run)
+                    icon="$ICON_WARNING"
+                    ((skipped++))
+                    ;;
+                *)
+                    icon="$ICON_INFO"
+                    status="unknown"
+                    ;;
+            esac
+            printf "  ${icon}  %-15s %s\n" "$name" "[$status]"
+        }
+
+        print_status "Claude Config" "$RESULT_CLAUDE"
+        print_status "Homebrew" "$RESULT_BREW"
+        print_status "Hosts" "$RESULT_HOSTS"
+        print_status "NPM" "$RESULT_NPM"
+        print_status "Composer" "$RESULT_COMPOSER"
+        print_status "iTerm" "$RESULT_ITERM"
+
+        echo ""
+        echo "───────────────────────────────────────"
+        echo -e "  ${GREEN}Succeeded:${NC} $succeeded  ${YELLOW}Skipped:${NC} $skipped  ${RED}Failed:${NC} $failed"
+        echo ""
+
+        if [[ $failed -gt 0 ]]; then
+            return 1
+        fi
+        return 0
+    }
+
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -d|--dry-run)
+                DRY_RUN=true
+                shift
+                ;;
+            -s|--skip-gogs)
+                SKIP_GOGS=true
+                shift
+                ;;
+            -v|--verbose)
+                VERBOSE=true
+                shift
+                ;;
+            -h|--help)
+                usage
+                return 0
+                ;;
+            --version)
+                echo "$SCRIPT_NAME version $VERSION"
+                return 0
+                ;;
+            *)
+                echo "Unknown option: $1"
+                usage
+                return 1
+                ;;
+        esac
+    done
+
+    # Main execution
+    echo ""
+    echo -e "${BOLD}${CYAN}═══════════════════════════════════════${NC}"
+    echo -e "${BOLD}${CYAN}       Mac Backup Orchestrator${NC}"
+    echo -e "${BOLD}${CYAN}═══════════════════════════════════════${NC}"
+
+    if [[ "$DRY_RUN" == true ]]; then
+        echo ""
+        warn "DRY RUN MODE - No changes will be made"
+    fi
+
+    # Check iCloud directory
+    if ! check_icloud; then
+        return 1
+    fi
+
+    # Run all backups
+    backup_claude
+    backup_brew
+    backup_hosts
+    backup_npm
+    backup_composer
+    backup_iterm
+
+    # Print summary
+    print_summary
+}
+
+# Execute if called directly (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    my_backup_mac "$@"
+fi
