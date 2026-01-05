@@ -87,37 +87,49 @@ EOF
         echo ""
 
         # LLM prompt for analysis
-        local prompt='You are analyzing macOS system update output. Format your response for a Mac terminal (zsh).
-Use ANSI color codes for styling:
-- \033[1;32m for success/green (use for completed updates, successful operations)
-- \033[1;33m for warnings/yellow (use for warnings, deprecations, things to watch)
-- \033[1;31m for errors/red (use for failures, errors, problems)
-- \033[0m to reset color after each colored section
+        local prompt='Analyze this macOS system update output. Use these EXACT escape codes for terminal colors:
+\033[1;32m = green (success)
+\033[1;33m = yellow (warning/pending)
+\033[1;31m = red (error)
+\033[1;36m = cyan (info)
+\033[0m = reset
 
-Structure your response as:
+Format your response with these sections:
 
-## Summary
-Brief overview of what was updated (2-3 sentences max)
+## Backups
+Show status of each backup (hosts, Brewfile, npm list, composer list). Example:
+\033[1;32m✓\033[0m Brewfile backed up to iCloud
 
-## Updates Completed
-- List key successful updates (green checkmarks)
+## Homebrew
+List packages updated with version changes. If none updated, say "All packages up to date". Example:
+\033[1;32m✓\033[0m opencv 4.12.0 → 4.13.0
 
-## Issues Found
-- Any warnings or errors (yellow/red as appropriate)
-- Include the specific error messages if present
+## NPM
+Status: updated X packages, up to date, or failed with reason
 
-## Fix Commands
-If there are issues that can be fixed, provide the exact shell commands.
-Format as a code block that can be copy-pasted.
+## Composer
+Status: updated X packages, up to date, or failed with reason
 
-Keep response concise and scannable. Focus on actionable information.'
+## App Store
+List available updates (these are informational, not errors). Example:
+\033[1;36mℹ\033[0m BBEdit 15.5.3 → 15.5.4 available (run: mas upgrade)
+
+## Warnings
+Only show actual problems like deprecated packages or errors. Do NOT list available updates here.
+
+## Suggested Fixes
+For each warning/error, provide a specific fix command. Be specific - look up what replaces deprecated packages.
+
+Keep it concise. Use the color codes exactly as shown - they will be interpreted by the terminal.'
 
         # Run LLM analysis
         echo -e "${YELLOW}Analyzing update output...${NC}"
         echo ""
 
-        # Pipe output through LLM
-        cat "$output_file" | llm "$prompt" 2>/dev/null
+        # Pipe output through LLM and interpret escape codes
+        cat "$output_file" | llm "$prompt" 2>/dev/null | while IFS= read -r line; do
+            printf '%b\n' "$line"
+        done
 
         echo ""
         echo -e "${CYAN}───────────────────────────────────────────────────────────${NC}"
