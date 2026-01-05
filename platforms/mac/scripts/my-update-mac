@@ -1,48 +1,257 @@
 #!/bin/bash
 # Function: my-update-mac
-# Purpose: Comprehensive macOS system update (Homebrew, npm, composer, App Store)
-# Usage: my-update-mac [--force]
+# Purpose: Comprehensive macOS system update (Homebrew, npm, composer, App Store) with LLM analysis
+# Usage: my-update-mac [options]
 # Platform: macOS (requires Homebrew, npm, composer, mas)
-# Dependencies: brew, npm, composer, mas, apm (optional)
+# Dependencies: brew, npm, composer, mas, apm (optional), llm (optional for analysis)
+# Version: 2.0
 
 my_update_mac() {
+    local SCRIPT_NAME=$(basename "$0")
+    local VERSION='2.0'
+
+    # Configuration
     local force_update=false
+    local no_analyze=false
+    local analyze_only=false
     local update_file="$HOME/.update_brew"
+    local output_file="$HOME/.update_mac_output.log"
     local current=$(date +%s)
     local time_threshold=345600  # 4 days in seconds
-    
+
+    # Colors
+    local RED='\033[0;31m'
+    local GREEN='\033[0;32m'
+    local YELLOW='\033[1;33m'
+    local CYAN='\033[0;36m'
+    local BOLD='\033[1m'
+    local NC='\033[0m'
+
+    # Function to display usage
+    usage() {
+        cat << EOF
+Usage: $SCRIPT_NAME [OPTIONS]
+
+Comprehensive macOS system update with optional LLM analysis.
+
+OPTIONS:
+    -f, --force         Force update regardless of last update time
+    --no-analyze        Skip LLM analysis after update
+    --analyze-only      Re-analyze last update output (skip running update)
+    -h, --help          Display this help message
+    -v, --version       Display version information
+
+WHAT IT DOES:
+    1. Backs up system settings to iCloud
+    2. Updates Homebrew packages
+    3. Fixes PHP permissions (if needed)
+    4. Runs brew diagnostics
+    5. Updates npm and Composer packages
+    6. Shows available App Store updates
+    7. Analyzes output with LLM (if available)
+
+EXAMPLES:
+    $SCRIPT_NAME                  # Normal update with LLM analysis
+    $SCRIPT_NAME --force          # Force update now
+    $SCRIPT_NAME --no-analyze     # Update without LLM analysis
+    $SCRIPT_NAME --analyze-only   # Re-analyze last update output
+
+EOF
+    }
+
+    # Check if LLM is available
+    has_llm() {
+        command -v llm &>/dev/null
+    }
+
+    # Run LLM analysis on output
+    run_llm_analysis() {
+        if [[ ! -f "$output_file" ]]; then
+            echo -e "${RED}No update output found to analyze${NC}"
+            return 1
+        fi
+
+        if ! has_llm; then
+            echo -e "${YELLOW}LLM not installed - skipping analysis${NC}"
+            echo -e "Install with: ${CYAN}my-setup-ollama${NC}"
+            return 0
+        fi
+
+        # Clear screen before showing summary
+        clear
+
+        echo ""
+        echo -e "${BOLD}${CYAN}═══════════════════════════════════════════════════════════${NC}"
+        echo -e "${BOLD}${CYAN}                   UPDATE ANALYSIS${NC}"
+        echo -e "${BOLD}${CYAN}═══════════════════════════════════════════════════════════${NC}"
+        echo ""
+
+        # LLM prompt for analysis
+        local prompt='You are analyzing macOS system update output. Format your response for a Mac terminal (zsh).
+Use ANSI color codes for styling:
+- \033[1;32m for success/green (use for completed updates, successful operations)
+- \033[1;33m for warnings/yellow (use for warnings, deprecations, things to watch)
+- \033[1;31m for errors/red (use for failures, errors, problems)
+- \033[0m to reset color after each colored section
+
+Structure your response as:
+
+## Summary
+Brief overview of what was updated (2-3 sentences max)
+
+## Updates Completed
+- List key successful updates (green checkmarks)
+
+## Issues Found
+- Any warnings or errors (yellow/red as appropriate)
+- Include the specific error messages if present
+
+## Fix Commands
+If there are issues that can be fixed, provide the exact shell commands.
+Format as a code block that can be copy-pasted.
+
+Keep response concise and scannable. Focus on actionable information.'
+
+        # Run LLM analysis
+        echo -e "${YELLOW}Analyzing update output...${NC}"
+        echo ""
+
+        # Pipe output through LLM
+        cat "$output_file" | llm "$prompt" 2>/dev/null
+
+        echo ""
+        echo -e "${CYAN}───────────────────────────────────────────────────────────${NC}"
+        echo -e "Output saved to: ${CYAN}$output_file${NC}"
+        echo ""
+    }
+
+    # The actual update function
+    run_updates() {
+        echo "macOS System Update Starting..."
+        echo "=============================="
+
+        # Backup system settings
+        echo "## Backing up system settings..."
+        local backup_dir="$HOME/Library/Mobile Documents/com~apple~CloudDocs/Apps"
+
+        if [[ -d "$backup_dir" ]]; then
+            echo "Backing up hosts file..."
+            cp -f /etc/hosts "$backup_dir/hosts/" 2>/dev/null || true
+
+            echo "Backing up Homebrew bundle..."
+            brew bundle dump --force --file="$backup_dir/brew/Brewfile"
+
+            echo "Backing up global npm packages..."
+            npm list --global --parseable --depth=0 2>/dev/null | sed '1d' | awk '{gsub(/\/.*\//,"",$1); print}' > "$backup_dir/npm/npm.txt" 2>/dev/null || true
+
+            echo "Backing up global composer packages..."
+            composer global show > "$backup_dir/composer/composer.txt" 2>/dev/null || true
+        fi
+
+        echo ""
+        echo "## Updating Homebrew..."
+        brew update
+        brew upgrade
+
+        # Fix PHP permissions before cleanup (php-fpm runs as root and changes ownership)
+        if [[ -d "/opt/homebrew/Cellar/php" ]]; then
+            echo "Fixing PHP Cellar permissions..."
+            sudo chown -R $(whoami):admin /opt/homebrew/Cellar/php 2>/dev/null || true
+            sudo chmod -R u+rw /opt/homebrew/Cellar/php 2>/dev/null || true
+        fi
+
+        brew cleanup -s
+
+        echo ""
+        echo "## Running Homebrew diagnostics..."
+        brew doctor
+        brew missing 2>/dev/null || true
+
+        # Update Atom packages if available
+        if command -v apm &> /dev/null; then
+            echo ""
+            echo "## Updating Atom packages..."
+            apm upgrade -c false
+        fi
+
+        echo ""
+        echo "## Checking App Store updates..."
+        if command -v mas &> /dev/null; then
+            echo "Available App Store updates:"
+            mas outdated
+            echo ""
+            echo "Run 'mas upgrade' to install App Store updates"
+        else
+            echo "mas not installed - install with: brew install mas"
+        fi
+
+        echo ""
+        echo "## Updating npm packages..."
+        npm update -g 2>/dev/null || echo "npm update failed or not available"
+
+        echo ""
+        echo "## Updating Composer packages..."
+        composer global update 2>/dev/null || echo "composer update failed or not available"
+
+        echo ""
+        echo "## Update completed successfully!"
+        echo "================================"
+        echo "Updated at: $(date)"
+        echo ""
+        echo "Optional manual updates:"
+        echo "- App Store: mas upgrade"
+        echo "- Ruby gems: gem update --system && gem update"
+        echo "- Python packages: pip list --outdated"
+    }
+
     # Parse arguments
     while [[ $# -gt 0 ]]; do
         case $1 in
             -f|--force)
                 force_update=true
-                echo "Forced update mode enabled"
+                shift
+                ;;
+            --no-analyze)
+                no_analyze=true
+                shift
+                ;;
+            --analyze-only)
+                analyze_only=true
                 shift
                 ;;
             -h|--help)
-                echo "Usage: $0 [--force]"
-                echo "  --force, -f    Force update regardless of last update time"
+                usage
+                return 0
+                ;;
+            -v|--version)
+                echo "$SCRIPT_NAME version $VERSION"
                 return 0
                 ;;
             *)
                 echo "Invalid argument: $1"
-                echo "Try: $0 --help"
+                echo "Try: $SCRIPT_NAME --help"
                 return 1
                 ;;
         esac
     done
-    
+
+    # Handle analyze-only mode
+    if [[ "$analyze_only" == true ]]; then
+        run_llm_analysis
+        return $?
+    fi
+
     # Check if update is needed
     if [[ -f "$update_file" ]]; then
         local last_modified=$(stat -f %m "$update_file")
         local time_difference=$((current - last_modified))
-        
+
         if [[ $force_update == false && $time_difference -le $time_threshold ]]; then
             echo "Last update was $(stat -f "%Sm" "$update_file")"
             echo "Update not needed (use --force to override)"
             return 0
         fi
-        
+
         if [[ $force_update == false ]]; then
             echo "Last update: $(stat -f "%Sm" "$update_file")"
             read -p "Do you want to update? [y/N] " -n 1 -r
@@ -52,85 +261,26 @@ my_update_mac() {
             fi
         fi
     fi
-    
+
     # Update timestamp
     touch "$update_file"
-    
-    echo "macOS System Update Starting..."
-    echo "=============================="
-    
-    # Backup system settings
-    echo "## Backing up system settings..."
-    local backup_dir="$HOME/Library/Mobile Documents/com~apple~CloudDocs/Apps"
-    
-    if [[ -d "$backup_dir" ]]; then
-        echo "Backing up hosts file..."
-        cp -f /etc/hosts "$backup_dir/hosts/" 2>/dev/null || true
-        
-        echo "Backing up Homebrew bundle..."
-        brew bundle dump --force --file="$backup_dir/brew/Brewfile"
-        
-        echo "Backing up global npm packages..."
-        npm list --global --parseable --depth=0 2>/dev/null | sed '1d' | awk '{gsub(/\/.*\//,"",$1); print}' > "$backup_dir/npm/npm.txt" 2>/dev/null || true
-        
-        echo "Backing up global composer packages..."
-        composer global show > "$backup_dir/composer/composer.txt" 2>/dev/null || true
-    fi
-    
-    echo ""
-    echo "## Updating Homebrew..."
-    brew update
-    brew upgrade
 
-    # Fix PHP permissions before cleanup (php-fpm runs as root and changes ownership)
-    if [[ -d "/opt/homebrew/Cellar/php" ]]; then
-        echo "Fixing PHP Cellar permissions..."
-        sudo chown -R $(whoami):admin /opt/homebrew/Cellar/php 2>/dev/null || true
-        sudo chmod -R u+rw /opt/homebrew/Cellar/php 2>/dev/null || true
-    fi
+    # Run updates with tee to capture output while showing live
+    echo -e "${CYAN}Starting system update...${NC}"
+    echo ""
 
-    brew cleanup -s
-    
-    echo ""
-    echo "## Running Homebrew diagnostics..."
-    brew doctor
-    brew missing 2>/dev/null || true
-    
-    # Update Atom packages if available
-    if command -v apm &> /dev/null; then
-        echo ""
-        echo "## Updating Atom packages..."
-        apm upgrade -c false
+    # Clear previous output file
+    > "$output_file"
+
+    # Run updates and capture output with tee
+    run_updates 2>&1 | tee "$output_file"
+
+    # Run LLM analysis if not disabled
+    if [[ "$no_analyze" == false ]]; then
+        # Small pause before clearing screen
+        sleep 1
+        run_llm_analysis
     fi
-    
-    echo ""
-    echo "## Checking App Store updates..."
-    if command -v mas &> /dev/null; then
-        echo "Available App Store updates:"
-        mas outdated
-        echo ""
-        echo "Run 'mas upgrade' to install App Store updates"
-    else
-        echo "mas not installed - install with: brew install mas"
-    fi
-    
-    echo ""
-    echo "## Updating npm packages..."
-    npm update -g 2>/dev/null || echo "npm update failed or not available"
-    
-    echo ""
-    echo "## Updating Composer packages..."
-    composer global update 2>/dev/null || echo "composer update failed or not available"
-    
-    echo ""
-    echo "## Update completed successfully!"
-    echo "================================"
-    echo "Updated at: $(date)"
-    echo ""
-    echo "Optional manual updates:"
-    echo "- App Store: mas upgrade"
-    echo "- Ruby gems: gem update --system && gem update"
-    echo "- Python packages: pip list --outdated"
 }
 
 # Execute if called directly (not sourced)
