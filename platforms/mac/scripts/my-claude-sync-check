@@ -1,0 +1,70 @@
+#!/bin/bash
+# Function: my-claude-sync-check
+# Purpose: Check if ~/.claude repository has updates and sync status
+# Usage: my-claude-sync-check
+# Platform: Mac
+# Dependencies: git
+
+CLAUDE_DIR="$HOME/.claude"
+
+my_claude_sync_check() {
+    # Check if .claude directory exists and is a git repo
+    if [[ ! -d "$CLAUDE_DIR/.git" ]]; then
+        return 0
+    fi
+
+    local CURDIR=${PWD}
+
+    # Change to claude config directory
+    cd "$CLAUDE_DIR" &> /dev/null || {
+        return 1
+    }
+
+    # Update remote tracking information (silent)
+    git remote update &> /dev/null
+
+    # Get current branch status
+    local UPSTREAM=${1:-'@{u}'}
+    local LOCAL
+    local REMOTE
+    local BASE
+
+    LOCAL=$(git rev-parse @ 2>/dev/null)
+    REMOTE=$(git rev-parse "$UPSTREAM" 2>/dev/null)
+    BASE=$(git merge-base @ "$UPSTREAM" 2>/dev/null)
+
+    # Check for errors in git commands
+    if [[ -z "$LOCAL" || -z "$REMOTE" || -z "$BASE" ]]; then
+        cd "$CURDIR" || return 1
+        return 0
+    fi
+
+    # Check repository status
+    if [[ "$LOCAL" = "$REMOTE" ]]; then
+        : # Up to date, silent
+    elif [[ "$LOCAL" = "$BASE" ]]; then
+        echo -e "\033[33m[Claude Config]\033[0m Updates available from remote"
+        read -e -p "Pull latest Claude config? [y/N]: " -r REPLY
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            echo "Pulling Claude config updates..."
+            git pull
+        fi
+    elif [[ "$REMOTE" = "$BASE" ]]; then
+        echo -e "\033[33m[Claude Config]\033[0m Local changes not pushed"
+        read -e -p "Push local Claude config changes? [y/N]: " -r REPLY
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            echo "Pushing Claude config..."
+            git add -A && git commit -m "Sync Claude config" && git push
+        fi
+    else
+        echo -e "\033[31m[Claude Config]\033[0m Local and remote have diverged - manual sync required"
+    fi
+
+    # Return to original directory
+    cd "$CURDIR" || return 1
+}
+
+# Execute if called directly (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    my_claude_sync_check "$@"
+fi
