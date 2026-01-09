@@ -12,22 +12,19 @@ my_profile_update_check() {
     fi
     export DOTFILES_UPDATE_CHECKED=1
 
-    local CURDIR=${PWD}
-
-    # Change to dotfiles directory
-    cd "$DOTFILESLOC" &> /dev/null || {
-        echo "Error: Could not change to dotfiles directory: $DOTFILESLOC"
+    # Verify dotfiles directory exists
+    if [[ ! -d "$DOTFILESLOC/.git" ]]; then
         return 1
-    }
+    fi
 
-    # Update remote tracking information
-    git remote update &> /dev/null
+    # Update remote tracking information (use git -C to avoid changing directory)
+    git -C "$DOTFILESLOC" remote update &> /dev/null
 
     # Get current branch status
     local UPSTREAM=${1:-'@{u}'}
-    local LOCAL=$(git rev-parse @)
-    local REMOTE=$(git rev-parse "$UPSTREAM")
-    local BASE=$(git merge-base @ "$UPSTREAM")
+    local LOCAL=$(git -C "$DOTFILESLOC" rev-parse @)
+    local REMOTE=$(git -C "$DOTFILESLOC" rev-parse "$UPSTREAM" 2>/dev/null)
+    local BASE=$(git -C "$DOTFILESLOC" merge-base @ "$UPSTREAM" 2>/dev/null)
 
     # Check repository status
     if [ "$LOCAL" = "$REMOTE" ]; then
@@ -37,7 +34,7 @@ my_profile_update_check() {
         read -e -p "Do you want to update the profile? [y/N]: " -r REPLY
         if [[ $REPLY =~ ^[Yy]$ ]]; then
             echo "Updating dotfiles..."
-            git pull
+            git -C "$DOTFILESLOC" pull
             echo "Changes applied. Open a new terminal to use updated config."
         else
             echo "Update skipped."
@@ -47,9 +44,6 @@ my_profile_update_check() {
     else
         echo "Dotfiles have diverged from remote repository"
     fi
-
-    # Return to original directory
-    cd "$CURDIR" || return 1
 }
 
 # Execute if called directly (not sourced)
