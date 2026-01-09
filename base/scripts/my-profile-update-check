@@ -31,26 +31,32 @@ my_profile_update_check() {
         status=$(my-git-status-cache check dotfiles "$DOTFILESLOC")
     fi
 
-    # Only prompt if updates are available
+    # Only prompt if updates are available AND we have a TTY
     case "$status" in
         pull_available)
-            echo "Dotfiles update available!"
-            read -e -p "Do you want to update the profile? [y/N]: " -r REPLY
-            if [[ $REPLY =~ ^[Yy]$ ]]; then
-                echo "Updating dotfiles..."
-                git -C "$DOTFILESLOC" pull
-                # Refresh cache after pull
-                my-git-status-cache update dotfiles "$DOTFILESLOC" &>/dev/null &
-                echo "Changes applied. Open a new terminal to use updated config."
+            if [[ -t 0 ]]; then
+                # Interactive: prompt user
+                echo "Dotfiles update available!"
+                read -e -p "Do you want to update the profile? [y/N]: " -r REPLY
+                if [[ $REPLY =~ ^[Yy]$ ]]; then
+                    echo "Updating dotfiles..."
+                    git -C "$DOTFILESLOC" pull
+                    # Refresh cache after pull
+                    my-git-status-cache update dotfiles "$DOTFILESLOC" &>/dev/null &
+                    echo "Changes applied. Open a new terminal to use updated config."
+                else
+                    echo "Update skipped."
+                fi
             else
-                echo "Update skipped."
+                # Non-interactive (SSH/cron): just notify, don't block
+                echo "[dotfiles] Update available - run 'my-profile-update-check --force' to update"
             fi
             ;;
         push_needed)
-            echo "Dotfiles have local changes that need to be pushed"
+            echo "[dotfiles] Local changes need to be pushed"
             ;;
         diverged)
-            echo "Dotfiles have diverged from remote repository"
+            echo "[dotfiles] Repository has diverged from remote"
             ;;
         # up_to_date, uncached, no_upstream - silent
     esac

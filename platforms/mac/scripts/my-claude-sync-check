@@ -25,27 +25,35 @@ my_claude_sync_check() {
         status=$(my-git-status-cache check claude "$CLAUDE_DIR")
     fi
 
-    # Only prompt if action needed
+    # Only prompt if action needed AND we have a TTY
     case "$status" in
         pull_available)
-            echo -e "\033[33m[Claude Config]\033[0m Updates available from remote"
-            read -e -p "Pull latest Claude config? [y/N]: " -r REPLY
-            if [[ $REPLY =~ ^[Yy]$ ]]; then
-                echo "Pulling Claude config updates..."
-                git -C "$CLAUDE_DIR" pull
-                # Refresh cache after pull
-                my-git-status-cache update claude "$CLAUDE_DIR" &>/dev/null &
+            if [[ -t 0 ]]; then
+                # Interactive: prompt user
+                echo -e "\033[33m[Claude Config]\033[0m Updates available from remote"
+                read -e -p "Pull latest Claude config? [y/N]: " -r REPLY
+                if [[ $REPLY =~ ^[Yy]$ ]]; then
+                    echo "Pulling Claude config updates..."
+                    git -C "$CLAUDE_DIR" pull
+                    # Refresh cache after pull
+                    my-git-status-cache update claude "$CLAUDE_DIR" &>/dev/null &
+                fi
             fi
+            # Non-interactive: silent (MOTD will show status)
             ;;
         push_needed)
-            echo -e "\033[33m[Claude Config]\033[0m Local changes not pushed"
-            read -e -p "Push local Claude config changes? [y/N]: " -r REPLY
-            if [[ $REPLY =~ ^[Yy]$ ]]; then
-                echo "Pushing Claude config..."
-                git -C "$CLAUDE_DIR" add -A && git -C "$CLAUDE_DIR" commit -m "Sync Claude config" && git -C "$CLAUDE_DIR" push
-                # Refresh cache after push
-                my-git-status-cache update claude "$CLAUDE_DIR" &>/dev/null &
+            if [[ -t 0 ]]; then
+                # Interactive: prompt user
+                echo -e "\033[33m[Claude Config]\033[0m Local changes not pushed"
+                read -e -p "Push local Claude config changes? [y/N]: " -r REPLY
+                if [[ $REPLY =~ ^[Yy]$ ]]; then
+                    echo "Pushing Claude config..."
+                    git -C "$CLAUDE_DIR" add -A && git -C "$CLAUDE_DIR" commit -m "Sync Claude config" && git -C "$CLAUDE_DIR" push
+                    # Refresh cache after push
+                    my-git-status-cache update claude "$CLAUDE_DIR" &>/dev/null &
+                fi
             fi
+            # Non-interactive: silent (MOTD will show status)
             ;;
         diverged)
             echo -e "\033[31m[Claude Config]\033[0m Local and remote have diverged - manual sync required"
