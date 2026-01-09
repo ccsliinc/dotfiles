@@ -1,9 +1,9 @@
 #!/bin/bash
 # Function: my-profile-update-check
-# Purpose: Check if dotfiles repository has updates and offer to pull them
-# Usage: my-profile-update-check
+# Purpose: Check if dotfiles repository has updates (non-blocking with cache)
+# Usage: my-profile-update-check [--force]
 # Platform: All (requires git)
-# Dependencies: git
+# Dependencies: git, my-git-status-cache
 
 my_profile_update_check() {
     # Guard against re-running during shell restart
@@ -17,33 +17,43 @@ my_profile_update_check() {
         return 1
     fi
 
-    # Update remote tracking information (use git -C to avoid changing directory)
-    git -C "$DOTFILESLOC" remote update &> /dev/null
+    local force=false
+    [[ "$1" == "--force" ]] && force=true
 
-    # Get current branch status
-    local UPSTREAM=${1:-'@{u}'}
-    local LOCAL=$(git -C "$DOTFILESLOC" rev-parse @)
-    local REMOTE=$(git -C "$DOTFILESLOC" rev-parse "$UPSTREAM" 2>/dev/null)
-    local BASE=$(git -C "$DOTFILESLOC" merge-base @ "$UPSTREAM" 2>/dev/null)
-
-    # Check repository status
-    if [ "$LOCAL" = "$REMOTE" ]; then
-        : # Dotfiles are up-to-date (silent)
-    elif [ "$LOCAL" = "$BASE" ]; then
-        echo "Dotfiles update available!"
-        read -e -p "Do you want to update the profile? [y/N]: " -r REPLY
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
-            echo "Updating dotfiles..."
-            git -C "$DOTFILESLOC" pull
-            echo "Changes applied. Open a new terminal to use updated config."
-        else
-            echo "Update skipped."
-        fi
-    elif [ "$REMOTE" = "$BASE" ]; then
-        echo "Your dotfiles have local changes that need to be pushed"
+    # Get cached status (instant) - spawns background update if stale
+    local status
+    if [[ "$force" == true ]]; then
+        # Force: run blocking update
+        my-git-status-cache update dotfiles "$DOTFILESLOC"
+        status=$(my-git-status-cache read dotfiles)
     else
-        echo "Dotfiles have diverged from remote repository"
+        # Normal: use cache, background refresh if stale
+        status=$(my-git-status-cache check dotfiles "$DOTFILESLOC")
     fi
+
+    # Only prompt if updates are available
+    case "$status" in
+        pull_available)
+            echo "Dotfiles update available!"
+            read -e -p "Do you want to update the profile? [y/N]: " -r REPLY
+            if [[ $REPLY =~ ^[Yy]$ ]]; then
+                echo "Updating dotfiles..."
+                git -C "$DOTFILESLOC" pull
+                # Refresh cache after pull
+                my-git-status-cache update dotfiles "$DOTFILESLOC" &>/dev/null &
+                echo "Changes applied. Open a new terminal to use updated config."
+            else
+                echo "Update skipped."
+            fi
+            ;;
+        push_needed)
+            echo "Dotfiles have local changes that need to be pushed"
+            ;;
+        diverged)
+            echo "Dotfiles have diverged from remote repository"
+            ;;
+        # up_to_date, uncached, no_upstream - silent
+    esac
 }
 
 # Execute if called directly (not sourced)

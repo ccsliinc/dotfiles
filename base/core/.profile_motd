@@ -36,21 +36,17 @@ source "$DOTFILESLOC/base/shared/bash_colors.sh"
     # Last login (skip current session)
     LAST_LOGIN=$(last -2 "$USER" 2>/dev/null | sed -n '2p' | awk '{print $3, $4, $5, $6}')
     echo -e "Last Login     : ${LAST_LOGIN:-unknown}"
-    # Claude config sync status (quick check, no prompts)
+    # Claude config sync status (from cache - non-blocking)
     if [[ -d "$HOME/.claude/.git" ]]; then
-        cd "$HOME/.claude" &>/dev/null && git remote update &>/dev/null
-        CLAUDE_LOCAL=$(git rev-parse @ 2>/dev/null)
-        CLAUDE_REMOTE=$(git rev-parse @{u} 2>/dev/null)
-        if [[ "$CLAUDE_LOCAL" == "$CLAUDE_REMOTE" ]]; then
-            CLAUDE_STATUS="${LGREEN}✓ synced${LWHITE}"
-        elif [[ "$(git merge-base @ @{u} 2>/dev/null)" == "$CLAUDE_LOCAL" ]]; then
-            CLAUDE_STATUS="${LYELLOW}↓ pull available${LWHITE}"
-        elif [[ "$(git merge-base @ @{u} 2>/dev/null)" == "$CLAUDE_REMOTE" ]]; then
-            CLAUDE_STATUS="${LYELLOW}↑ push needed${LWHITE}"
-        else
-            CLAUDE_STATUS="${LRED}⚠ diverged${LWHITE}"
-        fi
-        cd - &>/dev/null
+        # Use cached status (spawns background check if stale)
+        local claude_status=$(my-git-status-cache check claude "$HOME/.claude" 2>/dev/null)
+        case "$claude_status" in
+            up_to_date)    CLAUDE_STATUS="${LGREEN}✓ synced${LWHITE}" ;;
+            pull_available) CLAUDE_STATUS="${LYELLOW}↓ pull available${LWHITE}" ;;
+            push_needed)   CLAUDE_STATUS="${LYELLOW}↑ push needed${LWHITE}" ;;
+            diverged)      CLAUDE_STATUS="${LRED}⚠ diverged${LWHITE}" ;;
+            *)             CLAUDE_STATUS="${DGRAY}checking...${LWHITE}" ;;
+        esac
     else
         CLAUDE_STATUS="${DGRAY}not a repo${LWHITE}"
     fi

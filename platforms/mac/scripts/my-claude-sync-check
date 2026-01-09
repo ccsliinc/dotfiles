@@ -1,9 +1,9 @@
 #!/bin/bash
 # Function: my-claude-sync-check
-# Purpose: Check if ~/.claude repository has updates and sync status
-# Usage: my-claude-sync-check
+# Purpose: Check if ~/.claude repository has updates and sync status (non-blocking with cache)
+# Usage: my-claude-sync-check [--force]
 # Platform: Mac
-# Dependencies: git
+# Dependencies: git, my-git-status-cache
 
 CLAUDE_DIR="$HOME/.claude"
 
@@ -13,44 +13,45 @@ my_claude_sync_check() {
         return 0
     fi
 
-    # Update remote tracking information (use git -C to avoid changing directory)
-    git -C "$CLAUDE_DIR" remote update &> /dev/null
+    local force=false
+    [[ "$1" == "--force" ]] && force=true
 
-    # Get current branch status
-    local UPSTREAM=${1:-'@{u}'}
-    local LOCAL
-    local REMOTE
-    local BASE
-
-    LOCAL=$(git -C "$CLAUDE_DIR" rev-parse @ 2>/dev/null)
-    REMOTE=$(git -C "$CLAUDE_DIR" rev-parse "$UPSTREAM" 2>/dev/null)
-    BASE=$(git -C "$CLAUDE_DIR" merge-base @ "$UPSTREAM" 2>/dev/null)
-
-    # Check for errors in git commands
-    if [[ -z "$LOCAL" || -z "$REMOTE" || -z "$BASE" ]]; then
-        return 0
-    fi
-
-    # Check repository status
-    if [[ "$LOCAL" = "$REMOTE" ]]; then
-        : # Up to date, silent
-    elif [[ "$LOCAL" = "$BASE" ]]; then
-        echo -e "\033[33m[Claude Config]\033[0m Updates available from remote"
-        read -e -p "Pull latest Claude config? [y/N]: " -r REPLY
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
-            echo "Pulling Claude config updates..."
-            git -C "$CLAUDE_DIR" pull
-        fi
-    elif [[ "$REMOTE" = "$BASE" ]]; then
-        echo -e "\033[33m[Claude Config]\033[0m Local changes not pushed"
-        read -e -p "Push local Claude config changes? [y/N]: " -r REPLY
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
-            echo "Pushing Claude config..."
-            git -C "$CLAUDE_DIR" add -A && git -C "$CLAUDE_DIR" commit -m "Sync Claude config" && git -C "$CLAUDE_DIR" push
-        fi
+    # Get cached status (instant) - spawns background update if stale
+    local status
+    if [[ "$force" == true ]]; then
+        my-git-status-cache update claude "$CLAUDE_DIR"
+        status=$(my-git-status-cache read claude)
     else
-        echo -e "\033[31m[Claude Config]\033[0m Local and remote have diverged - manual sync required"
+        status=$(my-git-status-cache check claude "$CLAUDE_DIR")
     fi
+
+    # Only prompt if action needed
+    case "$status" in
+        pull_available)
+            echo -e "\033[33m[Claude Config]\033[0m Updates available from remote"
+            read -e -p "Pull latest Claude config? [y/N]: " -r REPLY
+            if [[ $REPLY =~ ^[Yy]$ ]]; then
+                echo "Pulling Claude config updates..."
+                git -C "$CLAUDE_DIR" pull
+                # Refresh cache after pull
+                my-git-status-cache update claude "$CLAUDE_DIR" &>/dev/null &
+            fi
+            ;;
+        push_needed)
+            echo -e "\033[33m[Claude Config]\033[0m Local changes not pushed"
+            read -e -p "Push local Claude config changes? [y/N]: " -r REPLY
+            if [[ $REPLY =~ ^[Yy]$ ]]; then
+                echo "Pushing Claude config..."
+                git -C "$CLAUDE_DIR" add -A && git -C "$CLAUDE_DIR" commit -m "Sync Claude config" && git -C "$CLAUDE_DIR" push
+                # Refresh cache after push
+                my-git-status-cache update claude "$CLAUDE_DIR" &>/dev/null &
+            fi
+            ;;
+        diverged)
+            echo -e "\033[31m[Claude Config]\033[0m Local and remote have diverged - manual sync required"
+            ;;
+        # up_to_date, uncached, no_upstream - silent
+    esac
 }
 
 # Execute if called directly (not sourced)
