@@ -6,8 +6,14 @@
 # Dependencies: git
 
 my_profile_update_check() {
+    # Guard against re-running during shell restart
+    if [[ -n "$DOTFILES_UPDATE_CHECKED" ]]; then
+        return 0
+    fi
+    export DOTFILES_UPDATE_CHECKED=1
+
     local CURDIR=${PWD}
-    
+
     # Change to dotfiles directory
     cd "$DOTFILESLOC" &> /dev/null || {
         echo "Error: Could not change to dotfiles directory: $DOTFILESLOC"
@@ -25,15 +31,14 @@ my_profile_update_check() {
 
     # Check repository status
     if [ "$LOCAL" = "$REMOTE" ]; then
-        echo "Dotfiles are up-to-date"
+        : # Dotfiles are up-to-date (silent)
     elif [ "$LOCAL" = "$BASE" ]; then
         echo "Dotfiles update available!"
         read -e -p "Do you want to update the profile? [y/N]: " -r REPLY
         if [[ $REPLY =~ ^[Yy]$ ]]; then
             echo "Updating dotfiles..."
             git pull
-            echo "Restarting shell to apply changes..."
-            exec "$SHELL"
+            echo "Changes applied. Open a new terminal to use updated config."
         else
             echo "Update skipped."
         fi
