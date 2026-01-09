@@ -36,6 +36,20 @@ source "$DOTFILESLOC/base/shared/bash_colors.sh"
     # Last login (skip current session)
     LAST_LOGIN=$(last -2 "$USER" 2>/dev/null | sed -n '2p' | awk '{print $3, $4, $5, $6}')
     echo -e "Last Login     : ${LAST_LOGIN:-unknown}"
+    # Dotfiles sync status (from cache - non-blocking)
+    if [[ -d "$DOTFILESLOC/.git" ]]; then
+        local dotfiles_status=$(my-git-status-cache check dotfiles "$DOTFILESLOC" 2>/dev/null)
+        case "$dotfiles_status" in
+            up_to_date)     DOTFILES_STATUS="${LGREEN}✓ synced${LWHITE}" ;;
+            pull_available) DOTFILES_STATUS="${LYELLOW}↓ pull available${LWHITE}" ;;
+            push_needed)    DOTFILES_STATUS="${LYELLOW}↑ push needed${LWHITE}" ;;
+            diverged)       DOTFILES_STATUS="${LRED}⚠ diverged${LWHITE}" ;;
+            *)              DOTFILES_STATUS="${DGRAY}checking...${LWHITE}" ;;
+        esac
+    else
+        DOTFILES_STATUS="${DGRAY}not a repo${LWHITE}"
+    fi
+    echo -e "Dotfiles       : $DOTFILES_STATUS"
     # Claude config sync status (from cache - non-blocking)
     if [[ -d "$HOME/.claude/.git" ]]; then
         # Use cached status (spawns background check if stale)
