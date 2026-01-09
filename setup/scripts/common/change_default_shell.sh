@@ -51,10 +51,20 @@ if [[ ! -x $shell ]]; then
     exit 1
 fi
 
+current_shell=$(basename "$SHELL")
+target_shell=$(basename "$shell")
+
+# Check if already using the target shell
+if [[ "$current_shell" == "$target_shell" ]]; then
+    echo "Already using $target_shell as default shell."
+    exit 0
+fi
+
 if [[ $OS == "qnap" ]]; then
     sudo usermod -s "$shell" "$(whoami)"
-    exec $shell
 else
     sudo chsh -s "$shell" "$(whoami)"
-    exec "$shell"
 fi
+
+echo "Default shell changed to $shell."
+echo "Open a new terminal to use the new shell."
