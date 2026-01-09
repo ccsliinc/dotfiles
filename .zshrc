@@ -66,6 +66,7 @@ ZSH_THEME="maran"
 # Custom plugins may be added to ~/.oh-my-zsh/custom/plugins/
 # Example format: plugins=(rails git textmate ruby lighthouse)
 # Add wisely, as too many plugins slow down shell startup.
+# Base plugins (always loaded)
 plugins=(
     git
     git-extras
@@ -77,15 +78,17 @@ plugins=(
     github
     laravel
     sudo
-    tmux
-    screen
-    docker
     node
     npm
     n98-magerun
     wp-cli
     yarn
 )
+
+# Conditionally add plugins that error when their tool is missing
+(( $+commands[tmux] )) && plugins+=(tmux)
+(( $+commands[screen] )) && plugins+=(screen)
+(( $+commands[docker] )) && plugins+=(docker)
 
 export DEBUG=false
 
