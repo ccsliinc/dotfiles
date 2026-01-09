@@ -102,6 +102,7 @@ alias hg='history | grep '                 # hg:       Search command history
 
 # System information
 alias c='clear'                            # c:        Clear terminal display
+alias q='exit'                             # q:        Quit/exit shell
 alias which='type -all'                    # which:    Find executables (base - platforms may override)
 alias path='echo -e ${PATH//:/\\n}'        # path:     Show all executable paths
 alias show_options='shopt'                 # show_options: Display bash options settings
