@@ -1,0 +1,136 @@
+#!/bin/bash
+# Function: my-git-status-cache
+# Purpose: Cache git repository status for non-blocking login checks
+# Usage: my-git-status-cache [check|update|read] [repo_name] [repo_path]
+# Platform: All (requires git)
+# Dependencies: git
+#
+# Examples:
+#   my-git-status-cache check dotfiles ~/.dotfiles    # Check if cache is fresh, spawn bg update if stale
+#   my-git-status-cache update dotfiles ~/.dotfiles   # Force update cache (runs git remote update)
+#   my-git-status-cache read dotfiles                 # Read cached status (instant)
+
+CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/dotfiles"
+CACHE_MAX_AGE=${DOTFILES_CACHE_AGE:-14400}  # 4 hours in seconds
+
+# Ensure cache directory exists
+mkdir -p "$CACHE_DIR" 2>/dev/null
+
+_get_cache_file() {
+    local repo_name="$1"
+    echo "$CACHE_DIR/${repo_name}.status"
+}
+
+_get_lock_file() {
+    local repo_name="$1"
+    echo "$CACHE_DIR/${repo_name}.lock"
+}
+
+_cache_age() {
+    local cache_file="$1"
+    if [[ ! -f "$cache_file" ]]; then
+        echo "999999"
+        return
+    fi
+    local now=$(date +%s)
+    local mtime=$(stat -f %m "$cache_file" 2>/dev/null || stat -c %Y "$cache_file" 2>/dev/null)
+    echo $((now - mtime))
+}
+
+_update_cache() {
+    local repo_name="$1"
+    local repo_path="$2"
+    local cache_file=$(_get_cache_file "$repo_name")
+    local lock_file=$(_get_lock_file "$repo_name")
+
+    # Skip if another update is running
+    if [[ -f "$lock_file" ]]; then
+        local lock_age=$(_cache_age "$lock_file")
+        if [[ $lock_age -lt 300 ]]; then  # Lock younger than 5 min
+            return 0
+        fi
+        rm -f "$lock_file"  # Stale lock
+    fi
+
+    # Create lock
+    echo $$ > "$lock_file"
+
+    # Verify repo exists
+    if [[ ! -d "$repo_path/.git" ]]; then
+        echo "no_repo" > "$cache_file"
+        rm -f "$lock_file"
+        return 1
+    fi
+
+    # Fetch remote info (the slow part)
+    git -C "$repo_path" remote update &>/dev/null
+
+    # Get status
+    local LOCAL=$(git -C "$repo_path" rev-parse @ 2>/dev/null)
+    local REMOTE=$(git -C "$repo_path" rev-parse @{u} 2>/dev/null)
+    local BASE=$(git -C "$repo_path" merge-base @ @{u} 2>/dev/null)
+
+    local status="unknown"
+    if [[ -z "$LOCAL" || -z "$REMOTE" ]]; then
+        status="no_upstream"
+    elif [[ "$LOCAL" == "$REMOTE" ]]; then
+        status="up_to_date"
+    elif [[ "$BASE" == "$LOCAL" ]]; then
+        status="pull_available"
+    elif [[ "$BASE" == "$REMOTE" ]]; then
+        status="push_needed"
+    else
+        status="diverged"
+    fi
+
+    # Write cache
+    echo "$status" > "$cache_file"
+    rm -f "$lock_file"
+}
+
+_read_cache() {
+    local repo_name="$1"
+    local cache_file=$(_get_cache_file "$repo_name")
+
+    if [[ -f "$cache_file" ]]; then
+        cat "$cache_file"
+    else
+        echo "uncached"
+    fi
+}
+
+_check_and_update() {
+    local repo_name="$1"
+    local repo_path="$2"
+    local cache_file=$(_get_cache_file "$repo_name")
+    local age=$(_cache_age "$cache_file")
+
+    # If cache is fresh, just return cached value
+    if [[ $age -lt $CACHE_MAX_AGE ]]; then
+        _read_cache "$repo_name"
+        return 0
+    fi
+
+    # Cache is stale - spawn background update
+    ( _update_cache "$repo_name" "$repo_path" & ) 2>/dev/null
+
+    # Return stale cache for now (or uncached if none)
+    _read_cache "$repo_name"
+}
+
+# Main command dispatcher
+case "${1:-check}" in
+    check)
+        _check_and_update "${2:-dotfiles}" "${3:-$DOTFILESLOC}"
+        ;;
+    update)
+        _update_cache "${2:-dotfiles}" "${3:-$DOTFILESLOC}"
+        ;;
+    read)
+        _read_cache "${2:-dotfiles}"
+        ;;
+    *)
+        echo "Usage: my-git-status-cache [check|update|read] [repo_name] [repo_path]"
+        exit 1
+        ;;
+esac
