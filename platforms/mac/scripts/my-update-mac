@@ -64,23 +64,12 @@ EOF
         command -v llm &>/dev/null
     }
 
-    # Ensure Ollama is running (start if needed)
-    ensure_ollama() {
-        # Check if ollama server is responding
+    # Check if Ollama is available
+    check_ollama() {
         if ! ollama list &>/dev/null; then
-            echo -e "${YELLOW}Starting Ollama server...${NC}"
-            ollama serve &>/dev/null &
-            # Wait for Ollama to be ready (max 30 seconds)
-            local count=0
-            while ! ollama list &>/dev/null && [[ $count -lt 30 ]]; do
-                sleep 1
-                ((count++))
-            done
-            if [[ $count -ge 30 ]]; then
-                echo -e "${RED}Ollama failed to start${NC}"
-                return 1
-            fi
-            echo -e "${GREEN}Ollama ready${NC}"
+            echo -e "${RED}Ollama not running${NC}"
+            echo -e "${YELLOW}Start with: brew services start ollama${NC}"
+            return 1
         fi
         return 0
     }
@@ -98,8 +87,8 @@ EOF
             return 0
         fi
 
-        # Start Ollama if needed (for local models)
-        ensure_ollama || return 1
+        # Verify Ollama is running (for local models)
+        check_ollama || return 1
 
         # Clear screen before showing summary
         clear
