@@ -130,15 +130,23 @@ Keep it concise. Use the color codes exactly as shown - they will be interpreted
         local summary_file="$HOME/.update_mac_summary.txt"
 
         # Run LLM and save output
-        llm "$prompt" < "$output_file" > "$summary_file" 2>&1
+        local llm_result
+        llm_result=$(llm "$prompt" < "$output_file" 2>&1)
+        local llm_exit=$?
 
-        # Display with escape code interpretation
-        if [[ -s "$summary_file" ]]; then
-            # Use printf to interpret \033 escape codes for colors
-            printf '%b\n' "$(cat "$summary_file")"
-        else
-            echo -e "${RED}LLM produced no output${NC}"
+        # Check for errors
+        if [[ $llm_exit -ne 0 ]] || [[ "$llm_result" == Error:* ]]; then
+            echo -e "${RED}LLM error: ${llm_result}${NC}"
+            echo ""
+            echo -e "${YELLOW}Tip: Start Ollama or set OpenAI model:${NC}"
+            echo "  open -a Ollama"
+            echo "  llm models default gpt-4o-mini"
+            return 1
         fi
+
+        # Save and display
+        echo "$llm_result" > "$summary_file"
+        printf '%b\n' "$llm_result"
 
         echo ""
         echo -e "${CYAN}───────────────────────────────────────────────────────────${NC}"
