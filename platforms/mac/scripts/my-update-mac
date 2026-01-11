@@ -64,6 +64,25 @@ EOF
         command -v llm &>/dev/null
     }
 
+    # Ensure Ollama is running (start if needed)
+    ensure_ollama() {
+        if ! pgrep -q "ollama"; then
+            echo -e "${YELLOW}Starting Ollama...${NC}"
+            open -a Ollama
+            # Wait for Ollama to be ready (max 30 seconds)
+            local count=0
+            while ! ollama list &>/dev/null && [[ $count -lt 30 ]]; do
+                sleep 1
+                ((count++))
+            done
+            if [[ $count -ge 30 ]]; then
+                echo -e "${RED}Ollama failed to start${NC}"
+                return 1
+            fi
+        fi
+        return 0
+    }
+
     # Run LLM analysis on output
     run_llm_analysis() {
         if [[ ! -f "$output_file" ]]; then
@@ -76,6 +95,9 @@ EOF
             echo -e "Install with: ${CYAN}my-setup-ollama${NC}"
             return 0
         fi
+
+        # Start Ollama if needed (for local models)
+        ensure_ollama || return 1
 
         # Clear screen before showing summary
         clear
