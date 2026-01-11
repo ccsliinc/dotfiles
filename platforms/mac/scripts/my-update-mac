@@ -129,13 +129,11 @@ Keep it concise. Use the color codes exactly as shown - they will be interpreted
         # Analysis summary file
         local summary_file="$HOME/.update_mac_summary.txt"
 
-        # Run LLM and save output, then display with color interpretation
-        cat "$output_file" | llm "$prompt" 2>/dev/null > "$summary_file"
-
-        # Display the summary with color codes interpreted
+        # Run LLM, save to file AND display in real-time
+        # Process substitution avoids subshell issues with while loops
         while IFS= read -r line; do
             printf '%b\n' "$line"
-        done < "$summary_file"
+        done < <(cat "$output_file" | llm "$prompt" 2>/dev/null | tee "$summary_file")
 
         echo ""
         echo -e "${CYAN}───────────────────────────────────────────────────────────${NC}"
