@@ -126,14 +126,21 @@ Keep it concise. Use the color codes exactly as shown - they will be interpreted
         echo -e "${YELLOW}Analyzing update output...${NC}"
         echo ""
 
-        # Pipe output through LLM and interpret escape codes
-        cat "$output_file" | llm "$prompt" 2>/dev/null | while IFS= read -r line; do
+        # Analysis summary file
+        local summary_file="$HOME/.update_mac_summary.txt"
+
+        # Run LLM and save output, then display with color interpretation
+        cat "$output_file" | llm "$prompt" 2>/dev/null > "$summary_file"
+
+        # Display the summary with color codes interpreted
+        while IFS= read -r line; do
             printf '%b\n' "$line"
-        done
+        done < "$summary_file"
 
         echo ""
         echo -e "${CYAN}───────────────────────────────────────────────────────────${NC}"
-        echo -e "Output saved to: ${CYAN}$output_file${NC}"
+        echo -e "Raw output: ${CYAN}$output_file${NC}"
+        echo -e "Summary:    ${CYAN}$summary_file${NC}"
         echo ""
     }
 
