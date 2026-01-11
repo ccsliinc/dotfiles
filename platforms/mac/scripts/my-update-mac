@@ -66,9 +66,10 @@ EOF
 
     # Ensure Ollama is running (start if needed)
     ensure_ollama() {
-        if ! pgrep -q "ollama"; then
-            echo -e "${YELLOW}Starting Ollama...${NC}"
-            open -a Ollama
+        # Check if ollama server is responding
+        if ! ollama list &>/dev/null; then
+            echo -e "${YELLOW}Starting Ollama server...${NC}"
+            ollama serve &>/dev/null &
             # Wait for Ollama to be ready (max 30 seconds)
             local count=0
             while ! ollama list &>/dev/null && [[ $count -lt 30 ]]; do
@@ -79,6 +80,7 @@ EOF
                 echo -e "${RED}Ollama failed to start${NC}"
                 return 1
             fi
+            echo -e "${GREEN}Ollama ready${NC}"
         fi
         return 0
     }
