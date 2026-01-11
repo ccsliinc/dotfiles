@@ -129,11 +129,16 @@ Keep it concise. Use the color codes exactly as shown - they will be interpreted
         # Analysis summary file
         local summary_file="$HOME/.update_mac_summary.txt"
 
-        # Run LLM, save to file AND display in real-time
-        # Process substitution avoids subshell issues with while loops
-        while IFS= read -r line; do
-            printf '%b\n' "$line"
-        done < <(cat "$output_file" | llm "$prompt" 2>/dev/null | tee "$summary_file")
+        # Run LLM and save output
+        llm "$prompt" < "$output_file" > "$summary_file" 2>&1
+
+        # Display with escape code interpretation
+        if [[ -s "$summary_file" ]]; then
+            # Use printf to interpret \033 escape codes for colors
+            printf '%b\n' "$(cat "$summary_file")"
+        else
+            echo -e "${RED}LLM produced no output${NC}"
+        fi
 
         echo ""
         echo -e "${CYAN}───────────────────────────────────────────────────────────${NC}"
