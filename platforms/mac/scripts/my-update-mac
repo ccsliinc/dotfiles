@@ -164,16 +164,19 @@ Keep it concise. Use the color codes exactly as shown - they will be interpreted
             echo "Backing up global composer packages..."
             composer global show > "$backup_dir/composer/composer.txt" 2>/dev/null || true
 
-            echo "Backing up Claude Code config..."
-            if [[ -d "$HOME/.claude" ]]; then
-                mkdir -p "$backup_dir/claude"
-                # Backup settings and CLAUDE.md (exclude local overrides with secrets)
-                cp -f "$HOME/.claude/settings.json" "$backup_dir/claude/" 2>/dev/null || true
-                cp -f "$HOME/.claude/CLAUDE.md" "$backup_dir/claude/" 2>/dev/null || true
-                # Backup custom commands directory
-                if [[ -d "$HOME/.claude/commands" ]]; then
-                    cp -rf "$HOME/.claude/commands" "$backup_dir/claude/" 2>/dev/null || true
-                fi
+            echo "Backing up Claude Code config to Gogs..."
+            if [[ -d "$HOME/.claude/.git" ]]; then
+                (
+                    cd "$HOME/.claude"
+                    # Only commit and push if there are changes
+                    if [[ -n $(git status --porcelain 2>/dev/null) ]]; then
+                        git add -A
+                        git commit -m "Auto-backup $(date '+%Y-%m-%d %H:%M')" 2>/dev/null || true
+                        git push gogs master 2>/dev/null || echo "Failed to push to Gogs (offline?)"
+                    else
+                        echo "No changes to backup"
+                    fi
+                )
             fi
         fi
 
