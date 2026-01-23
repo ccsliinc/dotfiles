@@ -9,6 +9,10 @@ source "$DOTFILESLOC/platforms/mac/.functions"
 # shellcheck source=iterm2_functions.sh
 source "$DOTFILESLOC/platforms/mac/iterm2_functions.sh"
 
+# Source iTerm2 TUI quick-access functions (tt* commands)
+# shellcheck source=iterm2_tui.sh
+source "$DOTFILESLOC/platforms/mac/iterm2_tui.sh"
+
 # Check if Claude config needs syncing
 my-claude-sync-check
 
