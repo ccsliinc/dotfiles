@@ -1,10 +1,8 @@
-#!/bin/bash
-# shellcheck shell=bash
+#!/bin/zsh
+# shellcheck shell=zsh
 # shellcheck disable=SC1091   # Don't follow sourced files
 # shellcheck disable=SC2034   # Unused variables are color presets
-# shellcheck disable=SC2119   # Functions take optional args from command line
-# shellcheck disable=SC2120   # Functions take optional args from command line
-# shellcheck disable=SC2317   # exit 1 is reachable when run as script
+# shellcheck disable=SC2296   # Parameter expansion is valid zsh
 # ==============================================================================
 # iTerm2 Quick TUI Functions (gum-powered)
 # ==============================================================================
@@ -12,7 +10,7 @@
 # Designed for dark mode with muted purple/cyan color scheme.
 # ==============================================================================
 
-if [ "$DEBUG" = "true" ]; then echo "$DOTFILESLOC/platforms/mac/iterm2_tui.sh"; fi
+if [[ "$DEBUG" = "true" ]]; then echo "$DOTFILESLOC/platforms/mac/iterm2_tui.sh"; fi
 
 # Mark as loaded
 export _IT2_TUI_LOADED=1
@@ -37,37 +35,37 @@ fi
 # COLOR PRESETS (Dark Mode Friendly)
 # ------------------------------------------------------------------------------
 
-declare -A TT_COLORS
+typeset -A TT_COLORS
 TT_COLORS=(
-    ["dev"]="40 80 50"       # Dark green
-    ["prod"]="90 40 40"      # Dark red
-    ["stage"]="90 75 35"     # Dark amber
-    ["test"]="40 55 90"      # Dark blue
-    ["local"]="45 70 80"     # Dark cyan
-    ["db"]="70 45 80"        # Dark purple
+    dev     "40 80 50"
+    prod    "90 40 40"
+    stage   "90 75 35"
+    test    "40 55 90"
+    local   "45 70 80"
+    db      "70 45 80"
 )
 
 # Color descriptions for menu display
-declare -A TT_COLOR_DESC
+typeset -A TT_COLOR_DESC
 TT_COLOR_DESC=(
-    ["dev"]="dark green"
-    ["prod"]="dark red"
-    ["stage"]="dark amber"
-    ["test"]="dark blue"
-    ["local"]="dark cyan"
-    ["db"]="dark purple"
+    dev     "dark green"
+    prod    "dark red"
+    stage   "dark amber"
+    test    "dark blue"
+    local   "dark cyan"
+    db      "dark purple"
 )
 
 # Cursor color presets (hex without #)
-declare -A TT_CURSOR_COLORS
+typeset -A TT_CURSOR_COLORS
 TT_CURSOR_COLORS=(
-    ["white"]="FFFFFF"
-    ["green"]="50C878"
-    ["red"]="E74C3C"
-    ["blue"]="5DADE2"
-    ["amber"]="F4A460"
-    ["purple"]="9B59B6"
-    ["cyan"]="00CED1"
+    white   "FFFFFF"
+    green   "50C878"
+    red     "E74C3C"
+    blue    "5DADE2"
+    amber   "F4A460"
+    purple  "9B59B6"
+    cyan    "00CED1"
 )
 
 # ------------------------------------------------------------------------------
@@ -80,27 +78,30 @@ TT_CURSOR="212"     # Pink cursor/selection
 TT_HEADER="39"      # Cyan headers
 TT_MUTED="241"      # Muted gray text
 TT_SUCCESS="34"     # Green success
+TT_ACCENT="212"     # Pink accent
 
 # ------------------------------------------------------------------------------
 # INTERNAL HELPERS
 # ------------------------------------------------------------------------------
 
-# Purpose: Display styled header box
+# Purpose: Display styled header box with icon
 # Usage:   _tt_header "Title"
 _tt_header() {
     gum style \
         --border rounded \
         --border-foreground "$TT_BORDER" \
-        --padding "0 2" \
-        --margin "1 0 0 0" \
-        --foreground "$TT_HEADER" \
-        "$1"
+        --padding "0 3" \
+        --margin "1 0" \
+        --foreground "$TT_ACCENT" \
+        --bold \
+        "✦ $1 ✦"
 }
 
-# Purpose: Display success message
+# Purpose: Display success message with brief pause
 # Usage:   _tt_ok "Message"
 _tt_ok() {
     gum style --foreground "$TT_SUCCESS" "✓ $1"
+    sleep 0.3
 }
 
 # Purpose: Display error message
@@ -115,39 +116,107 @@ _tt_info() {
     gum style --foreground "$TT_MUTED" "$1"
 }
 
-# Purpose: Get color swatch character for menu
-# Usage:   _tt_swatch "dev"
-_tt_swatch() {
+# Purpose: Display a field with label and value
+# Usage:   _tt_field "Label" "value" [highlight]
+_tt_field() {
+    local label="$1"
+    local value="${2:-<not set>}"
+    local highlight="${3:-0}"
+    local arrow=""
+
+    if [[ "$highlight" == "1" ]]; then
+        arrow="→ "
+    else
+        arrow="  "
+    fi
+
+    if [[ -z "$2" || "$2" == "" ]]; then
+        value="<not set>"
+    fi
+
+    printf "%s%-10s │  %s\n" "$arrow" "$label" "$(gum style --foreground "$TT_ACCENT" "$value")"
+}
+
+# Purpose: Apply a color preset
+# Usage:   _tt_apply_color "dev"
+_tt_apply_color() {
     local preset="$1"
-    local rgb desc
-    read -ra rgb <<< "${TT_COLORS[$preset]}"
-    desc="${TT_COLOR_DESC[$preset]}"
-    # Return formatted string for menu
-    printf "%-8s ■ %s" "$preset" "$desc"
+    if [[ -z "$preset" || "$preset" == "reset" ]]; then
+        it2_tab_color_reset
+        return 0
+    fi
+
+    local rgb_string="${TT_COLORS[$preset]}"
+    if [[ -n "$rgb_string" ]]; then
+        local rgb=("${(@s: :)rgb_string}")
+        it2_tab_color "${rgb[1]}" "${rgb[2]}" "${rgb[3]}"
+    fi
+}
+
+# Purpose: Show color picker with swatches
+# Usage:   color=$(_tt_color_picker)
+_tt_color_picker() {
+    local options=(
+        "■ dev       dark green"
+        "■ prod      dark red"
+        "■ stage     dark amber"
+        "■ test      dark blue"
+        "■ local     dark cyan"
+        "■ db        dark purple"
+        "○ reset     default"
+        "─────────────────────────"
+        "  Cancel"
+    )
+
+    local choice
+    choice=$(printf '%s\n' "${options[@]}" | gum choose \
+        --cursor "→ " \
+        --cursor.foreground "$TT_CURSOR" \
+        --selected.foreground "$TT_CURSOR" 2>/dev/null) || return 1
+
+    # Extract preset name (second word after the swatch)
+    local preset_name
+    preset_name=$(echo "$choice" | awk '{print $2}')
+
+    case "$preset_name" in
+        dev|prod|stage|test|local|db|reset)
+            echo "$preset_name"
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+# Purpose: Graceful exit cleanup
+# Usage:   trap '_tt_cleanup' INT
+_tt_cleanup() {
+    tput cnorm 2>/dev/null  # Restore cursor
+    echo
+    return 0
 }
 
 # ------------------------------------------------------------------------------
 # TAB FUNCTIONS
 # ------------------------------------------------------------------------------
 
-# Purpose: Tab Setup TUI - set tab title and color
+# Purpose: Tab Setup TUI - set tab title and color (single-screen form)
 # Usage:   tttab [preset|title] [preset]
 # Example: tttab dev
 # Example: tttab "My Title" prod
 tttab() {
     _it2_check || return 1
+    trap '_tt_cleanup' INT
 
     # Quick argument handling
-    if [ $# -gt 0 ]; then
-        if [ $# -eq 1 ]; then
+    if [[ $# -gt 0 ]]; then
+        if [[ $# -eq 1 ]]; then
             local arg="$1"
-            if [[ -v TT_COLORS[$arg] ]]; then
-                local rgb
-                read -ra rgb <<< "${TT_COLORS[$arg]}"
-                it2_tab_color "${rgb[0]}" "${rgb[1]}" "${rgb[2]}"
+            if [[ -n "${TT_COLORS[$arg]}" ]]; then
+                _tt_apply_color "$arg"
                 _tt_ok "Tab color: $arg"
                 return 0
-            elif [ "$arg" = "reset" ]; then
+            elif [[ "$arg" == "reset" ]]; then
                 it2_tab_color_reset
                 _tt_ok "Tab color reset"
                 return 0
@@ -156,90 +225,87 @@ tttab() {
                 _tt_ok "Tab title: $arg"
                 return 0
             fi
-        elif [ $# -eq 2 ]; then
+        elif [[ $# -eq 2 ]]; then
             it2_tab_title "$1"
-            if [[ -v TT_COLORS[$2] ]]; then
-                local rgb
-                read -ra rgb <<< "${TT_COLORS[$2]}"
-                it2_tab_color "${rgb[0]}" "${rgb[1]}" "${rgb[2]}"
-            fi
+            _tt_apply_color "$2"
             _tt_ok "Tab: \"$1\" ($2)"
             return 0
         fi
     fi
 
-    # Interactive TUI
-    _tt_header "Tab Setup"
-    echo
+    # Interactive TUI - Single Screen Form
+    local title=""
+    local color=""
 
-    # Get title
-    _tt_info "Enter tab title (or leave empty to skip)"
-    local title
-    title=$(gum input \
-        --placeholder "Tab title..." \
-        --prompt "› " \
-        --prompt.foreground "$TT_BORDER" \
-        --cursor.foreground "$TT_CURSOR" \
-        --width 40)
+    while true; do
+        clear
+        _tt_header "Tab Setup"
 
-    if [ -n "$title" ]; then
-        it2_tab_title "$title"
-        _tt_ok "Title set: $title"
-        echo
-    fi
+        echo ""
+        _tt_info "  Current settings:"
+        echo ""
+        echo "  Title    │  $(gum style --foreground "$TT_ACCENT" "${title:-<not set>}")"
+        echo "  Color    │  $(gum style --foreground "$TT_ACCENT" "${color:-<not set>}")"
+        echo ""
 
-    # Build color menu
-    local options=()
-    for preset in dev prod stage test local db; do
-        options+=("$(_tt_swatch "$preset")")
+        local choice
+        choice=$(gum choose --cursor "→ " --cursor.foreground "$TT_CURSOR" \
+            "Edit title" \
+            "Pick color" \
+            "───────────────" \
+            "Apply & Exit" \
+            "Cancel" 2>/dev/null)
+
+        [[ -z "$choice" ]] && break
+
+        case "$choice" in
+            "Edit title")
+                local new_title
+                new_title=$(gum input \
+                    --placeholder "Tab title..." \
+                    --value "$title" \
+                    --prompt "› " \
+                    --prompt.foreground "$TT_BORDER" \
+                    --cursor.foreground "$TT_CURSOR" \
+                    --width 40 2>/dev/null)
+                if [[ -n "$new_title" ]]; then
+                    title="$new_title"
+                    it2_tab_title "$title"
+                fi
+                ;;
+            "Pick color")
+                local new_color
+                new_color=$(_tt_color_picker)
+                if [[ -n "$new_color" ]]; then
+                    color="$new_color"
+                    _tt_apply_color "$color"
+                fi
+                ;;
+            "Apply & Exit"|"Cancel"|"")
+                break
+                ;;
+        esac
     done
-    options+=("reset    ○ default")
-    options+=("─────────────────────")
-    options+=("Done")
 
-    _tt_info "Select tab color"
-    local choice
-    choice=$(printf '%s\n' "${options[@]}" | gum choose \
-        --cursor "→ " \
-        --cursor.foreground "$TT_CURSOR" \
-        --selected.foreground "$TT_CURSOR" \
-        --header.foreground "$TT_HEADER")
-
-    # Extract preset name (first word)
-    local preset_name
-    preset_name=$(echo "$choice" | awk '{print $1}')
-
-    case "$preset_name" in
-        dev|prod|stage|test|local|db)
-            local rgb
-            read -ra rgb <<< "${TT_COLORS[$preset_name]}"
-            it2_tab_color "${rgb[0]}" "${rgb[1]}" "${rgb[2]}"
-            _tt_ok "Color: $preset_name"
-            ;;
-        reset)
-            it2_tab_color_reset
-            _tt_ok "Color reset"
-            ;;
-        Done|─*|"")
-            ;;
-    esac
-    echo
+    echo ""
+    [[ -n "$title" || -n "$color" ]] && _tt_ok "Tab configured"
 }
 
 # ------------------------------------------------------------------------------
 # BADGE FUNCTIONS
 # ------------------------------------------------------------------------------
 
-# Purpose: Badge Setup TUI - set badge watermark text
+# Purpose: Badge Setup TUI - set badge watermark text (single-screen form)
 # Usage:   ttbadge [text|clear]
 # Example: ttbadge "my note"
 # Example: ttbadge clear
 ttbadge() {
     _it2_check || return 1
+    trap '_tt_cleanup' INT
 
     # Quick argument handling
-    if [ $# -gt 0 ]; then
-        if [ "$1" = "clear" ]; then
+    if [[ $# -gt 0 ]]; then
+        if [[ "$1" == "clear" ]]; then
             it2_badge_clear
             _tt_ok "Badge cleared"
             return 0
@@ -250,58 +316,75 @@ ttbadge() {
         fi
     fi
 
-    # Interactive TUI
-    _tt_header "Badge Setup"
-    echo
+    # Interactive TUI - Single Screen Form
+    local badge=""
 
-    local options=(
-        "Set custom text"
-        "Show hostname"
-        "Show session name"
-        "Show username"
-        "Clear badge"
-        "─────────────────────"
-        "Exit"
-    )
+    while true; do
+        clear
+        _tt_header "Badge Setup"
 
-    local choice
-    choice=$(printf '%s\n' "${options[@]}" | gum choose \
-        --cursor "→ " \
-        --cursor.foreground "$TT_CURSOR" \
-        --selected.foreground "$TT_CURSOR")
+        echo ""
+        _tt_info "  Current badge:"
+        echo ""
+        echo "  Text     │  $(gum style --foreground "$TT_ACCENT" "${badge:-<not set>}")"
+        echo ""
+        _tt_info "  Variables: \\(hostname) \\(user) \\(session.name)"
+        echo ""
 
-    case "$choice" in
-        "Set custom text")
-            local text
-            text=$(gum input \
-                --placeholder "Badge text..." \
-                --prompt "› " \
-                --prompt.foreground "$TT_BORDER" \
-                --cursor.foreground "$TT_CURSOR" \
-                --width 40)
-            if [ -n "$text" ]; then
-                it2_badge "$text"
-                _tt_ok "Badge: $text"
-            fi
-            ;;
-        "Show hostname")
-            it2_badge '\(hostname)'
-            _tt_ok "Badge: hostname"
-            ;;
-        "Show session name")
-            it2_badge '\(session.name)'
-            _tt_ok "Badge: session name"
-            ;;
-        "Show username")
-            it2_badge '\(user)'
-            _tt_ok "Badge: username"
-            ;;
-        "Clear badge")
-            it2_badge_clear
-            _tt_ok "Badge cleared"
-            ;;
-    esac
-    echo
+        local choice
+        choice=$(gum choose --cursor "→ " --cursor.foreground "$TT_CURSOR" \
+            "Set custom text" \
+            "Use hostname" \
+            "Use session name" \
+            "Use username" \
+            "Clear badge" \
+            "───────────────" \
+            "Done" 2>/dev/null)
+
+        [[ -z "$choice" ]] && break
+
+        case "$choice" in
+            "Set custom text")
+                local text
+                text=$(gum input \
+                    --placeholder "Badge text..." \
+                    --value "$badge" \
+                    --prompt "› " \
+                    --prompt.foreground "$TT_BORDER" \
+                    --cursor.foreground "$TT_CURSOR" \
+                    --width 40 2>/dev/null)
+                if [[ -n "$text" ]]; then
+                    badge="$text"
+                    it2_badge "$badge"
+                    _tt_ok "Badge updated"
+                fi
+                ;;
+            "Use hostname")
+                badge='\\(hostname)'
+                it2_badge '\(hostname)'
+                _tt_ok "Badge: hostname"
+                ;;
+            "Use session name")
+                badge='\\(session.name)'
+                it2_badge '\(session.name)'
+                _tt_ok "Badge: session name"
+                ;;
+            "Use username")
+                badge='\\(user)'
+                it2_badge '\(user)'
+                _tt_ok "Badge: username"
+                ;;
+            "Clear badge")
+                badge=""
+                it2_badge_clear
+                _tt_ok "Badge cleared"
+                ;;
+            "Done"|"")
+                break
+                ;;
+        esac
+    done
+    echo ""
 }
 
 # ------------------------------------------------------------------------------
@@ -314,31 +397,32 @@ ttbadge() {
 # Example: ttmark "note"   (adds annotation)
 ttmark() {
     _it2_check || return 1
+    trap '_tt_cleanup' INT
 
     # Quick argument handling
-    if [ $# -gt 0 ]; then
+    if [[ $# -gt 0 ]]; then
         it2_annotate "$*"
         _tt_ok "Annotation: $*"
         return 0
     fi
 
     # Interactive TUI
+    clear
     _tt_header "Marks & Annotations"
-    echo
 
-    local options=(
-        "Add mark at cursor"
-        "Add annotation..."
-        "─────────────────────"
-        "Navigate: Cmd+Shift+↑/↓"
-        "Exit"
-    )
+    echo ""
+    _tt_info "  Marks let you navigate output history"
+    _tt_info "  Use Cmd+Shift+↑/↓ to jump between marks"
+    echo ""
 
     local choice
-    choice=$(printf '%s\n' "${options[@]}" | gum choose \
-        --cursor "→ " \
-        --cursor.foreground "$TT_CURSOR" \
-        --selected.foreground "$TT_CURSOR")
+    choice=$(gum choose --cursor "→ " --cursor.foreground "$TT_CURSOR" \
+        "Add mark at cursor" \
+        "Add annotation..." \
+        "───────────────────────" \
+        "Done" 2>/dev/null)
+
+    [[ -z "$choice" ]] && { echo ""; return 0; }
 
     case "$choice" in
         "Add mark at cursor")
@@ -352,29 +436,30 @@ ttmark() {
                 --prompt "› " \
                 --prompt.foreground "$TT_BORDER" \
                 --cursor.foreground "$TT_CURSOR" \
-                --width 50)
-            if [ -n "$text" ]; then
+                --width 50 2>/dev/null)
+            if [[ -n "$text" ]]; then
                 it2_annotate "$text"
                 _tt_ok "Annotation: $text"
             fi
             ;;
     esac
-    echo
+    echo ""
 }
 
 # ------------------------------------------------------------------------------
 # CURSOR FUNCTIONS
 # ------------------------------------------------------------------------------
 
-# Purpose: Cursor Style TUI - change cursor shape and color
+# Purpose: Cursor Style TUI - change cursor shape and color (single-screen form)
 # Usage:   ttcursor [shape] [color]
 # Example: ttcursor block
 # Example: ttcursor line red
 ttcursor() {
     _it2_check || return 1
+    trap '_tt_cleanup' INT
 
     # Quick argument handling
-    if [ $# -gt 0 ]; then
+    if [[ $# -gt 0 ]]; then
         local shape="$1"
         local color="${2:-}"
 
@@ -394,8 +479,8 @@ ttcursor() {
                 ;;
         esac
 
-        if [ -n "$color" ]; then
-            if [[ -v TT_CURSOR_COLORS[$color] ]]; then
+        if [[ -n "$color" ]]; then
+            if [[ -n "${TT_CURSOR_COLORS[$color]}" ]]; then
                 it2_cursor_color "#${TT_CURSOR_COLORS[$color]}"
                 _tt_ok "Color: $color"
             elif [[ "$color" =~ ^#?[0-9A-Fa-f]{6}$ ]]; then
@@ -406,171 +491,199 @@ ttcursor() {
         return 0
     fi
 
-    # Interactive TUI
-    _tt_header "Cursor Style"
-    echo
+    # Interactive TUI - Single Screen Form
+    local cur_shape=""
+    local cur_color=""
 
-    # Shape selection
-    _tt_info "Select cursor shape"
-    local shape_opts=(
-        "▌ Block"
-        "│ Line"
-        "_ Underline"
-        "─────────────────"
-        "Skip"
-    )
+    while true; do
+        clear
+        _tt_header "Cursor Style"
 
-    local shape_choice
-    shape_choice=$(printf '%s\n' "${shape_opts[@]}" | gum choose \
-        --cursor "→ " \
-        --cursor.foreground "$TT_CURSOR" \
-        --selected.foreground "$TT_CURSOR")
+        echo ""
+        _tt_info "  Current settings:"
+        echo ""
+        echo "  Shape    │  $(gum style --foreground "$TT_ACCENT" "${cur_shape:-<not set>}")"
+        echo "  Color    │  $(gum style --foreground "$TT_ACCENT" "${cur_color:-<not set>}")"
+        echo ""
 
-    case "$shape_choice" in
-        "▌ Block")
-            it2_cursor_shape block
-            _tt_ok "Shape: block"
-            ;;
-        "│ Line")
-            it2_cursor_shape line
-            _tt_ok "Shape: line"
-            ;;
-        "_ Underline")
-            it2_cursor_shape underline
-            _tt_ok "Shape: underline"
-            ;;
-    esac
+        local choice
+        choice=$(gum choose --cursor "→ " --cursor.foreground "$TT_CURSOR" \
+            "▌ Block" \
+            "│ Line" \
+            "_ Underline" \
+            "───────────────" \
+            "Pick color" \
+            "Custom hex..." \
+            "───────────────" \
+            "Done" 2>/dev/null)
 
-    echo
-    _tt_info "Select cursor color (or skip)"
-    local color_opts=(
-        "white"
-        "green"
-        "cyan"
-        "blue"
-        "amber"
-        "red"
-        "purple"
-        "Custom hex..."
-        "─────────────────"
-        "Skip"
-    )
+        [[ -z "$choice" ]] && break
 
-    local color_choice
-    color_choice=$(printf '%s\n' "${color_opts[@]}" | gum choose \
-        --cursor "→ " \
-        --cursor.foreground "$TT_CURSOR" \
-        --selected.foreground "$TT_CURSOR")
-
-    case "$color_choice" in
-        "Custom hex...")
-            local hex
-            hex=$(gum input \
-                --placeholder "#RRGGBB" \
-                --prompt "› " \
-                --prompt.foreground "$TT_BORDER" \
-                --cursor.foreground "$TT_CURSOR" \
-                --width 20)
-            if [[ "$hex" =~ ^#?[0-9A-Fa-f]{6}$ ]]; then
-                it2_cursor_color "$hex"
-                _tt_ok "Color: $hex"
-            fi
-            ;;
-        Skip|─*|"")
-            ;;
-        *)
-            if [[ -v TT_CURSOR_COLORS[$color_choice] ]]; then
-                it2_cursor_color "#${TT_CURSOR_COLORS[$color_choice]}"
-                _tt_ok "Color: $color_choice"
-            fi
-            ;;
-    esac
-    echo
+        case "$choice" in
+            "▌ Block")
+                cur_shape="block"
+                it2_cursor_shape block
+                _tt_ok "Shape: block"
+                ;;
+            "│ Line")
+                cur_shape="line"
+                it2_cursor_shape line
+                _tt_ok "Shape: line"
+                ;;
+            "_ Underline")
+                cur_shape="underline"
+                it2_cursor_shape underline
+                _tt_ok "Shape: underline"
+                ;;
+            "Pick color")
+                local color_opts=(
+                    "■ white"
+                    "■ green"
+                    "■ cyan"
+                    "■ blue"
+                    "■ amber"
+                    "■ red"
+                    "■ purple"
+                    "─────────"
+                    "  Cancel"
+                )
+                local color_pick
+                color_pick=$(printf '%s\n' "${color_opts[@]}" | gum choose \
+                    --cursor "→ " \
+                    --cursor.foreground "$TT_CURSOR" 2>/dev/null)
+                local color_name
+                color_name=$(echo "$color_pick" | awk '{print $2}')
+                if [[ -n "${TT_CURSOR_COLORS[$color_name]}" ]]; then
+                    cur_color="$color_name"
+                    it2_cursor_color "#${TT_CURSOR_COLORS[$color_name]}"
+                    _tt_ok "Color: $color_name"
+                fi
+                ;;
+            "Custom hex...")
+                local hex
+                hex=$(gum input \
+                    --placeholder "#RRGGBB" \
+                    --prompt "› " \
+                    --prompt.foreground "$TT_BORDER" \
+                    --cursor.foreground "$TT_CURSOR" \
+                    --width 20 2>/dev/null)
+                if [[ "$hex" =~ ^#?[0-9A-Fa-f]{6}$ ]]; then
+                    cur_color="$hex"
+                    it2_cursor_color "$hex"
+                    _tt_ok "Color: $hex"
+                fi
+                ;;
+            "Done"|"")
+                break
+                ;;
+        esac
+    done
+    echo ""
 }
 
 # ------------------------------------------------------------------------------
 # WINDOW/SESSION FUNCTIONS
 # ------------------------------------------------------------------------------
 
-# Purpose: Window/Session TUI - set window and session titles
+# Purpose: Window/Session TUI - set window and session titles (single-screen form)
 # Usage:   ttwindow [title]
 # Example: ttwindow "My Window"
 ttwindow() {
     _it2_check || return 1
+    trap '_tt_cleanup' INT
 
     # Quick argument handling
-    if [ $# -gt 0 ]; then
+    if [[ $# -gt 0 ]]; then
         it2_title "$*"
         _tt_ok "Title: $*"
         return 0
     fi
 
-    # Interactive TUI
-    _tt_header "Window & Session"
-    echo
+    # Interactive TUI - Single Screen Form
+    local window_title=""
+    local session_name=""
 
-    local options=(
-        "Set window title"
-        "Set session name"
-        "Set both (tab + window)"
-        "Reset titles"
-        "─────────────────────"
-        "Exit"
-    )
+    while true; do
+        clear
+        _tt_header "Window & Session"
 
-    local choice
-    choice=$(printf '%s\n' "${options[@]}" | gum choose \
-        --cursor "→ " \
-        --cursor.foreground "$TT_CURSOR" \
-        --selected.foreground "$TT_CURSOR")
+        echo ""
+        _tt_info "  Current settings:"
+        echo ""
+        echo "  Window   │  $(gum style --foreground "$TT_ACCENT" "${window_title:-<not set>}")"
+        echo "  Session  │  $(gum style --foreground "$TT_ACCENT" "${session_name:-<not set>}")"
+        echo ""
 
-    case "$choice" in
-        "Set window title")
-            local title
-            title=$(gum input \
-                --placeholder "Window title..." \
-                --prompt "› " \
-                --prompt.foreground "$TT_BORDER" \
-                --cursor.foreground "$TT_CURSOR" \
-                --width 40)
-            if [ -n "$title" ]; then
-                it2_window_title "$title"
-                _tt_ok "Window title: $title"
-            fi
-            ;;
-        "Set session name")
-            local name
-            name=$(gum input \
-                --placeholder "Session name..." \
-                --prompt "› " \
-                --prompt.foreground "$TT_BORDER" \
-                --cursor.foreground "$TT_CURSOR" \
-                --width 40)
-            if [ -n "$name" ]; then
-                it2_session_name "$name"
-                _tt_ok "Session: $name"
-            fi
-            ;;
-        "Set both (tab + window)")
-            local title
-            title=$(gum input \
-                --placeholder "Title for both..." \
-                --prompt "› " \
-                --prompt.foreground "$TT_BORDER" \
-                --cursor.foreground "$TT_CURSOR" \
-                --width 40)
-            if [ -n "$title" ]; then
-                it2_title "$title"
-                _tt_ok "Title: $title"
-            fi
-            ;;
-        "Reset titles")
-            it2_tab_title ""
-            it2_window_title ""
-            _tt_ok "Titles reset"
-            ;;
-    esac
-    echo
+        local choice
+        choice=$(gum choose --cursor "→ " --cursor.foreground "$TT_CURSOR" \
+            "Set window title" \
+            "Set session name" \
+            "Set both at once" \
+            "Reset titles" \
+            "───────────────" \
+            "Done" 2>/dev/null)
+
+        [[ -z "$choice" ]] && break
+
+        case "$choice" in
+            "Set window title")
+                local title
+                title=$(gum input \
+                    --placeholder "Window title..." \
+                    --value "$window_title" \
+                    --prompt "› " \
+                    --prompt.foreground "$TT_BORDER" \
+                    --cursor.foreground "$TT_CURSOR" \
+                    --width 40 2>/dev/null)
+                if [[ -n "$title" ]]; then
+                    window_title="$title"
+                    it2_window_title "$title"
+                    _tt_ok "Window title: $title"
+                fi
+                ;;
+            "Set session name")
+                local name
+                name=$(gum input \
+                    --placeholder "Session name..." \
+                    --value "$session_name" \
+                    --prompt "› " \
+                    --prompt.foreground "$TT_BORDER" \
+                    --cursor.foreground "$TT_CURSOR" \
+                    --width 40 2>/dev/null)
+                if [[ -n "$name" ]]; then
+                    session_name="$name"
+                    it2_session_name "$name"
+                    _tt_ok "Session: $name"
+                fi
+                ;;
+            "Set both at once")
+                local title
+                title=$(gum input \
+                    --placeholder "Title for both..." \
+                    --prompt "› " \
+                    --prompt.foreground "$TT_BORDER" \
+                    --cursor.foreground "$TT_CURSOR" \
+                    --width 40 2>/dev/null)
+                if [[ -n "$title" ]]; then
+                    window_title="$title"
+                    session_name="$title"
+                    it2_title "$title"
+                    _tt_ok "Title: $title"
+                fi
+                ;;
+            "Reset titles")
+                window_title=""
+                session_name=""
+                it2_tab_title ""
+                it2_window_title ""
+                _tt_ok "Titles reset"
+                ;;
+            "Done"|"")
+                break
+                ;;
+        esac
+    done
+    echo ""
 }
 
 # ------------------------------------------------------------------------------
@@ -582,32 +695,32 @@ ttwindow() {
 # Example: ttprofile "Default"
 ttprofile() {
     _it2_check || return 1
+    trap '_tt_cleanup' INT
 
     # Quick argument handling
-    if [ $# -gt 0 ]; then
+    if [[ $# -gt 0 ]]; then
         it2_profile "$*"
         _tt_ok "Profile: $*"
         return 0
     fi
 
     # Interactive TUI
+    clear
     _tt_header "Profile Switcher"
-    echo
 
-    _tt_info "Common profiles (or type custom):"
-    local options=(
-        "Default"
-        "Hotkey Window"
-        "Custom..."
-        "─────────────────────"
-        "Exit"
-    )
+    echo ""
+    _tt_info "  Select a profile or enter a custom name"
+    echo ""
 
     local choice
-    choice=$(printf '%s\n' "${options[@]}" | gum choose \
-        --cursor "→ " \
-        --cursor.foreground "$TT_CURSOR" \
-        --selected.foreground "$TT_CURSOR")
+    choice=$(gum choose --cursor "→ " --cursor.foreground "$TT_CURSOR" \
+        "Default" \
+        "Hotkey Window" \
+        "Custom..." \
+        "───────────────" \
+        "Cancel" 2>/dev/null)
+
+    [[ -z "$choice" ]] && { echo ""; return 0; }
 
     case "$choice" in
         "Custom...")
@@ -617,20 +730,20 @@ ttprofile() {
                 --prompt "› " \
                 --prompt.foreground "$TT_BORDER" \
                 --cursor.foreground "$TT_CURSOR" \
-                --width 40)
-            if [ -n "$profile" ]; then
+                --width 40 2>/dev/null)
+            if [[ -n "$profile" ]]; then
                 it2_profile "$profile"
                 _tt_ok "Profile: $profile"
             fi
             ;;
-        Exit|─*|"")
+        "Cancel"|"─"*|"")
             ;;
         *)
             it2_profile "$choice"
             _tt_ok "Profile: $choice"
             ;;
     esac
-    echo
+    echo ""
 }
 
 # ------------------------------------------------------------------------------
@@ -641,36 +754,40 @@ ttprofile() {
 # Usage:   ttreset
 ttreset() {
     _it2_check || return 1
+    trap '_tt_cleanup' INT
 
+    clear
     _tt_header "Reset All"
-    echo
 
-    gum style --foreground "$TT_MUTED" "This will reset:"
-    gum style --foreground "$TT_MUTED" "  • Tab color"
-    gum style --foreground "$TT_MUTED" "  • Badge"
-    gum style --foreground "$TT_MUTED" "  • Cursor shape"
-    gum style --foreground "$TT_MUTED" "  • Titles"
-    echo
+    echo ""
+    _tt_info "  This will reset:"
+    echo ""
+    gum style --foreground "$TT_MUTED" "    • Tab color      → default"
+    gum style --foreground "$TT_MUTED" "    • Badge          → cleared"
+    gum style --foreground "$TT_MUTED" "    • Cursor shape   → block"
+    gum style --foreground "$TT_MUTED" "    • Window title   → cleared"
+    gum style --foreground "$TT_MUTED" "    • Tab title      → cleared"
+    echo ""
 
-    if gum confirm --prompt.foreground "$TT_CURSOR" "Reset all settings?"; then
-        gum spin --spinner dot --title "Resetting..." -- sleep 0.3
+    if gum confirm --prompt.foreground "$TT_CURSOR" "Reset all settings?" 2>/dev/null; then
+        gum spin --spinner dot --title "Resetting..." -- sleep 0.5
         it2_tab_color_reset
         it2_badge_clear
         it2_cursor_shape block
         it2_tab_title ""
         it2_window_title ""
 
-        echo
+        echo ""
         _tt_ok "Tab color reset"
         _tt_ok "Badge cleared"
         _tt_ok "Cursor: block"
         _tt_ok "Titles cleared"
-        echo
+        echo ""
         gum style --foreground "$TT_SUCCESS" --bold "All settings reset to defaults."
     else
         _tt_info "Reset cancelled"
     fi
-    echo
+    echo ""
 }
 
 # ------------------------------------------------------------------------------
@@ -698,38 +815,42 @@ ttnotify() {
 # Usage:   ttt
 ttt() {
     _it2_check || return 1
+    trap '_tt_cleanup' INT
 
     while true; do
+        clear
         _tt_header "iTerm2 Settings"
-        echo
 
-        local options=(
-            "Tab Setup"
-            "Badge"
-            "Cursor"
-            "Window/Session"
-            "Marks"
-            "Profile"
-            "Notification"
-            "─────────────────────"
-            "Reset All"
-            "Exit"
-        )
+        echo ""
+        _tt_info "  Customize your terminal appearance"
+        echo ""
 
         local choice
-        choice=$(printf '%s\n' "${options[@]}" | gum choose \
-            --cursor "→ " \
-            --cursor.foreground "$TT_CURSOR" \
-            --selected.foreground "$TT_CURSOR" \
-            --header.foreground "$TT_HEADER")
+        choice=$(gum choose --cursor "→ " --cursor.foreground "$TT_CURSOR" \
+            "Tab Setup       Set title and color" \
+            "Badge           Watermark text" \
+            "Cursor          Shape and color" \
+            "Window/Session  Window and session titles" \
+            "Marks           Navigable marks" \
+            "Profile         Switch profiles" \
+            "Notification    Send alert" \
+            "─────────────────────────────────" \
+            "Reset All       Clear customizations" \
+            "Exit" 2>/dev/null)
 
-        case "$choice" in
-            "Tab Setup")      tttab ;;
-            "Badge")          ttbadge ;;
-            "Cursor")         ttcursor ;;
+        [[ -z "$choice" ]] && break
+
+        # Extract command name (first word)
+        local cmd
+        cmd=$(echo "$choice" | awk '{print $1}')
+
+        case "$cmd" in
+            "Tab")          tttab ;;
+            "Badge")        ttbadge ;;
+            "Cursor")       ttcursor ;;
             "Window/Session") ttwindow ;;
-            "Marks")          ttmark ;;
-            "Profile")        ttprofile ;;
+            "Marks")        ttmark ;;
+            "Profile")      ttprofile ;;
             "Notification")
                 local msg
                 msg=$(gum input \
@@ -738,16 +859,17 @@ ttt() {
                     --prompt "› " \
                     --prompt.foreground "$TT_BORDER" \
                     --cursor.foreground "$TT_CURSOR" \
-                    --width 40)
-                if [ -n "$msg" ]; then
+                    --width 40 2>/dev/null)
+                if [[ -n "$msg" ]]; then
                     ttnotify "$msg"
+                    sleep 0.5
                 fi
                 ;;
-            "Reset All")      ttreset ;;
-            "Exit"|─*|"")     break ;;
+            "Reset")        ttreset ;;
+            "Exit"|"─"*|"") break ;;
         esac
     done
-    echo
+    echo ""
 }
 
 # ------------------------------------------------------------------------------
@@ -757,46 +879,46 @@ ttt() {
 # Purpose: Display all available TUI functions
 # Usage:   tthelp
 tthelp() {
+    clear
     gum style \
         --border rounded \
         --border-foreground "$TT_BORDER" \
-        --padding "1 2" \
-        --foreground "$TT_HEADER" \
-        "iTerm2 Quick TUI (gum-powered)"
+        --padding "0 3" \
+        --margin "1 0" \
+        --foreground "$TT_ACCENT" \
+        --bold \
+        "✦ iTerm2 Quick TUI ✦"
 
-    echo
+    echo ""
     gum style --foreground "$TT_HEADER" --bold "QUICK COMMANDS"
-    cat << 'EOF'
-  ttt                    Master menu
-  tttab [preset|title]   Tab color/title setup
-  ttbadge [text|clear]   Badge watermark
-  ttmark [text]          Marks and annotations
-  ttcursor [shape]       Cursor style (block/line/underline)
-  ttwindow [title]       Window/session titles
-  ttprofile [name]       Switch profile
-  ttnotify [msg]         Send notification
-  ttreset                Reset all to defaults
-EOF
+    echo ""
+    gum style --foreground "$TT_MUTED" "  ttt                    Master menu"
+    gum style --foreground "$TT_MUTED" "  tttab [preset|title]   Tab color/title setup"
+    gum style --foreground "$TT_MUTED" "  ttbadge [text|clear]   Badge watermark"
+    gum style --foreground "$TT_MUTED" "  ttmark [text]          Marks and annotations"
+    gum style --foreground "$TT_MUTED" "  ttcursor [shape]       Cursor style (block/line/underline)"
+    gum style --foreground "$TT_MUTED" "  ttwindow [title]       Window/session titles"
+    gum style --foreground "$TT_MUTED" "  ttprofile [name]       Switch profile"
+    gum style --foreground "$TT_MUTED" "  ttnotify [msg]         Send notification"
+    gum style --foreground "$TT_MUTED" "  ttreset                Reset all to defaults"
 
-    echo
+    echo ""
     gum style --foreground "$TT_HEADER" --bold "COLOR PRESETS"
-    cat << 'EOF'
-  dev     dark green      prod    dark red
-  stage   dark amber      test    dark blue
-  local   dark cyan       db      dark purple
-EOF
+    echo ""
+    gum style --foreground "$TT_MUTED" "  ■ dev     dark green      ■ prod    dark red"
+    gum style --foreground "$TT_MUTED" "  ■ stage   dark amber      ■ test    dark blue"
+    gum style --foreground "$TT_MUTED" "  ■ local   dark cyan       ■ db      dark purple"
 
-    echo
+    echo ""
     gum style --foreground "$TT_HEADER" --bold "EXAMPLES"
-    cat << 'EOF'
-  tttab dev                  Set tab to dev green
-  tttab "API Server" prod    Title + color
-  ttbadge clear              Clear badge
-  ttcursor line green        Line cursor, green
-  make build; ttnotify       Notify when done
-EOF
+    echo ""
+    gum style --foreground "$TT_MUTED" "  tttab dev                  Set tab to dev green"
+    gum style --foreground "$TT_MUTED" "  tttab \"API Server\" prod    Title + color"
+    gum style --foreground "$TT_MUTED" "  ttbadge clear              Clear badge"
+    gum style --foreground "$TT_MUTED" "  ttcursor line green        Line cursor, green"
+    gum style --foreground "$TT_MUTED" "  make build; ttnotify       Notify when done"
 
-    echo
-    gum style --foreground "$TT_MUTED" "Navigate marks: Cmd+Shift+Up/Down"
-    echo
+    echo ""
+    gum style --foreground "$TT_MUTED" "  Navigate marks: Cmd+Shift+Up/Down"
+    echo ""
 }
