@@ -41,6 +41,87 @@ _tt_color() {
 }
 
 # ==============================================================================
+# PANEL TITLE & COLOR (20 colors)
+# ==============================================================================
+
+# Purpose: Set panel title and color with 20 color presets
+# Inputs: [title] [color] - both optional
+# Example: ttpanel "API Server" cyan
+ttpanel() {
+    if [[ $# -eq 0 ]]; then
+        cat << 'EOF'
+ttpanel - Set panel title and color
+
+Usage:
+  ttpanel "Title"              Set title only
+  ttpanel COLOR                Set color only
+  ttpanel "Title" COLOR        Set both
+  ttpanel reset                Reset to default
+
+Colors: red, orange, amber, yellow, lime, green, teal, cyan,
+        sky, blue, indigo, purple, violet, magenta, pink,
+        rose, coral, brown, slate, gray
+
+Examples:
+  ttpanel "API Server" cyan
+  ttpanel purple
+  ttpanel "DB Connection" green
+EOF
+        return 0
+    fi
+
+    if [[ "$1" == "reset" ]]; then
+        it2_tab_color_reset
+        it2_tab_title ""
+        echo "Panel reset"
+        return 0
+    fi
+
+    _ttpanel_color() {
+        case "$1" in
+            red)     it2_tab_color 90 35 35 ;;
+            orange)  it2_tab_color 90 55 30 ;;
+            amber)   it2_tab_color 90 70 35 ;;
+            yellow)  it2_tab_color 85 85 30 ;;
+            lime)    it2_tab_color 55 85 35 ;;
+            green)   it2_tab_color 35 75 40 ;;
+            teal)    it2_tab_color 35 70 65 ;;
+            cyan)    it2_tab_color 40 75 85 ;;
+            sky)     it2_tab_color 45 65 90 ;;
+            blue)    it2_tab_color 40 50 90 ;;
+            indigo)  it2_tab_color 50 40 85 ;;
+            purple)  it2_tab_color 65 40 85 ;;
+            violet)  it2_tab_color 75 45 85 ;;
+            magenta) it2_tab_color 85 40 70 ;;
+            pink)    it2_tab_color 90 50 65 ;;
+            rose)    it2_tab_color 90 45 55 ;;
+            coral)   it2_tab_color 90 55 50 ;;
+            brown)   it2_tab_color 60 45 35 ;;
+            slate)   it2_tab_color 50 55 60 ;;
+            gray)    it2_tab_color 55 55 55 ;;
+            *)       return 1 ;;
+        esac
+    }
+
+    if [[ $# -eq 1 ]]; then
+        if _ttpanel_color "$1" 2>/dev/null; then
+            echo "Color: $1"
+        else
+            it2_tab_title "$1"
+            echo "Title: $1"
+        fi
+        return 0
+    fi
+
+    it2_tab_title "$1"
+    if _ttpanel_color "$2" 2>/dev/null; then
+        echo "Panel: $1 ($2)"
+    else
+        echo "Title: $1 (unknown color: $2)"
+    fi
+}
+
+# ==============================================================================
 # TAB TITLE & COLOR
 # ==============================================================================
 
@@ -306,6 +387,7 @@ iTerm2 Quick Commands
 =====================
 
 tttab [title] [color]    Tab title & color
+ttpanel [title] [color]  Panel with 20 colors
 ttbadge [text|clear]     Badge watermark
 ttcursor [shape] [color] Cursor style
 ttwindow [title]         Window & session name
