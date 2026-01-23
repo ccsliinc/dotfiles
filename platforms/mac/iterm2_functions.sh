@@ -1,6 +1,9 @@
 # shellcheck shell=bash
 if [ "$DEBUG" = "true" ]; then echo "$DOTFILESLOC/platforms/mac/iterm2_functions.sh" ; fi
 
+# Mark as loaded (for dependent scripts like iterm2_tui.sh)
+export _IT2_LOADED=1
+
 # ==============================================================================
 # iTerm2 Shell Functions
 # ==============================================================================
