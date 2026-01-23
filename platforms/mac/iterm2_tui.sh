@@ -86,6 +86,35 @@ TT_DIM="245"        # Medium gray for secondary text
 # echo "Testing colors:"; gum style --foreground "$TT_BORDER" "cyan"; gum style --foreground "$TT_CURSOR" "magenta"; gum style --foreground "$TT_TEXT" "white"
 
 # ------------------------------------------------------------------------------
+# GUM WRAPPERS (Environment Variables for Dark Terminal Visibility)
+# ------------------------------------------------------------------------------
+
+# Purpose: Wrapper for gum choose with visible colors on dark terminals
+# Usage:   _tt_choose "Option 1" "Option 2" ...
+_tt_choose() {
+    GUM_CHOOSE_ITEM_FOREGROUND="255" \
+    GUM_CHOOSE_CURSOR_FOREGROUND="207" \
+    GUM_CHOOSE_SELECTED_FOREGROUND="51" \
+    gum choose --cursor "→ " "$@" 2>/dev/null
+}
+
+# Purpose: Wrapper for gum input with visible colors on dark terminals
+# Usage:   _tt_input --placeholder "text" ...
+_tt_input() {
+    GUM_INPUT_PROMPT_FOREGROUND="51" \
+    GUM_INPUT_CURSOR_FOREGROUND="207" \
+    gum input "$@" 2>/dev/null
+}
+
+# Purpose: Wrapper for gum confirm with visible colors on dark terminals
+# Usage:   _tt_confirm "Confirm action?"
+_tt_confirm() {
+    GUM_CONFIRM_PROMPT_FOREGROUND="255" \
+    GUM_CONFIRM_SELECTED_FOREGROUND="51" \
+    gum confirm "$@" 2>/dev/null
+}
+
+# ------------------------------------------------------------------------------
 # INTERNAL HELPERS
 # ------------------------------------------------------------------------------
 
@@ -94,31 +123,31 @@ TT_DIM="245"        # Medium gray for secondary text
 _tt_header() {
     gum style \
         --border rounded \
-        --border-foreground "$TT_BORDER" \
+        --border-foreground 51 \
+        --foreground 255 \
+        --bold \
         --padding "0 3" \
         --margin "1 0" \
-        --foreground "$TT_HEADER" \
-        --bold \
         "✦ $1 ✦"
 }
 
 # Purpose: Display success message with brief pause
 # Usage:   _tt_ok "Message"
 _tt_ok() {
-    gum style --foreground "$TT_SUCCESS" --bold "✓ $1"
+    gum style --foreground 46 --bold "✓ $1"
     sleep 0.3
 }
 
 # Purpose: Display error message
 # Usage:   _tt_err "Message"
 _tt_err() {
-    gum style --foreground "196" --bold "✗ $1"
+    gum style --foreground 196 --bold "✗ $1"
 }
 
 # Purpose: Display info/muted message
 # Usage:   _tt_info "Message"
 _tt_info() {
-    gum style --foreground "$TT_DIM" "$1"
+    gum style --foreground 250 "$1"
 }
 
 # Purpose: Display a field with label and value
@@ -139,7 +168,7 @@ _tt_field() {
         value="<not set>"
     fi
 
-    printf "%s%-10s │  %s\n" "$(gum style --foreground "$TT_TEXT" "$arrow")" "$(gum style --foreground "$TT_TEXT" "$label")" "$(gum style --foreground "$TT_ACCENT" "$value")"
+    printf "%s%-10s │  %s\n" "$(gum style --foreground 255 "$arrow")" "$(gum style --foreground 255 "$label")" "$(gum style --foreground 213 "$value")"
 }
 
 # Purpose: Apply a color preset
@@ -174,11 +203,7 @@ _tt_color_picker() {
     )
 
     local choice
-    choice=$(printf '%s\n' "${options[@]}" | gum choose \
-        --cursor "→ " \
-        --cursor.foreground "$TT_CURSOR" \
-        --item.foreground "$TT_TEXT" \
-        --selected.foreground "$TT_ACCENT" 2>/dev/null) || return 1
+    choice=$(printf '%s\n' "${options[@]}" | _tt_choose) || return 1
 
     # Extract preset name (second word after the swatch)
     local preset_name
@@ -247,34 +272,32 @@ tttab() {
         clear
         _tt_header "Tab Setup"
 
-        echo ""
+        gum style --foreground 250 ""
         _tt_info "  Current settings:"
-        echo ""
-        echo "  Title    │  $(gum style --foreground "$TT_ACCENT" "${title:-<not set>}")"
-        echo "  Color    │  $(gum style --foreground "$TT_ACCENT" "${color:-<not set>}")"
-        echo ""
+        gum style --foreground 250 ""
+        gum style --foreground 255 "  Title    │  $(gum style --foreground 213 "${title:-<not set>}")"
+        gum style --foreground 255 "  Color    │  $(gum style --foreground 213 "${color:-<not set>}")"
+        gum style --foreground 250 ""
 
         local choice
-        choice=$(gum choose --cursor "→ " --cursor.foreground "$TT_CURSOR" --item.foreground "$TT_TEXT" --selected.foreground "$TT_ACCENT" \
+        choice=$(_tt_choose \
             "Edit title" \
             "Pick color" \
             "───────────────" \
             "Apply & Exit" \
-            "Cancel" 2>/dev/null)
+            "Cancel")
 
         [[ -z "$choice" ]] && break
 
         case "$choice" in
             "Edit title")
                 local new_title
-                new_title=$(gum input \
+                new_title=$(_tt_input \
                     --placeholder "Tab title..." \
                     --value "$title" \
                     --prompt "› " \
-                    --prompt.foreground "$TT_BORDER" \
-                    --cursor.foreground "$TT_CURSOR" \
                     --char-limit 0 \
-                    --width 40 2>/dev/null)
+                    --width 40)
                 if [[ -n "$new_title" ]]; then
                     title="$new_title"
                     it2_tab_title "$title"
@@ -330,37 +353,35 @@ ttbadge() {
         clear
         _tt_header "Badge Setup"
 
-        echo ""
+        gum style --foreground 250 ""
         _tt_info "  Current badge:"
-        echo ""
-        echo "  Text     │  $(gum style --foreground "$TT_ACCENT" "${badge:-<not set>}")"
-        echo ""
+        gum style --foreground 250 ""
+        gum style --foreground 255 "  Text     │  $(gum style --foreground 213 "${badge:-<not set>}")"
+        gum style --foreground 250 ""
         _tt_info "  Variables: \\(hostname) \\(user) \\(session.name)"
-        echo ""
+        gum style --foreground 250 ""
 
         local choice
-        choice=$(gum choose --cursor "→ " --cursor.foreground "$TT_CURSOR" --item.foreground "$TT_TEXT" --selected.foreground "$TT_ACCENT" \
+        choice=$(_tt_choose \
             "Set custom text" \
             "Use hostname" \
             "Use session name" \
             "Use username" \
             "Clear badge" \
             "───────────────" \
-            "Done" 2>/dev/null)
+            "Done")
 
         [[ -z "$choice" ]] && break
 
         case "$choice" in
             "Set custom text")
                 local text
-                text=$(gum input \
+                text=$(_tt_input \
                     --placeholder "Badge text..." \
                     --value "$badge" \
                     --prompt "› " \
-                    --prompt.foreground "$TT_BORDER" \
-                    --cursor.foreground "$TT_CURSOR" \
                     --char-limit 0 \
-                    --width 40 2>/dev/null)
+                    --width 40)
                 if [[ -n "$text" ]]; then
                     badge="$text"
                     it2_badge "$badge"
@@ -392,7 +413,7 @@ ttbadge() {
                 ;;
         esac
     done
-    echo ""
+    gum style --foreground 250 ""
 }
 
 # ------------------------------------------------------------------------------
@@ -418,19 +439,19 @@ ttmark() {
     clear
     _tt_header "Marks & Annotations"
 
-    echo ""
+    gum style --foreground 250 ""
     _tt_info "  Marks let you navigate output history"
-    _tt_info "  Use Cmd+Shift+↑/↓ to jump between marks"
-    echo ""
+    _tt_info "  Use Cmd+Shift+Up/Down to jump between marks"
+    gum style --foreground 250 ""
 
     local choice
-    choice=$(gum choose --cursor "→ " --cursor.foreground "$TT_CURSOR" --item.foreground "$TT_TEXT" --selected.foreground "$TT_ACCENT" \
+    choice=$(_tt_choose \
         "Add mark at cursor" \
         "Add annotation..." \
         "───────────────────────" \
-        "Done" 2>/dev/null)
+        "Done")
 
-    [[ -z "$choice" ]] && { echo ""; return 0; }
+    [[ -z "$choice" ]] && { gum style --foreground 250 ""; return 0; }
 
     case "$choice" in
         "Add mark at cursor")
@@ -439,20 +460,18 @@ ttmark() {
             ;;
         "Add annotation...")
             local text
-            text=$(gum input \
+            text=$(_tt_input \
                 --placeholder "Annotation text..." \
                 --prompt "› " \
-                --prompt.foreground "$TT_BORDER" \
-                --cursor.foreground "$TT_CURSOR" \
                 --char-limit 0 \
-                --width 50 2>/dev/null)
+                --width 50)
             if [[ -n "$text" ]]; then
                 it2_annotate "$text"
                 _tt_ok "Annotation: $text"
             fi
             ;;
     esac
-    echo ""
+    gum style --foreground 250 ""
 }
 
 # ------------------------------------------------------------------------------
@@ -508,15 +527,15 @@ ttcursor() {
         clear
         _tt_header "Cursor Style"
 
-        echo ""
+        gum style --foreground 250 ""
         _tt_info "  Current settings:"
-        echo ""
-        echo "  Shape    │  $(gum style --foreground "$TT_ACCENT" "${cur_shape:-<not set>}")"
-        echo "  Color    │  $(gum style --foreground "$TT_ACCENT" "${cur_color:-<not set>}")"
-        echo ""
+        gum style --foreground 250 ""
+        gum style --foreground 255 "  Shape    │  $(gum style --foreground 213 "${cur_shape:-<not set>}")"
+        gum style --foreground 255 "  Color    │  $(gum style --foreground 213 "${cur_color:-<not set>}")"
+        gum style --foreground 250 ""
 
         local choice
-        choice=$(gum choose --cursor "→ " --cursor.foreground "$TT_CURSOR" --item.foreground "$TT_TEXT" --selected.foreground "$TT_ACCENT" \
+        choice=$(_tt_choose \
             "▌ Block" \
             "│ Line" \
             "_ Underline" \
@@ -524,7 +543,7 @@ ttcursor() {
             "Pick color" \
             "Custom hex..." \
             "───────────────" \
-            "Done" 2>/dev/null)
+            "Done")
 
         [[ -z "$choice" ]] && break
 
@@ -557,11 +576,7 @@ ttcursor() {
                     "  Cancel"
                 )
                 local color_pick
-                color_pick=$(printf '%s\n' "${color_opts[@]}" | gum choose \
-                    --cursor "→ " \
-                    --cursor.foreground "$TT_CURSOR" \
-                    --item.foreground "$TT_TEXT" \
-                    --selected.foreground "$TT_ACCENT" 2>/dev/null)
+                color_pick=$(printf '%s\n' "${color_opts[@]}" | _tt_choose)
                 local color_name
                 color_name=$(echo "$color_pick" | awk '{print $2}')
                 if [[ -n "${TT_CURSOR_COLORS[$color_name]}" ]]; then
@@ -572,13 +587,11 @@ ttcursor() {
                 ;;
             "Custom hex...")
                 local hex
-                hex=$(gum input \
+                hex=$(_tt_input \
                     --placeholder "#RRGGBB" \
                     --prompt "› " \
-                    --prompt.foreground "$TT_BORDER" \
-                    --cursor.foreground "$TT_CURSOR" \
                     --char-limit 0 \
-                    --width 20 2>/dev/null)
+                    --width 20)
                 if [[ "$hex" =~ ^#?[0-9A-Fa-f]{6}$ ]]; then
                     cur_color="$hex"
                     it2_cursor_color "$hex"
@@ -590,7 +603,7 @@ ttcursor() {
                 ;;
         esac
     done
-    echo ""
+    gum style --foreground 250 ""
 }
 
 # ------------------------------------------------------------------------------
@@ -619,35 +632,33 @@ ttwindow() {
         clear
         _tt_header "Window & Session"
 
-        echo ""
+        gum style --foreground 250 ""
         _tt_info "  Current settings:"
-        echo ""
-        echo "  Window   │  $(gum style --foreground "$TT_ACCENT" "${window_title:-<not set>}")"
-        echo "  Session  │  $(gum style --foreground "$TT_ACCENT" "${session_name:-<not set>}")"
-        echo ""
+        gum style --foreground 250 ""
+        gum style --foreground 255 "  Window   │  $(gum style --foreground 213 "${window_title:-<not set>}")"
+        gum style --foreground 255 "  Session  │  $(gum style --foreground 213 "${session_name:-<not set>}")"
+        gum style --foreground 250 ""
 
         local choice
-        choice=$(gum choose --cursor "→ " --cursor.foreground "$TT_CURSOR" --item.foreground "$TT_TEXT" --selected.foreground "$TT_ACCENT" \
+        choice=$(_tt_choose \
             "Set window title" \
             "Set session name" \
             "Set both at once" \
             "Reset titles" \
             "───────────────" \
-            "Done" 2>/dev/null)
+            "Done")
 
         [[ -z "$choice" ]] && break
 
         case "$choice" in
             "Set window title")
                 local title
-                title=$(gum input \
+                title=$(_tt_input \
                     --placeholder "Window title..." \
                     --value "$window_title" \
                     --prompt "› " \
-                    --prompt.foreground "$TT_BORDER" \
-                    --cursor.foreground "$TT_CURSOR" \
                     --char-limit 0 \
-                    --width 40 2>/dev/null)
+                    --width 40)
                 if [[ -n "$title" ]]; then
                     window_title="$title"
                     it2_window_title "$title"
@@ -656,14 +667,12 @@ ttwindow() {
                 ;;
             "Set session name")
                 local name
-                name=$(gum input \
+                name=$(_tt_input \
                     --placeholder "Session name..." \
                     --value "$session_name" \
                     --prompt "› " \
-                    --prompt.foreground "$TT_BORDER" \
-                    --cursor.foreground "$TT_CURSOR" \
                     --char-limit 0 \
-                    --width 40 2>/dev/null)
+                    --width 40)
                 if [[ -n "$name" ]]; then
                     session_name="$name"
                     it2_session_name "$name"
@@ -672,13 +681,11 @@ ttwindow() {
                 ;;
             "Set both at once")
                 local title
-                title=$(gum input \
+                title=$(_tt_input \
                     --placeholder "Title for both..." \
                     --prompt "› " \
-                    --prompt.foreground "$TT_BORDER" \
-                    --cursor.foreground "$TT_CURSOR" \
                     --char-limit 0 \
-                    --width 40 2>/dev/null)
+                    --width 40)
                 if [[ -n "$title" ]]; then
                     window_title="$title"
                     session_name="$title"
@@ -698,7 +705,7 @@ ttwindow() {
                 ;;
         esac
     done
-    echo ""
+    gum style --foreground 250 ""
 }
 
 # ------------------------------------------------------------------------------
@@ -723,30 +730,28 @@ ttprofile() {
     clear
     _tt_header "Profile Switcher"
 
-    echo ""
+    gum style --foreground 250 ""
     _tt_info "  Select a profile or enter a custom name"
-    echo ""
+    gum style --foreground 250 ""
 
     local choice
-    choice=$(gum choose --cursor "→ " --cursor.foreground "$TT_CURSOR" --item.foreground "$TT_TEXT" --selected.foreground "$TT_ACCENT" \
+    choice=$(_tt_choose \
         "Default" \
         "Hotkey Window" \
         "Custom..." \
         "───────────────" \
-        "Cancel" 2>/dev/null)
+        "Cancel")
 
-    [[ -z "$choice" ]] && { echo ""; return 0; }
+    [[ -z "$choice" ]] && { gum style --foreground 250 ""; return 0; }
 
     case "$choice" in
         "Custom...")
             local profile
-            profile=$(gum input \
+            profile=$(_tt_input \
                 --placeholder "Profile name..." \
                 --prompt "› " \
-                --prompt.foreground "$TT_BORDER" \
-                --cursor.foreground "$TT_CURSOR" \
                 --char-limit 0 \
-                --width 40 2>/dev/null)
+                --width 40)
             if [[ -n "$profile" ]]; then
                 it2_profile "$profile"
                 _tt_ok "Profile: $profile"
@@ -759,7 +764,7 @@ ttprofile() {
             _tt_ok "Profile: $choice"
             ;;
     esac
-    echo ""
+    gum style --foreground 250 ""
 }
 
 # ------------------------------------------------------------------------------
@@ -775,17 +780,17 @@ ttreset() {
     clear
     _tt_header "Reset All"
 
-    echo ""
+    gum style --foreground 250 ""
     _tt_info "  This will reset:"
-    echo ""
-    gum style --foreground "$TT_DIM" "    • Tab color      → default"
-    gum style --foreground "$TT_DIM" "    • Badge          → cleared"
-    gum style --foreground "$TT_DIM" "    • Cursor shape   → block"
-    gum style --foreground "$TT_DIM" "    • Window title   → cleared"
-    gum style --foreground "$TT_DIM" "    • Tab title      → cleared"
-    echo ""
+    gum style --foreground 250 ""
+    gum style --foreground 250 "    • Tab color      → default"
+    gum style --foreground 250 "    • Badge          → cleared"
+    gum style --foreground 250 "    • Cursor shape   → block"
+    gum style --foreground 250 "    • Window title   → cleared"
+    gum style --foreground 250 "    • Tab title      → cleared"
+    gum style --foreground 250 ""
 
-    if gum confirm --prompt.foreground "$TT_CURSOR" "Reset all settings?" 2>/dev/null; then
+    if _tt_confirm "Reset all settings?"; then
         gum spin --spinner dot --title "Resetting..." -- sleep 0.5
         it2_tab_color_reset
         it2_badge_clear
@@ -793,18 +798,18 @@ ttreset() {
         it2_tab_title ""
         it2_window_title ""
 
-        echo ""
+        gum style --foreground 250 ""
         _tt_ok "Tab color reset"
         _tt_ok "Badge cleared"
         _tt_ok "Cursor: block"
         _tt_ok "Titles cleared"
-        echo ""
-        gum style --foreground "$TT_SUCCESS" --bold "✓ All settings reset to defaults."
+        gum style --foreground 250 ""
+        gum style --foreground 46 --bold "✓ All settings reset to defaults."
     else
-        echo ""
+        gum style --foreground 250 ""
         _tt_info "Reset cancelled"
     fi
-    echo ""
+    gum style --foreground 250 ""
 }
 
 # ------------------------------------------------------------------------------
@@ -838,12 +843,12 @@ ttt() {
         clear
         _tt_header "iTerm2 Settings"
 
-        echo ""
+        gum style --foreground 250 ""
         _tt_info "  Customize your terminal appearance"
-        echo ""
+        gum style --foreground 250 ""
 
         local choice
-        choice=$(gum choose --cursor "→ " --cursor.foreground "$TT_CURSOR" --item.foreground "$TT_TEXT" --selected.foreground "$TT_ACCENT" \
+        choice=$(_tt_choose \
             "Tab Setup       Set title and color" \
             "Badge           Watermark text" \
             "Cursor          Shape and color" \
@@ -853,7 +858,7 @@ ttt() {
             "Notification    Send alert" \
             "─────────────────────────────────" \
             "Reset All       Clear customizations" \
-            "Exit" 2>/dev/null)
+            "Exit")
 
         [[ -z "$choice" ]] && break
 
@@ -870,14 +875,12 @@ ttt() {
             "Profile")      ttprofile ;;
             "Notification")
                 local msg
-                msg=$(gum input \
+                msg=$(_tt_input \
                     --placeholder "Notification message..." \
                     --value "Done!" \
                     --prompt "› " \
-                    --prompt.foreground "$TT_BORDER" \
-                    --cursor.foreground "$TT_CURSOR" \
                     --char-limit 0 \
-                    --width 40 2>/dev/null)
+                    --width 40)
                 if [[ -n "$msg" ]]; then
                     ttnotify "$msg"
                     sleep 0.5
@@ -887,7 +890,7 @@ ttt() {
             "Exit"|"─"*|"") break ;;
         esac
     done
-    echo ""
+    gum style --foreground 250 ""
 }
 
 # ------------------------------------------------------------------------------
@@ -900,43 +903,43 @@ tthelp() {
     clear
     gum style \
         --border rounded \
-        --border-foreground "$TT_BORDER" \
+        --border-foreground 51 \
         --padding "0 3" \
         --margin "1 0" \
-        --foreground "$TT_ACCENT" \
+        --foreground 213 \
         --bold \
         "✦ iTerm2 Quick TUI ✦"
 
-    echo ""
-    gum style --foreground "$TT_HEADER" --bold "QUICK COMMANDS"
-    echo ""
-    gum style --foreground "$TT_DIM" "  ttt                    Master menu"
-    gum style --foreground "$TT_DIM" "  tttab [preset|title]   Tab color/title setup"
-    gum style --foreground "$TT_DIM" "  ttbadge [text|clear]   Badge watermark"
-    gum style --foreground "$TT_DIM" "  ttmark [text]          Marks and annotations"
-    gum style --foreground "$TT_DIM" "  ttcursor [shape]       Cursor style (block/line/underline)"
-    gum style --foreground "$TT_DIM" "  ttwindow [title]       Window/session titles"
-    gum style --foreground "$TT_DIM" "  ttprofile [name]       Switch profile"
-    gum style --foreground "$TT_DIM" "  ttnotify [msg]         Send notification"
-    gum style --foreground "$TT_DIM" "  ttreset                Reset all to defaults"
+    gum style --foreground 250 ""
+    gum style --foreground 255 --bold "QUICK COMMANDS"
+    gum style --foreground 250 ""
+    gum style --foreground 250 "  ttt                    Master menu"
+    gum style --foreground 250 "  tttab [preset|title]   Tab color/title setup"
+    gum style --foreground 250 "  ttbadge [text|clear]   Badge watermark"
+    gum style --foreground 250 "  ttmark [text]          Marks and annotations"
+    gum style --foreground 250 "  ttcursor [shape]       Cursor style (block/line/underline)"
+    gum style --foreground 250 "  ttwindow [title]       Window/session titles"
+    gum style --foreground 250 "  ttprofile [name]       Switch profile"
+    gum style --foreground 250 "  ttnotify [msg]         Send notification"
+    gum style --foreground 250 "  ttreset                Reset all to defaults"
 
-    echo ""
-    gum style --foreground "$TT_HEADER" --bold "COLOR PRESETS"
-    echo ""
-    gum style --foreground "$TT_DIM" "  ■ dev     dark green      ■ prod    dark red"
-    gum style --foreground "$TT_DIM" "  ■ stage   dark amber      ■ test    dark blue"
-    gum style --foreground "$TT_DIM" "  ■ local   dark cyan       ■ db      dark purple"
+    gum style --foreground 250 ""
+    gum style --foreground 255 --bold "COLOR PRESETS"
+    gum style --foreground 250 ""
+    gum style --foreground 250 "  ■ dev     dark green      ■ prod    dark red"
+    gum style --foreground 250 "  ■ stage   dark amber      ■ test    dark blue"
+    gum style --foreground 250 "  ■ local   dark cyan       ■ db      dark purple"
 
-    echo ""
-    gum style --foreground "$TT_HEADER" --bold "EXAMPLES"
-    echo ""
-    gum style --foreground "$TT_DIM" "  tttab dev                  Set tab to dev green"
-    gum style --foreground "$TT_DIM" "  tttab \"API Server\" prod    Title + color"
-    gum style --foreground "$TT_DIM" "  ttbadge clear              Clear badge"
-    gum style --foreground "$TT_DIM" "  ttcursor line green        Line cursor, green"
-    gum style --foreground "$TT_DIM" "  make build; ttnotify       Notify when done"
+    gum style --foreground 250 ""
+    gum style --foreground 255 --bold "EXAMPLES"
+    gum style --foreground 250 ""
+    gum style --foreground 250 "  tttab dev                  Set tab to dev green"
+    gum style --foreground 250 "  tttab \"API Server\" prod    Title + color"
+    gum style --foreground 250 "  ttbadge clear              Clear badge"
+    gum style --foreground 250 "  ttcursor line green        Line cursor, green"
+    gum style --foreground 250 "  make build; ttnotify       Notify when done"
 
-    echo ""
-    gum style --foreground "$TT_DIM" "  Navigate marks: Cmd+Shift+Up/Down"
-    echo ""
+    gum style --foreground 250 ""
+    gum style --foreground 250 "  Navigate marks: Cmd+Shift+Up/Down"
+    gum style --foreground 250 ""
 }
