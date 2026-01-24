@@ -246,19 +246,33 @@ EOF
 
         if [[ "$DRY_RUN" == true ]]; then
             info "Would copy: iTerm preferences to $iterm_dir/"
+            info "Would copy: iTerm Scripts folder to $iterm_dir/"
             RESULT_ITERM="dry-run"
             return 0
         fi
 
         mkdir -p "$iterm_dir"
+
+        # Backup preferences plist
         if cp -f "$iterm_plist" "$iterm_dir/" 2>/dev/null; then
-            success "iTerm config saved to iCloud"
-            RESULT_ITERM="success"
+            success "iTerm preferences saved"
         else
-            error "Failed to copy iTerm config"
+            error "Failed to copy iTerm preferences"
             RESULT_ITERM="failed"
             return 1
         fi
+
+        # Backup Scripts folder if it exists
+        local scripts_src="$HOME/Library/Application Support/iTerm2/Scripts"
+        if [[ -d "$scripts_src" ]]; then
+            if cp -rf "$scripts_src" "$iterm_dir/" 2>/dev/null; then
+                success "iTerm Scripts folder saved"
+            else
+                warn "Failed to copy iTerm Scripts folder"
+            fi
+        fi
+
+        RESULT_ITERM="success"
     }
 
     # Print summary
