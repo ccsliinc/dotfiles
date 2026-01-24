@@ -23,6 +23,29 @@ source "$DOTFILESLOC/base/core/.iterm2_shell_integration.zsh"
 # shellcheck source=core/.profile_motd
 source "$DOTFILESLOC/base/core/.profile_motd"
 
+# ==============================================================================
+# Quick Shell Reload Shortcuts
+# ==============================================================================
+# ~ as command = go home + reload shell config
+# ./ as command (no args) = reload shell config in current dir
+
+# Override ~ to go home and reload
+function \~() {
+    cd ~
+    source ~/.zshrc
+    echo "🏠 Home + reloaded"
+}
+
+# ./ with no args reloads, with args runs normally
+function ./() {
+    if [[ $# -eq 0 ]]; then
+        source ~/.zshrc
+        echo "🔄 Reloaded"
+    else
+        command ./"$@"
+    fi
+}
+
 # Load any local overwrites if needed
 # shellcheck source=/dev/null
 [[ -f ~/.profile.local ]] && source ~/.profile.local

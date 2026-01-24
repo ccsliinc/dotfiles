@@ -12,7 +12,7 @@ export ZSH="$HOME/.oh-my-zsh"
 # to know which specific one was loaded, run: echo $RANDOM_THEME
 # See https://github.com/robbyrussell/oh-my-zsh/wiki/Themes
 
-ZSH_THEME="maran"
+ZSH_THEME="maran-smart"
 
 # Set list of themes to pick from when loading at random
 # Setting this variable when ZSH_THEME=random will cause zsh to load
@@ -91,6 +91,10 @@ plugins=(
 (( $+commands[docker] )) && plugins+=(docker)
 
 export DEBUG=false
+
+# Custom themes location
+ZSH_CUSTOM_THEME_DIR="$DOTFILESLOC/base/themes"
+[[ -f "$ZSH_CUSTOM_THEME_DIR/$ZSH_THEME.zsh-theme" ]] && ZSH_THEME="$ZSH_CUSTOM_THEME_DIR/$ZSH_THEME"
 
 source "$ZSH/oh-my-zsh.sh"
 
