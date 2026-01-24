@@ -28,3 +28,7 @@ brew install \
   yarn \
   yt-dlp \
   zsh
+
+# Casks (GUI apps and fonts)
+brew install --cask \
+  font-meslo-lg-nerd-font
