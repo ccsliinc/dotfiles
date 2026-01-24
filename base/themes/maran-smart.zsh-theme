@@ -1,6 +1,9 @@
 # Smart path theme based on maran
 # Shows last 3 dirs full, earlier dirs as first letter
 
+# Ensure colors are loaded
+autoload -U colors && colors
+
 # Smart path function
 _smart_path() {
     local pwd_str="${PWD/#$HOME/~}"
@@ -37,9 +40,21 @@ _smart_path() {
     echo "$result"
 }
 
-# Prompt with smart path
-# %n=username, %m=short hostname, $(_smart_path)=smart directory
-PROMPT='%{$fg[cyan]%}%n%{$reset_color%}@%{$fg[yellow]%}%m:%{$fg[green]%}$(_smart_path)%{$reset_color%}$(git_prompt_info) %(!.#.$) '
+# Update path before each prompt
+_smart_path_precmd() {
+    _SMART_PATH=$(_smart_path)
+}
+
+# Add to precmd hooks
+autoload -U add-zsh-hook
+add-zsh-hook precmd _smart_path_precmd
+
+# Initialize on load
+_SMART_PATH=$(_smart_path)
+
+# Prompt: username@hostname:smart_path git:(branch) $
+setopt PROMPT_SUBST
+PROMPT='%{$fg[cyan]%}%n%{$reset_color%}@%{$fg[yellow]%}%m:%{$fg[green]%}${_SMART_PATH}%{$reset_color%}$(git_prompt_info) %(!.#.$) '
 
 ZSH_THEME_GIT_PROMPT_PREFIX=" %{$fg[cyan]%}git:("
 ZSH_THEME_GIT_PROMPT_SUFFIX=")%{$reset_color%}"
