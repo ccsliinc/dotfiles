@@ -7,6 +7,14 @@ export PATH=$HOME/bin:~/.config/phpmon/bin:$PATH
 # Path to your oh-my-zsh installation.
 export ZSH="$HOME/.oh-my-zsh"
 
+# Dotfiles location (must be set before ZSH_CUSTOM)
+if [[ -d "$HOME/.dotfiles" ]]; then
+    DOTFILESLOC="$HOME/.dotfiles"
+    export DOTFILESLOC
+elif [[ -f "$HOME/.dotfiles_location" ]]; then
+    source "$HOME/.dotfiles_location"
+fi
+
 # Set name of the theme to load --- if set to "random", it will
 # load a random theme each time oh-my-zsh is loaded, in which case,
 # to know which specific one was loaded, run: echo $RANDOM_THEME
@@ -59,7 +67,7 @@ ZSH_THEME="maran-smart"
 # HIST_STAMPS="mm/dd/yyyy"
 
 # Would you like to use another custom folder than $ZSH/custom?
-# ZSH_CUSTOM=/path/to/new-custom-folder
+ZSH_CUSTOM="$DOTFILESLOC/base"
 
 # Which plugins would you like to load?
 # Standard plugins can be found in ~/.oh-my-zsh/plugins/*
@@ -92,22 +100,14 @@ plugins=(
 
 export DEBUG=false
 
-# Custom themes location
-ZSH_CUSTOM_THEME_DIR="$DOTFILESLOC/base/themes"
-[[ -f "$ZSH_CUSTOM_THEME_DIR/$ZSH_THEME.zsh-theme" ]] && ZSH_THEME="$ZSH_CUSTOM_THEME_DIR/$ZSH_THEME"
-
 source "$ZSH/oh-my-zsh.sh"
 
-if [[ -d "$HOME/.dotfiles" ]]; then
-    DOTFILESLOC="$HOME/.dotfiles"
-    export DOTFILESLOC
-elif [[ -f "$HOME/.dotfiles_location" ]]; then
-    source "$HOME/.dotfiles_location"
-else
+# Error if dotfiles location still not set
+if [[ -z "$DOTFILESLOC" ]]; then
     echo "There is an error with your profile setup."
     echo "Please run bootstrap again."
     return 1
-fi 
+fi
 
 source "$HOME/.dotfiles/base/.profile_interactive"
 
