@@ -40,7 +40,8 @@ function \~() {
 function ./() {
     if [[ $# -eq 0 ]]; then
         source ~/.zshrc
-        echo "🔄 Reloaded"
+        echo -e "\U0f0450 Reloaded"
+        echo ""
     else
         command ./"$@"
     fi
