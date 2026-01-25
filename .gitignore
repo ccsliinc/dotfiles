@@ -6,3 +6,6 @@
 .DS_Store
 _docs/
 .claude/
+
+# Private local reference files (nested repo syncs to Gogs)
+_reference.local/
