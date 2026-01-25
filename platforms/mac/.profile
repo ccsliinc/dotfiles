@@ -18,3 +18,11 @@ my-claude-sync-check
 
 # Uncomment to run auto-update on shell load (not recommended for regular use)
 # my-update-mac
+# Push both dotfiles repos (main + _reference.local)
+dotpush() {
+    echo "Pushing main dotfiles repo..."
+    (cd ~/.dotfiles && git push)
+    echo "Pushing _reference.local repo..."
+    (cd ~/.dotfiles/_reference.local && git push)
+    echo "All repos pushed."
+}
