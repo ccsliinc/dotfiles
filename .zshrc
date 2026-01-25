@@ -119,3 +119,10 @@ unsetopt nomatch
 # Don't make edits below this
 [[ -f ~/.zshrc.local ]] && source "$HOME/.zshrc.local"
 
+
+# bun completions
+[ -s "/Users/jsugamele/.bun/_bun" ] && source "/Users/jsugamele/.bun/_bun"
+
+# bun
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"
