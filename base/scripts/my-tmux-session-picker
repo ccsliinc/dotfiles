@@ -35,6 +35,8 @@ get_project_name() {
 
 # Set terminal tab title
 set_tab_title() {
+    # Only set title if NOT inside tmux (tmux handles its own titles)
+    [[ -n "${TMUX:-}" ]] && return
     printf '\e]0;%s\a' "$1" >/dev/tty 2>/dev/null
 }
 
