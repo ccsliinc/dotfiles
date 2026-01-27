@@ -13,3 +13,6 @@ ln -sf ~/.dotfiles/.zshrc ~
 # Environment files for non-interactive shells
 ln -sf ~/.dotfiles/.zshenv ~
 ln -sf ~/.dotfiles/.bashenv ~
+
+# tmux configuration
+ln -sf ~/.dotfiles/base/.tmux.conf ~/.tmux.conf
