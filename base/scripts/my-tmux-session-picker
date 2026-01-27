@@ -369,7 +369,8 @@ process_selection() {
         "●"*|"○"*)
             # Extract session name from selection (format: "● session-name (status)")
             local session_name
-            session_name=$(echo "$selection" | sed -E 's/^[●○] ([^ ]+) \(.+\)$/\1/')
+            # Extract session name: "○ name - time" or "● name (attached) - time"
+            session_name=$(echo "$selection" | sed -E 's/^[●○] ([^ ]+)( \(attached\))? - .+$/\1/')
             attach_session "$session_name"
             ;;
         "✖ Exit")
