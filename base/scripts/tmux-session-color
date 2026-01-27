@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Generate a background color escape code based on tmux session name
+# Generate a background color escape code based on project name
 # Uses high-contrast colors that work well on dark backgrounds
+# All sessions for same project get same color
 
 session_name=$(tmux display-message -p '#S' 2>/dev/null)
 
@@ -9,12 +10,18 @@ if [[ -z "$session_name" ]]; then
     exit 0
 fi
 
-# Hash the session name and get a number 0-5
-hash=$(echo -n "$session_name" | md5sum | cut -c1-2)
+# Extract project name (everything before last hyphen segment)
+# e.g., "myproject-api" -> "myproject", "my-project-web" -> "my-project"
+project_name="${session_name%-*}"
+
+# If no hyphen, use full name
+[[ "$project_name" == "$session_name" ]] && project_name="$session_name"
+
+# Hash the project name and get a number 0-5
+hash=$(echo -n "$project_name" | md5sum | cut -c1-2)
 num=$((16#$hash % 6))
 
 # High contrast colors (all work well with black text on dark bg)
-# 0=cyan, 1=green, 2=yellow, 3=magenta, 4=red, 5=blue
 case $num in
     0) color="#00d7d7" ;;  # cyan
     1) color="#00d700" ;;  # green
