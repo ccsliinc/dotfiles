@@ -45,10 +45,26 @@ set_tab_title() {
 # Sorted by creation time (most recent first)
 get_project_sessions() {
     local project="$1"
-    tmux list-sessions -F "#{session_created}:#{session_name}:#{session_attached}" 2>/dev/null | \
+    # Format: session_name:attached:activity_timestamp
+    tmux list-sessions -F "#{session_activity}:#{session_name}:#{session_attached}" 2>/dev/null | \
         grep ":${project}-[^:]*:" | \
         sort -rn | \
-        cut -d: -f2,3 || true
+        while IFS=: read -r activity name attached; do
+            # Convert timestamp to relative time
+            local now=$(date +%s)
+            local diff=$((now - activity))
+            local time_str
+            if (( diff < 60 )); then
+                time_str="just now"
+            elif (( diff < 3600 )); then
+                time_str="$((diff / 60))m ago"
+            elif (( diff < 86400 )); then
+                time_str="$((diff / 3600))h ago"
+            else
+                time_str="$((diff / 86400))d ago"
+            fi
+            echo "${name}:${attached}:${time_str}"
+        done || true
 }
 
 # Find next available session number
@@ -122,13 +138,16 @@ build_menu_items() {
     local sessions=("$@")
 
     for session_info in "${sessions[@]}"; do
+        # Format: name:attached:time_str
         local name="${session_info%%:*}"
-        local attached="${session_info##*:}"
+        local rest="${session_info#*:}"
+        local attached="${rest%%:*}"
+        local time_str="${rest##*:}"
 
         if [[ "$attached" == "1" ]]; then
-            echo "● ${name} (attached)"
+            echo "● ${name} (attached) - ${time_str}"
         else
-            echo "○ ${name} (detached)"
+            echo "○ ${name} - ${time_str}"
         fi
     done
 
@@ -149,14 +168,35 @@ show_selector() {
 
     case "$selector_type" in
         gum)
+            # Find first detached session or "New session" as default
+            local default_item=""
+            for item in "${menu_items[@]}"; do
+                if [[ "$item" == "○"* ]] || [[ "$item" == "➕"* ]]; then
+                    default_item="$item"
+                    break
+                fi
+            done
+            # If all attached, default to New session
+            [[ -z "$default_item" ]] && default_item="➕ New session..."
+
             # Gum needs special handling: render TUI to /dev/tty, capture result via temp file
             tmpfile=$(mktemp)
-            gum choose \
-                --header="tmux sessions for: ${project}" \
-                --header.foreground="6" \
-                --cursor.foreground="2" \
-                --selected.foreground="2" \
-                "${menu_items[@]}" </dev/tty >"$tmpfile" 2>/dev/tty
+            if [[ -n "$default_item" ]]; then
+                gum choose \
+                    --header="tmux sessions for: ${project}" \
+                    --header.foreground="6" \
+                    --cursor.foreground="2" \
+                    --selected.foreground="2" \
+                    --selected="$default_item" \
+                    "${menu_items[@]}" </dev/tty >"$tmpfile" 2>/dev/tty
+            else
+                gum choose \
+                    --header="tmux sessions for: ${project}" \
+                    --header.foreground="6" \
+                    --cursor.foreground="2" \
+                    --selected.foreground="2" \
+                    "${menu_items[@]}" </dev/tty >"$tmpfile" 2>/dev/tty
+            fi
             result=$(cat "$tmpfile")
             rm -f "$tmpfile"
             echo "$result"
