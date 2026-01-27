@@ -18,7 +18,10 @@ my-profile-update-check
 
 # iTerm2 Integrations
 # shellcheck source=core/.iterm2_shell_integration.zsh
-source "$DOTFILESLOC/base/core/.iterm2_shell_integration.zsh"
+# Skip iTerm2 integration in JetBrains terminals (causes escape sequence issues)
+if [[ "$TERMINAL_EMULATOR" != *"JetBrains"* ]]; then
+    source "$DOTFILESLOC/base/core/.iterm2_shell_integration.zsh"
+fi
 
 # shellcheck source=core/.profile_motd
 source "$DOTFILESLOC/base/core/.profile_motd"

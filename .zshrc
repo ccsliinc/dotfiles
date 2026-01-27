@@ -126,3 +126,33 @@ unsetopt nomatch
 # bun
 export BUN_INSTALL="$HOME/.bun"
 export PATH="$BUN_INSTALL/bin:$PATH"
+
+# bun
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"
+
+# ============================================
+# IntelliJ tmux Session Manager
+# Auto-launches tmux session picker in IntelliJ terminals
+# ============================================
+_intellij_tmux_init() {
+    # Only run in JetBrains terminals
+    [[ "$TERMINAL_EMULATOR" != *"JetBrains"* ]] && return
+
+    # Skip if already in tmux
+    [[ -n "${TMUX:-}" ]] && return
+
+    # Skip if running a command (not interactive)
+    [[ ! -t 0 ]] && return
+
+    # Launch the session picker
+    if [[ -x "$HOME/.dotfiles/base/scripts/my-tmux-session-picker" ]]; then
+        "$HOME/.dotfiles/base/scripts/my-tmux-session-picker"
+    fi
+}
+
+# Run on shell startup
+_intellij_tmux_init
+
+# Alias for manual invocation
+alias ts="$HOME/.dotfiles/base/scripts/my-tmux-session-picker"

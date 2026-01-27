@@ -1,0 +1,389 @@
+#!/usr/bin/env bash
+#
+# tmux-session-picker.sh
+# Interactive tmux session picker for IntelliJ terminal integration
+# Detects project name and manages project-specific tmux sessions
+# Supports gum, fzf, or fallback selection modes
+#
+
+set -euo pipefail
+
+# Note: Terminal escape responses (like 6c) are consumed in .zshrc before this script runs
+
+# Colors
+readonly GREEN='\033[0;32m'
+readonly DIM='\033[2m'
+readonly CYAN='\033[0;36m'
+readonly BOLD='\033[1m'
+readonly RESET='\033[0m'
+
+# Check if already inside tmux
+if [[ -n "${TMUX:-}" ]]; then
+    echo -e "${DIM}⚠ Already inside tmux session. Nested sessions not supported.${RESET}" >&2
+    exit 1
+fi
+
+# Detect project name from git root or fallback to PWD
+get_project_name() {
+    local git_root
+    if git_root=$(git rev-parse --show-toplevel 2>/dev/null); then
+        basename "$git_root"
+    else
+        basename "$PWD"
+    fi
+}
+
+# Set terminal tab title
+set_tab_title() {
+    printf '\e]0;%s\a' "$1" >/dev/tty 2>/dev/null
+}
+
+# Get list of sessions matching project pattern
+# Returns: session_name:attached_status (1=attached, 0=detached)
+# Sorted by creation time (most recent first)
+get_project_sessions() {
+    local project="$1"
+    tmux list-sessions -F "#{session_created}:#{session_name}:#{session_attached}" 2>/dev/null | \
+        grep ":${project}-[^:]*:" | \
+        sort -rn | \
+        cut -d: -f2,3 || true
+}
+
+# Find next available session number
+get_next_session_number() {
+    local project="$1"
+    local max_num=0
+    local sessions
+
+    sessions=$(get_project_sessions "$project")
+
+    while IFS=: read -r name _; do
+        [[ -z "$name" ]] && continue
+        local num="${name##*-}"
+        if [[ "$num" =~ ^[0-9]+$ ]] && (( num > max_num )); then
+            max_num=$num
+        fi
+    done <<< "$sessions"
+
+    printf "%02d" $((max_num + 1))
+}
+
+# Create new session and attach
+create_and_attach() {
+    local project="$1"
+    local session_name="${project}-$(get_next_session_number "$project")"
+
+    tmux new-session -d -s "$session_name"
+    set_tab_title "$session_name"
+    tmux attach-session -t "$session_name"
+}
+
+# Create named session and attach
+create_named_session() {
+    local session_name="$1"
+
+    # Check if session already exists
+    if tmux has-session -t "$session_name" 2>/dev/null; then
+        echo -e "${DIM}Session ${session_name} already exists. Attaching...${RESET}" >&2
+        attach_session "$session_name"
+        return
+    fi
+
+    tmux new-session -d -s "$session_name"
+    set_tab_title "$session_name"
+    tmux attach-session -t "$session_name"
+}
+
+# Attach to existing session
+attach_session() {
+    local session_name="$1"
+    set_tab_title "$session_name"
+    tmux attach-session -t "$session_name"
+}
+
+# Check what selector is available
+get_selector_type() {
+    if command -v gum &>/dev/null; then
+        echo "gum"
+    elif command -v fzf &>/dev/null; then
+        echo "fzf"
+    else
+        echo "fallback"
+    fi
+}
+
+# Build menu items from sessions
+# Output format: one item per line
+build_menu_items() {
+    local project="$1"
+    shift
+    local sessions=("$@")
+
+    for session_info in "${sessions[@]}"; do
+        local name="${session_info%%:*}"
+        local attached="${session_info##*:}"
+
+        if [[ "$attached" == "1" ]]; then
+            echo "● ${name} (attached)"
+        else
+            echo "○ ${name} (detached)"
+        fi
+    done
+
+    echo "➕ New session..."
+    echo "✖ Exit"
+}
+
+# Show selector and return selected item
+show_selector() {
+    local selector_type="$1"
+    local project="$2"
+    shift 2
+    local menu_items=("$@")
+    local result=""
+    local tmpfile
+
+    echo "" >&2
+
+    case "$selector_type" in
+        gum)
+            # Gum needs special handling: render TUI to /dev/tty, capture result via temp file
+            tmpfile=$(mktemp)
+            gum choose \
+                --header="tmux sessions for: ${project}" \
+                --header.foreground="6" \
+                --cursor.foreground="2" \
+                --selected.foreground="2" \
+                "${menu_items[@]}" </dev/tty >"$tmpfile" 2>/dev/tty
+            result=$(cat "$tmpfile")
+            rm -f "$tmpfile"
+            echo "$result"
+            ;;
+        fzf)
+            tmpfile=$(mktemp)
+            fzf \
+                --ansi \
+                --header="tmux sessions for: ${project}" \
+                --no-info \
+                --reverse \
+                --height=~50% \
+                "${menu_items[@]}" </dev/tty >"$tmpfile" 2>/dev/tty
+            result=$(cat "$tmpfile")
+            rm -f "$tmpfile"
+            echo "$result"
+            ;;
+        fallback)
+            show_fallback_menu "$project" "${menu_items[@]}"
+            ;;
+    esac
+}
+
+# Fallback menu using draw_menu style
+show_fallback_menu() {
+    local project="$1"
+    shift
+    local menu_items=("$@")
+    local width=50
+    local title="tmux sessions for: $project"
+    local title_len=${#title}
+    local padding=$((width - title_len - 4))
+
+    echo -e "${CYAN}╭─ ${title} $(printf '─%.0s' $(seq 1 $padding))╮${RESET}" >&2
+
+    local i=1
+    for item in "${menu_items[@]}"; do
+        local line="  [$i] $item"
+        local line_len=${#line}
+        local line_padding=$((width - line_len - 2))
+
+        if [[ "$item" == *"(attached)"* ]]; then
+            echo -e "${CYAN}│${RESET}${GREEN}${line}$(printf ' %.0s' $(seq 1 $line_padding))${RESET}${CYAN}│${RESET}" >&2
+        elif [[ "$item" == *"(detached)"* ]]; then
+            echo -e "${CYAN}│${RESET}${DIM}${line}$(printf ' %.0s' $(seq 1 $line_padding))${RESET}${CYAN}│${RESET}" >&2
+        else
+            echo -e "${CYAN}│${RESET}${BOLD}${line}$(printf ' %.0s' $(seq 1 $line_padding))${RESET}${CYAN}│${RESET}" >&2
+        fi
+        ((i++))
+    done
+
+    echo -e "${CYAN}╰$(printf '─%.0s' $(seq 1 $((width - 1))))╯${RESET}" >&2
+
+    local count=${#menu_items[@]}
+    echo -ne "Select [1-${count}]: " >&2
+    read -r choice </dev/tty
+
+    if [[ "$choice" =~ ^[0-9]+$ ]] && (( choice >= 1 && choice <= count )); then
+        echo "${menu_items[$((choice - 1))]}"
+    else
+        echo ""
+    fi
+}
+
+# Prompt for session name (returns name or empty for auto-generate)
+prompt_session_name() {
+    local selector_type="$1"
+    local project="$2"
+    local custom_name=""
+
+    while true; do
+        case "$selector_type" in
+            gum)
+                local tmpfile
+                tmpfile=$(mktemp)
+                gum input --placeholder "Name (or Enter for auto)" </dev/tty >"$tmpfile" 2>/dev/tty || true
+                custom_name=$(cat "$tmpfile")
+                rm -f "$tmpfile"
+                ;;
+            *)
+                echo -ne "Session name (Enter for auto): " >&2
+                read -r custom_name </dev/tty
+                ;;
+        esac
+
+        # Empty input = auto-generate
+        if [[ -z "$custom_name" ]]; then
+            echo ""
+            return
+        fi
+
+        # Validate: alphanumeric and hyphens only
+        if [[ "$custom_name" =~ ^[a-zA-Z0-9-]+$ ]]; then
+            echo "$custom_name"
+            return
+        else
+            echo -e "${DIM}Invalid name. Use only letters, numbers, and hyphens.${RESET}" >&2
+        fi
+    done
+}
+
+# Draw the menu box (kept for backwards compatibility)
+draw_menu() {
+    local project="$1"
+    shift
+    local sessions=("$@")
+    local width=44
+    local title="tmux sessions for: $project"
+    local title_len=${#title}
+    local padding=$((width - title_len - 4))
+
+    echo -e "${CYAN}╭─ ${title} $(printf '─%.0s' $(seq 1 $padding))╮${RESET}"
+
+    local i=1
+    for session_info in "${sessions[@]}"; do
+        local name="${session_info%%:*}"
+        local attached="${session_info##*:}"
+        local status_icon status_text status_color
+
+        if [[ "$attached" == "1" ]]; then
+            status_icon="●"
+            status_text="attached"
+            status_color="$GREEN"
+        else
+            status_icon="○"
+            status_text="detached"
+            status_color="$DIM"
+        fi
+
+        local line="  [$i] $name  ${status_icon} ${status_text}"
+        local line_plain="  [$i] $name  ${status_icon} ${status_text}"
+        local line_len=${#line_plain}
+        local line_padding=$((width - line_len - 2))
+
+        echo -e "${CYAN}│${RESET}${status_color}${line}$(printf ' %.0s' $(seq 1 $line_padding))${RESET}${CYAN}│${RESET}"
+        ((i++))
+    done
+
+    local new_line="  [n] Create new session"
+    local new_line_len=${#new_line}
+    local new_padding=$((width - new_line_len - 2))
+    echo -e "${CYAN}│${RESET}${BOLD}${new_line}$(printf ' %.0s' $(seq 1 $new_padding))${RESET}${CYAN}│${RESET}"
+
+    echo -e "${CYAN}╰$(printf '─%.0s' $(seq 1 $((width - 1))))╯${RESET}"
+}
+
+# Process the selected menu item
+process_selection() {
+    local selection="$1"
+    local project="$2"
+    local selector_type="$3"
+
+    if [[ -z "$selection" ]]; then
+        echo "No selection made. Cancelled." >&2
+        exit 1
+    fi
+
+    case "$selection" in
+        "➕ New session...")
+            local custom_name
+            custom_name=$(prompt_session_name "$selector_type" "$project")
+            if [[ -z "$custom_name" ]]; then
+                # Auto-generate
+                create_and_attach "$project"
+            else
+                # Use provided name
+                create_named_session "${project}-${custom_name}"
+            fi
+            ;;
+        "●"*|"○"*)
+            # Extract session name from selection (format: "● session-name (status)")
+            local session_name
+            session_name=$(echo "$selection" | sed -E 's/^[●○] ([^ ]+) \(.+\)$/\1/')
+            attach_session "$session_name"
+            ;;
+        "✖ Exit")
+            echo "Cancelled." >&2
+            exit 0
+            ;;
+        *)
+            echo "Invalid selection: $selection" >&2
+            exit 1
+            ;;
+    esac
+}
+
+# Main logic
+main() {
+    local project
+    project=$(get_project_name)
+
+    local sessions_raw
+    sessions_raw=$(get_project_sessions "$project")
+
+    # Parse sessions into array
+    local sessions=()
+    while IFS= read -r line; do
+        [[ -n "$line" ]] && sessions+=("$line")
+    done <<< "$sessions_raw"
+
+    local count=${#sessions[@]}
+    local selector_type
+    selector_type=$(get_selector_type)
+
+    # Case: No sessions exist
+    if [[ $count -eq 0 ]]; then
+        echo -e "${DIM}No existing sessions for ${project}.${RESET}" >&2
+        local custom_name
+        custom_name=$(prompt_session_name "$selector_type" "$project")
+        if [[ -z "$custom_name" ]]; then
+            create_and_attach "$project"
+        else
+            create_named_session "${project}-${custom_name}"
+        fi
+        return
+    fi
+
+    # Build menu items
+    local menu_items=()
+    while IFS= read -r item; do
+        [[ -n "$item" ]] && menu_items+=("$item")
+    done < <(build_menu_items "$project" "${sessions[@]}")
+
+    # Show selector and get selection
+    local selection
+    selection=$(show_selector "$selector_type" "$project" "${menu_items[@]}")
+
+    # Process the selection
+    process_selection "$selection" "$project" "$selector_type"
+}
+
+main "$@"
