@@ -1,34 +1,87 @@
 #!/usr/bin/env bash
-# Generate a background color escape code based on project name
-# Uses high-contrast colors that work well on dark backgrounds
-# All sessions for same project get same color
+# Sets tmux user options for session name badge color
+# Uses MD5 hash of project name to derive a unique hue
+# HSL constrained: saturation 60-80%, lightness 45-60% — always vibrant
+# Called via hooks on session creation/switch and on config load
 
 session_name=$(tmux display-message -p '#S' 2>/dev/null)
 
 if [[ -z "$session_name" ]]; then
-    echo "#[bg=cyan]"
+    tmux set @session-bg "#56b6c2"
+    tmux set @session-fg "black"
     exit 0
 fi
 
 # Extract project name (everything before last hyphen segment)
-# e.g., "myproject-api" -> "myproject", "my-project-web" -> "my-project"
 project_name="${session_name%-*}"
-
-# If no hyphen, use full name
 [[ "$project_name" == "$session_name" ]] && project_name="$session_name"
 
-# Hash the project name and get a number 0-5
-hash=$(echo -n "$project_name" | md5sum | cut -c1-2)
-num=$((16#$hash % 6))
+# Hash project name with MD5
+if command -v md5sum &>/dev/null; then
+    hash=$(echo -n "$project_name" | md5sum | cut -c1-6)
+else
+    hash=$(echo -n "$project_name" | md5 | cut -c1-6)
+fi
 
-# High contrast colors (all work well with black text on dark bg)
-case $num in
-    0) color="#00d7d7" ;;  # cyan
-    1) color="#00d700" ;;  # green
-    2) color="#d7d700" ;;  # yellow
-    3) color="#d75fd7" ;;  # magenta
-    4) color="#ff5f5f" ;;  # red/coral
-    5) color="#5f87ff" ;;  # blue
+# Derive HSL from hash
+# Hue: first 4 chars → 0-65535 → mod 360 (full color wheel)
+# Saturation: char 5 → 0-15 → map to 60-80%
+# Lightness: char 6 → 0-15 → map to 45-60%
+hue=$(( 16#${hash:0:4} % 360 ))
+sat=$(( 16#${hash:4:1} * 20 / 15 + 60 ))
+lit=$(( 16#${hash:5:1} * 15 / 15 + 45 ))
+
+# HSL to RGB conversion (integer math, scaled by 1000)
+s=$(( sat * 10 ))  # 0-1000
+l=$(( lit * 10 ))  # 0-1000
+
+# Chroma: C = (1 - |2L - 1|) * S
+two_l_minus=$(( 2 * l - 1000 ))
+(( two_l_minus < 0 )) && two_l_minus=$(( -two_l_minus ))
+c=$(( (1000 - two_l_minus) * s / 1000 ))
+
+# X = C * (1 - |H/60 mod 2 - 1|)
+h_sector=$(( hue / 60 ))
+h_remainder=$(( (hue % 60) * 1000 / 60 ))  # 0-1000 within sector
+if (( h_sector % 2 == 0 )); then
+    x_abs=$(( h_remainder - 0 ))
+else
+    x_abs=$(( 1000 - h_remainder ))
+fi
+x=$(( c * x_abs / 1000 ))
+
+# Match lightness: m = L - C/2
+m=$(( l - c / 2 ))
+
+# Assign RGB based on hue sector
+case $h_sector in
+    0) r1=$c; g1=$x; b1=0 ;;
+    1) r1=$x; g1=$c; b1=0 ;;
+    2) r1=0;  g1=$c; b1=$x ;;
+    3) r1=0;  g1=$x; b1=$c ;;
+    4) r1=$x; g1=0;  b1=$c ;;
+    *) r1=$c; g1=0;  b1=$x ;;
 esac
 
-echo "#[bg=$color]"
+# Convert to 0-255 range
+r=$(( (r1 + m) * 255 / 1000 ))
+g=$(( (g1 + m) * 255 / 1000 ))
+b=$(( (b1 + m) * 255 / 1000 ))
+
+# Clamp
+(( r > 255 )) && r=255; (( r < 0 )) && r=0
+(( g > 255 )) && g=255; (( g < 0 )) && g=0
+(( b > 255 )) && b=255; (( b < 0 )) && b=0
+
+printf -v color "%02x%02x%02x" "$r" "$g" "$b"
+
+# Determine foreground contrast via perceived brightness
+brightness=$(( (r * 299 + g * 587 + b * 114) / 1000 ))
+if (( brightness > 128 )); then
+    fg="black"
+else
+    fg="white"
+fi
+
+tmux set @session-bg "#$color"
+tmux set @session-fg "$fg"
