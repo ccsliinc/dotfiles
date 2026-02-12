@@ -102,6 +102,9 @@ export DEBUG=false
 
 source "$ZSH/oh-my-zsh.sh"
 
+# Prepend tmux escape indicator to prompt
+PROMPT="${TMUX_INDICATOR}${PROMPT}"
+
 # Error if dotfiles location still not set
 if [[ -z "$DOTFILESLOC" ]]; then
     echo "There is an error with your profile setup."
@@ -156,3 +159,31 @@ _intellij_tmux_init
 
 # Alias for manual invocation
 alias ts="$HOME/.dotfiles/base/scripts/my-tmux-session-picker"
+
+# Claude Code Tab - new tmux window, just type 'cct'
+cct() {
+  if [ -n "$TMUX" ]; then
+    tmux new-window
+  else
+    echo "⚠️  Not in tmux! Start a session first with 'ts'"
+  fi
+}
+
+# Claude Code Tab in directory - 'cctd ~/path'
+cctd() {
+  if [ -n "$TMUX" ]; then
+    tmux new-window -c "${1:-.}"
+  else
+    echo "⚠️  Not in tmux! Start a session first with 'ts'"
+  fi
+}
+
+# Visual indicator when outside tmux - bold red background block
+if [ -z "$TMUX" ]; then
+  export TMUX_INDICATOR="%K{red}%F{white}%B ⚠ NOT IN TMUX %b%f%k "
+else
+  export TMUX_INDICATOR=""
+fi
+
+# opencode
+export PATH=/Users/jsugamele/.opencode/bin:$PATH
