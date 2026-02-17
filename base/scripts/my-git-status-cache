@@ -11,7 +11,7 @@
 #   my-git-status-cache read dotfiles                 # Read cached status (instant)
 
 CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/dotfiles"
-CACHE_MAX_AGE=${DOTFILES_CACHE_AGE:-14400}  # 4 hours in seconds
+CACHE_MAX_AGE=${DOTFILES_CACHE_AGE:-172800}  # 2 days in seconds
 
 # Ensure cache directory exists
 mkdir -p "$CACHE_DIR" 2>/dev/null
@@ -111,11 +111,16 @@ _check_and_update() {
         return 0
     fi
 
-    # Cache is stale - spawn background update
-    ( _update_cache "$repo_name" "$repo_path" & ) 2>/dev/null
-
-    # Return stale cache for now (or uncached if none)
-    _read_cache "$repo_name"
+    # Cache is stale - do synchronous refresh for accurate status
+    if [[ -t 0 ]]; then
+        # Interactive shell: fetch fresh status (brief delay is acceptable)
+        _update_cache "$repo_name" "$repo_path"
+        _read_cache "$repo_name"
+    else
+        # Non-interactive: background refresh, return stale cache
+        ( _update_cache "$repo_name" "$repo_path" & ) 2>/dev/null
+        _read_cache "$repo_name"
+    fi
 }
 
 # Main command dispatcher

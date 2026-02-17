@@ -53,7 +53,17 @@ my_profile_update_check() {
             fi
             ;;
         push_needed)
-            echo "[dotfiles] Local changes need to be pushed"
+            if [[ -t 0 ]]; then
+                echo "[dotfiles] Local changes need to be pushed"
+                read -e -p "Push changes now? [y/N]: " -r REPLY
+                if [[ $REPLY =~ ^[Yy]$ ]]; then
+                    echo "Pushing dotfiles..."
+                    git -C "$DOTFILESLOC" push && echo "Push successful." || echo "Push failed - check remote configuration."
+                    my-git-status-cache update dotfiles "$DOTFILESLOC" &>/dev/null &
+                fi
+            else
+                echo "[dotfiles] Local changes need to be pushed"
+            fi
             ;;
         diverged)
             echo "[dotfiles] Repository has diverged from remote"

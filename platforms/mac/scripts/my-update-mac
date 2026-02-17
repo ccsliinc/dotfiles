@@ -198,7 +198,7 @@ Keep it concise. Use the color codes exactly as shown - they will be interpreted
                     if [[ -n $(git status --porcelain 2>/dev/null) ]]; then
                         git add -A
                         git commit -m "Auto-backup $(date '+%Y-%m-%d %H:%M')" 2>/dev/null || true
-                        git push gogs master 2>/dev/null || echo "Failed to push to Gogs (offline?)"
+                        git push gogs master 2>&1 || echo "⚠️  Failed to push to Gogs - check remote: git -C ~/.claude remote -v"
                     else
                         echo "No changes to backup"
                     fi
@@ -249,7 +249,23 @@ Keep it concise. Use the color codes exactly as shown - they will be interpreted
 
         echo ""
         echo "## Updating Composer packages..."
-        composer global update 2>/dev/null || echo "composer update failed or not available"
+        local composer_output
+        composer_output=$(composer global update 2>&1)
+        local composer_exit=$?
+        if [[ $composer_exit -ne 0 ]]; then
+            echo "$composer_output"
+            if echo "$composer_output" | grep -qi "authentication\|token\|oauth\|unauthorized\|403"; then
+                echo ""
+                echo -e "⚠️  Composer authentication error detected!"
+                echo "Fix with: composer config --global --unset github-oauth.github.com"
+                echo "Then add new token: composer config --global github-oauth.github.com YOUR_TOKEN"
+                echo "Get token at: https://github.com/settings/tokens"
+            else
+                echo "composer update failed (exit code: $composer_exit)"
+            fi
+        else
+            echo "$composer_output"
+        fi
 
         echo ""
         echo "## Update completed successfully!"
