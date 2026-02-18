@@ -52,7 +52,7 @@ my_claude_sync_check() {
                     echo "Pushing Claude config..."
                     git -C "$CLAUDE_DIR" add -A
                     git -C "$CLAUDE_DIR" commit -m "Sync $(date '+%Y-%m-%d %H:%M')" 2>/dev/null
-                    git -C "$CLAUDE_DIR" push gogs master && echo "Push successful." || echo "Push failed - check remote: git -C ~/.claude remote -v"
+                    git -C "$CLAUDE_DIR" push gogs HEAD && echo "Push successful." || echo "Push failed - check remote: git -C ~/.claude remote -v"
                     my-git-status-cache update claude "$CLAUDE_DIR" &>/dev/null &
                 fi
             fi

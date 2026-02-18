@@ -198,7 +198,7 @@ Keep it concise. Use the color codes exactly as shown - they will be interpreted
                     if [[ -n $(git status --porcelain 2>/dev/null) ]]; then
                         git add -A
                         git commit -m "Auto-backup $(date '+%Y-%m-%d %H:%M')" 2>/dev/null || true
-                        git push gogs master 2>&1 || echo "⚠️  Failed to push to Gogs - check remote: git -C ~/.claude remote -v"
+                        git push gogs HEAD 2>&1 || echo "⚠️  Failed to push to Gogs - check remote: git -C ~/.claude remote -v"
                     else
                         echo "No changes to backup"
                     fi
