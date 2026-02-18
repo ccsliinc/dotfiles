@@ -37,7 +37,8 @@ my_profile_update_check() {
             if [[ -t 0 ]]; then
                 # Interactive: prompt user
                 echo "Dotfiles update available!"
-                read -e -p "Do you want to update the profile? [y/N]: " -r REPLY
+                printf "Do you want to update the profile? [y/N]: "
+                read -r REPLY
                 if [[ $REPLY =~ ^[Yy]$ ]]; then
                     echo "Updating dotfiles..."
                     git -C "$DOTFILESLOC" pull
@@ -55,7 +56,8 @@ my_profile_update_check() {
         push_needed)
             if [[ -t 0 ]]; then
                 echo "[dotfiles] Local changes need to be pushed"
-                read -e -p "Push changes now? [y/N]: " -r REPLY
+                printf "Push changes now? [y/N]: "
+                read -r REPLY
                 if [[ $REPLY =~ ^[Yy]$ ]]; then
                     echo "Pushing dotfiles..."
                     git -C "$DOTFILESLOC" push && echo "Push successful." || echo "Push failed - check remote configuration."

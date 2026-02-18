@@ -31,7 +31,8 @@ my_claude_sync_check() {
             if [[ -t 0 ]]; then
                 # Interactive: prompt user
                 echo -e "\033[33m[Claude Config]\033[0m Updates available from remote"
-                read -e -p "Pull latest Claude config? [y/N]: " -r REPLY
+                printf "Pull latest Claude config? [y/N]: "
+                read -r REPLY
                 if [[ $REPLY =~ ^[Yy]$ ]]; then
                     echo "Pulling Claude config updates..."
                     git -C "$CLAUDE_DIR" pull
@@ -45,11 +46,13 @@ my_claude_sync_check() {
             if [[ -t 0 ]]; then
                 # Interactive: prompt user
                 echo -e "\033[33m[Claude Config]\033[0m Local changes not pushed"
-                read -e -p "Push local Claude config changes? [y/N]: " -r REPLY
+                printf "Push local Claude config changes? [y/N]: "
+                read -r REPLY
                 if [[ $REPLY =~ ^[Yy]$ ]]; then
                     echo "Pushing Claude config..."
-                    git -C "$CLAUDE_DIR" add -A && git -C "$CLAUDE_DIR" commit -m "Sync Claude config" && git -C "$CLAUDE_DIR" push
-                    # Refresh cache after push
+                    git -C "$CLAUDE_DIR" add -A
+                    git -C "$CLAUDE_DIR" commit -m "Sync $(date '+%Y-%m-%d %H:%M')" 2>/dev/null
+                    git -C "$CLAUDE_DIR" push gogs master && echo "Push successful." || echo "Push failed - check remote: git -C ~/.claude remote -v"
                     my-git-status-cache update claude "$CLAUDE_DIR" &>/dev/null &
                 fi
             fi
