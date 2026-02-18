@@ -16,8 +16,8 @@ source "$DOTFILESLOC/platforms/mac/iterm2_tui.sh"
 # Check if Claude config needs syncing
 my-claude-sync-check
 
-# Uncomment to run auto-update on shell load (not recommended for regular use)
-# my-update-mac
+# Check for system updates on shell load (prompts if > 4 days since last update)
+my-update-mac
 # Push both dotfiles repos (main + _reference.local)
 dotpush() {
     echo "Pushing main dotfiles repo..."
