@@ -1,0 +1,102 @@
+#!/bin/bash
+# Function: my-project-archive
+# Purpose: Archive a project directory with best compression to a sibling _archive folder
+# Usage: my-project-archive [project_dir]
+# Example: my-project-archive ~/Development/Production/myapp
+# Platform: macOS (requires zstd via brew or xz)
+# Dependencies: tar, zstd (preferred) or xz
+
+my_project_archive() {
+    local project_dir="${1:-$PWD}"
+
+    # Help flag
+    if [[ "$1" == "--help" || "$1" == "-h" ]]; then
+        echo "Usage: my-project-archive [project_dir]"
+        echo ""
+        echo "  Archives a project directory to a sibling _archive/ folder."
+        echo "  Compression: zstd -19 (preferred) or xz -9 fallback."
+        echo ""
+        echo "  project_dir   Path to project (default: current directory)"
+        echo ""
+        echo "Example:"
+        echo "  my-project-archive ~/Development/myapp"
+        return 0
+    fi
+
+    # Resolve absolute path
+    project_dir="$(cd "$project_dir" 2>/dev/null && pwd)"
+    if [[ -z "$project_dir" ]]; then
+        echo "Error: project_dir does not exist: ${1:-$PWD}" >&2
+        return 1
+    fi
+
+    local project_name
+    project_name="$(basename "$project_dir")"
+    local parent_dir
+    parent_dir="$(dirname "$project_dir")"
+    local archive_dir="${parent_dir}/_archive"
+    local timestamp
+    timestamp="$(date +%Y-%m-%d_%H%M%S)"
+
+    # Create _archive dir if needed
+    mkdir -p "$archive_dir"
+
+    # Determine compression method
+    local archive_file
+    local compress_cmd
+    if command -v zstd &>/dev/null; then
+        archive_file="${archive_dir}/${project_name}_${timestamp}.tar.zst"
+        compress_cmd="zstd -19 -T0"
+        echo "Compression: zstd -19 (max compression)"
+    else
+        archive_file="${archive_dir}/${project_name}_${timestamp}.tar.xz"
+        compress_cmd="xz -9"
+        echo "Compression: xz -9 (fallback)"
+    fi
+
+    echo "Archiving: $project_dir"
+    echo "      To: $archive_file"
+    echo ""
+
+    # Get original size before archiving
+    local original_size
+    original_size="$(du -sh "$project_dir" 2>/dev/null | cut -f1)"
+
+    # Create archive with relative paths
+    if command -v zstd &>/dev/null; then
+        tar -C "$parent_dir" -c "${project_name}/" | zstd -19 -T0 -o "$archive_file"
+    else
+        tar -C "$parent_dir" -cJf "$archive_file" "${project_name}/"
+    fi
+
+    local tar_exit=$?
+    if [[ $tar_exit -ne 0 ]]; then
+        echo "Error: archiving failed (exit $tar_exit)" >&2
+        return 1
+    fi
+
+    # Get compressed size
+    local compressed_size
+    compressed_size="$(du -sh "$archive_file" 2>/dev/null | cut -f1)"
+
+    # Compute ratio using byte counts
+    local orig_bytes compressed_bytes ratio
+    orig_bytes="$(du -sk "$project_dir" 2>/dev/null | cut -f1)"
+    compressed_bytes="$(du -sk "$archive_file" 2>/dev/null | cut -f1)"
+    if [[ $orig_bytes -gt 0 ]]; then
+        ratio="$(awk "BEGIN { printf \"%.1f\", ($compressed_bytes / $orig_bytes) * 100 }")%"
+    else
+        ratio="N/A"
+    fi
+
+    echo "Done."
+    echo "  Archive:           $archive_file"
+    echo "  Original size:     $original_size"
+    echo "  Compressed size:   $compressed_size"
+    echo "  Compression ratio: $ratio of original"
+}
+
+# Execute if called directly (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    my_project_archive "$@"
+fi
