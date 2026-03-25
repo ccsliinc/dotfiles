@@ -34,7 +34,6 @@ my_project_unarchive() {
             return 1
         fi
 
-        # Collect matching archive files
         local archives=()
         while IFS= read -r -d '' f; do
             archives+=("$f")
@@ -84,17 +83,59 @@ my_project_unarchive() {
     fi
     dest_dir="$(cd "$dest_dir" && pwd)"
 
-    echo "Extracting: $archive_file"
+    # Pre-flight confirmation
+    echo "Archive:       $archive_file"
+    echo "Extracting to: $dest_dir/"
+    echo ""
+    printf "Confirm? [y/N]: "
+    read -r confirm
+    if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+        echo "Aborted."
+        return 0
+    fi
+
+    # Peek inside archive for top-level folder name
+    local folder_name
+    case "$archive_file" in
+        *.tar.zst)
+            if ! command -v zstd &>/dev/null; then
+                echo "Error: zstd is required to read .tar.zst archives. Install via: brew install zstd" >&2
+                return 1
+            fi
+            folder_name="$(zstd -d "$archive_file" --stdout 2>/dev/null | tar -t 2>/dev/null | head -1 | cut -d/ -f1)"
+            ;;
+        *.tar.xz)
+            folder_name="$(tar -tJf "$archive_file" 2>/dev/null | head -1 | cut -d/ -f1)"
+            ;;
+        *.tar.gz)
+            folder_name="$(tar -tzf "$archive_file" 2>/dev/null | head -1 | cut -d/ -f1)"
+            ;;
+        *)
+            echo "Error: unsupported archive format. Supported: .tar.zst, .tar.xz, .tar.gz" >&2
+            return 1
+            ;;
+    esac
+
+    if [[ -z "$folder_name" ]]; then
+        echo "Error: could not determine top-level folder in archive" >&2
+        return 1
+    fi
+
+    # Destination conflict check
+    if [[ -e "$dest_dir/$folder_name" ]]; then
+        echo "Warning: destination already exists: $dest_dir/$folder_name"
+        echo "Aborting to prevent overwrite. Move or rename it first."
+        return 1
+    fi
+
+    echo ""
+    echo "Extracting: $(basename "$archive_file")"
     echo "        To: $dest_dir"
     echo ""
 
     # Auto-detect format and extract
     case "$archive_file" in
         *.tar.zst)
-            if ! command -v zstd &>/dev/null; then
-                echo "Error: zstd is required to extract .tar.zst archives. Install via: brew install zstd" >&2
-                return 1
-            fi
             zstd -d "$archive_file" --stdout | tar -C "$dest_dir" -x
             ;;
         *.tar.xz)
@@ -102,10 +143,6 @@ my_project_unarchive() {
             ;;
         *.tar.gz)
             tar -C "$dest_dir" -xzf "$archive_file"
-            ;;
-        *)
-            echo "Error: unsupported archive format. Supported: .tar.zst, .tar.xz, .tar.gz" >&2
-            return 1
             ;;
     esac
 
@@ -115,7 +152,30 @@ my_project_unarchive() {
         return 1
     fi
 
-    echo "Done. Extracted to: $dest_dir"
+    # Completion verification
+    echo "Verifying extraction..."
+    if [[ -d "$dest_dir/$folder_name" ]]; then
+        local file_count
+        file_count="$(find "$dest_dir/$folder_name" | wc -l | tr -d ' ')"
+        if [[ $file_count -gt 0 ]]; then
+            echo "  Extraction verified: $folder_name/ ($file_count files/dirs)"
+        else
+            echo "  Verification FAILED: directory is empty" >&2
+            return 1
+        fi
+    else
+        echo "  Verification FAILED: extracted folder not found" >&2
+        return 1
+    fi
+
+    # Option to remove archive
+    echo ""
+    printf "Remove archive file? %s [y/N]: " "$archive_file"
+    read -r remove_arc
+    if [[ "$remove_arc" == "y" || "$remove_arc" == "Y" ]]; then
+        rm -f "$archive_file"
+        echo "Removed: $archive_file"
+    fi
 }
 
 # Execute if called directly (not sourced)

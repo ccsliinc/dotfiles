@@ -38,24 +38,78 @@ my_project_archive() {
     local timestamp
     timestamp="$(date +%Y-%m-%d_%H%M%S)"
 
+    # Determine compression method
+    local archive_file compress_label
+    if command -v zstd &>/dev/null; then
+        archive_file="${archive_dir}/${project_name}_${timestamp}.tar.zst"
+        compress_label="zstd -19"
+    else
+        archive_file="${archive_dir}/${project_name}_${timestamp}.tar.xz"
+        compress_label="xz -9"
+    fi
+
+    # Pre-flight confirmation
+    echo "Project:     $project_dir"
+    echo "Archive to:  $archive_file"
+    echo "Compression: $compress_label"
+    echo ""
+    printf "Confirm? [y/N]: "
+    read -r confirm
+    if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+        echo "Aborted."
+        return 0
+    fi
+
     # Create _archive dir if needed
     mkdir -p "$archive_dir"
 
-    # Determine compression method
-    local archive_file
-    local compress_cmd
-    if command -v zstd &>/dev/null; then
-        archive_file="${archive_dir}/${project_name}_${timestamp}.tar.zst"
-        compress_cmd="zstd -19 -T0"
-        echo "Compression: zstd -19 (max compression)"
-    else
-        archive_file="${archive_dir}/${project_name}_${timestamp}.tar.xz"
-        compress_cmd="xz -9"
-        echo "Compression: xz -9 (fallback)"
+    # Existing archive detection
+    local existing=()
+    while IFS= read -r -d '' f; do
+        existing+=("$f")
+    done < <(find "$archive_dir" -maxdepth 1 -name "${project_name}_*.tar.*" -print0 2>/dev/null | sort -z)
+
+    if [[ ${#existing[@]} -gt 0 ]]; then
+        echo ""
+        echo "Existing archive(s) found for \"$project_name\":"
+        local i=1
+        for f in "${existing[@]}"; do
+            local fsize
+            fsize="$(du -sh "$f" 2>/dev/null | cut -f1)"
+            echo "  $i) $(basename "$f")  (${fsize})"
+            ((i++))
+        done
+        echo ""
+        echo "Options:"
+        echo "  [1] Add new backup (keep existing)"
+        echo "  [2] Remove and replace (delete existing first)"
+        echo "  [q] Quit"
+        echo ""
+        printf "Choice [1]: "
+        read -r choice
+        choice="${choice:-1}"
+        case "$choice" in
+            1) : ;;
+            2)
+                for f in "${existing[@]}"; do
+                    rm -f "$f"
+                    echo "Removed: $f"
+                done
+                ;;
+            q|Q)
+                echo "Aborted."
+                return 0
+                ;;
+            *)
+                echo "Invalid choice. Aborted." >&2
+                return 1
+                ;;
+        esac
     fi
 
+    echo ""
     echo "Archiving: $project_dir"
-    echo "      To: $archive_file"
+    echo "      To:  $archive_file"
     echo ""
 
     # Get original size before archiving
@@ -75,12 +129,9 @@ my_project_archive() {
         return 1
     fi
 
-    # Get compressed size
-    local compressed_size
+    # Get compressed size and ratio
+    local compressed_size orig_bytes compressed_bytes ratio
     compressed_size="$(du -sh "$archive_file" 2>/dev/null | cut -f1)"
-
-    # Compute ratio using byte counts
-    local orig_bytes compressed_bytes ratio
     orig_bytes="$(du -sk "$project_dir" 2>/dev/null | cut -f1)"
     compressed_bytes="$(du -sk "$archive_file" 2>/dev/null | cut -f1)"
     if [[ $orig_bytes -gt 0 ]]; then
@@ -94,6 +145,32 @@ my_project_archive() {
     echo "  Original size:     $original_size"
     echo "  Compressed size:   $compressed_size"
     echo "  Compression ratio: $ratio of original"
+    echo ""
+
+    # Integrity verification
+    echo "Verifying archive integrity..."
+    local verify_ok=0
+    case "$archive_file" in
+        *.tar.zst) zstd -t "$archive_file" &>/dev/null && verify_ok=1 ;;
+        *.tar.xz)  xz -t "$archive_file" &>/dev/null && verify_ok=1 ;;
+        *)         verify_ok=1 ;;
+    esac
+
+    if [[ $verify_ok -eq 1 ]]; then
+        echo "  Archive verified OK"
+    else
+        echo "  Verification FAILED" >&2
+        return 1
+    fi
+
+    # Option to remove source
+    echo ""
+    printf "Remove source directory? %s [y/N]: " "$project_dir"
+    read -r remove_src
+    if [[ "$remove_src" == "y" || "$remove_src" == "Y" ]]; then
+        rm -rf "$project_dir"
+        echo "Removed: $project_dir"
+    fi
 }
 
 # Execute if called directly (not sourced)
