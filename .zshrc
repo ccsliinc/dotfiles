@@ -155,7 +155,7 @@ _intellij_tmux_init() {
 }
 
 # Run on shell startup
-_intellij_tmux_init
+# _intellij_tmux_init
 
 # Alias for manual invocation
 alias ts="$HOME/.dotfiles/base/scripts/my-tmux-session-picker"
@@ -187,3 +187,4 @@ fi
 
 # opencode
 export PATH=/Users/jsugamele/.opencode/bin:$PATH
+export PATH="$PATH:/Applications/010 Editor.app/Contents/CmdLine" #ADDED BY 010 EDITOR

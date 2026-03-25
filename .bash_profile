@@ -34,3 +34,4 @@ fi
 # For local changes
 # Don't make edits below this
 [[ -f ~/.bash_profile.local ]] && source "$HOME/.bash_profile.local"
+export PATH="$PATH:/Applications/010 Editor.app/Contents/CmdLine" #ADDED BY 010 EDITOR
