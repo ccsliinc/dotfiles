@@ -1,0 +1,124 @@
+#!/bin/bash
+# Function: my-project-unarchive
+# Purpose: Extract a project archive back to a destination directory
+# Usage: my-project-unarchive [archive_file] [destination_dir]
+# Example: my-project-unarchive _archive/myapp_2025-01-01_120000.tar.zst ~/Development/
+# Platform: macOS (requires zstd via brew for .tar.zst files)
+# Dependencies: tar, zstd (for .tar.zst), fzf (optional, for interactive selection)
+
+my_project_unarchive() {
+    local archive_file="$1"
+    local dest_dir="${2:-$PWD}"
+
+    # Help flag
+    if [[ "$1" == "--help" || "$1" == "-h" ]]; then
+        echo "Usage: my-project-unarchive [archive_file] [destination_dir]"
+        echo ""
+        echo "  Extracts a project archive into destination_dir."
+        echo "  If archive_file is omitted, looks for _archive/ in current directory"
+        echo "  and prompts for selection (fzf if available, numbered list otherwise)."
+        echo ""
+        echo "  archive_file    Path to .tar.zst, .tar.xz, or .tar.gz archive"
+        echo "  destination_dir Target directory (default: current directory)"
+        echo ""
+        echo "Example:"
+        echo "  my-project-unarchive _archive/myapp_2025-01-01_120000.tar.zst ~/Development/"
+        return 0
+    fi
+
+    # If no archive file given, look in _archive/
+    if [[ -z "$archive_file" ]]; then
+        local archive_search_dir="${PWD}/_archive"
+        if [[ ! -d "$archive_search_dir" ]]; then
+            echo "Error: no archive file specified and no _archive/ directory found in $PWD" >&2
+            return 1
+        fi
+
+        # Collect matching archive files
+        local archives=()
+        while IFS= read -r -d '' f; do
+            archives+=("$f")
+        done < <(find "$archive_search_dir" -maxdepth 1 \( -name "*.tar.zst" -o -name "*.tar.xz" -o -name "*.tar.gz" \) -print0 | sort -z)
+
+        if [[ ${#archives[@]} -eq 0 ]]; then
+            echo "Error: no archives found in $archive_search_dir" >&2
+            return 1
+        fi
+
+        if command -v fzf &>/dev/null; then
+            archive_file="$(printf '%s\n' "${archives[@]}" | fzf --prompt="Select archive: ")"
+            if [[ -z "$archive_file" ]]; then
+                echo "No archive selected. Aborting." >&2
+                return 1
+            fi
+        else
+            echo "Available archives:"
+            local i=1
+            for f in "${archives[@]}"; do
+                echo "  $i) $(basename "$f")"
+                ((i++))
+            done
+            printf "Select archive number: "
+            read -r selection
+            if ! [[ "$selection" =~ ^[0-9]+$ ]] || [[ $selection -lt 1 || $selection -gt ${#archives[@]} ]]; then
+                echo "Invalid selection." >&2
+                return 1
+            fi
+            archive_file="${archives[$((selection - 1))]}"
+        fi
+    fi
+
+    # Validate archive file exists
+    if [[ ! -f "$archive_file" ]]; then
+        echo "Error: archive file not found: $archive_file" >&2
+        return 1
+    fi
+
+    # Resolve absolute path of archive
+    archive_file="$(cd "$(dirname "$archive_file")" && pwd)/$(basename "$archive_file")"
+
+    # Validate destination dir
+    if [[ ! -d "$dest_dir" ]]; then
+        echo "Error: destination directory does not exist: $dest_dir" >&2
+        return 1
+    fi
+    dest_dir="$(cd "$dest_dir" && pwd)"
+
+    echo "Extracting: $archive_file"
+    echo "        To: $dest_dir"
+    echo ""
+
+    # Auto-detect format and extract
+    case "$archive_file" in
+        *.tar.zst)
+            if ! command -v zstd &>/dev/null; then
+                echo "Error: zstd is required to extract .tar.zst archives. Install via: brew install zstd" >&2
+                return 1
+            fi
+            zstd -d "$archive_file" --stdout | tar -C "$dest_dir" -x
+            ;;
+        *.tar.xz)
+            tar -C "$dest_dir" -xJf "$archive_file"
+            ;;
+        *.tar.gz)
+            tar -C "$dest_dir" -xzf "$archive_file"
+            ;;
+        *)
+            echo "Error: unsupported archive format. Supported: .tar.zst, .tar.xz, .tar.gz" >&2
+            return 1
+            ;;
+    esac
+
+    local exit_code=$?
+    if [[ $exit_code -ne 0 ]]; then
+        echo "Error: extraction failed (exit $exit_code)" >&2
+        return 1
+    fi
+
+    echo "Done. Extracted to: $dest_dir"
+}
+
+# Execute if called directly (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    my_project_unarchive "$@"
+fi
