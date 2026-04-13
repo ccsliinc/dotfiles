@@ -206,6 +206,14 @@ install_cron_jobs() {
     jobs_added=0
     jobs_skipped=0
 
+    # Ensure @reboot entry exists for autorunmaster.sh itself
+    AUTORUN_ENTRY="@reboot $DOTFILESLOC/platforms/qnap/boot/autorunmaster.sh"
+    if ! grep -qF "autorunmaster.sh" "$CRONTAB_FILE" 2>/dev/null; then
+        echo "$AUTORUN_ENTRY" >> "$CRONTAB_FILE"
+        log "  ADDED: autorunmaster.sh [@reboot]"
+        jobs_added=$((jobs_added + 1))
+    fi
+
     for script in "$CRON_DIR"/*.sh; do
         [ ! -f "$script" ] && continue
 
