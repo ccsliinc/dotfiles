@@ -12,7 +12,7 @@ EOF
 
 if [[ "$OS" == "mac" ]]; then
     echo "$SUDO" | sudo tee -a "/private/etc/sudoers.d/$(whoami)_grant_root"
-elif [[ "$OS" == "gnu" ]] || [[ "$OS" == "raspi" ]]; then
+elif [[ "$OS" == "linux" ]] || [[ "$OS" == "raspi" ]]; then
     echo "$SUDO" | sudo tee -a "/etc/sudoers.d/$(whoami)_grant_root"
     sudo chmod 0440 "/etc/sudoers.d/$(whoami)_grant_root"
 elif [[ "$OS" == "qnap" ]]; then
