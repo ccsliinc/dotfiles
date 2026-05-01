@@ -39,7 +39,7 @@ checkPlatform(){
 		qnap)
 			return 0
 			;;
-		linux)
+		gnu|linux)
 			return 0
 			;;
 		*)
