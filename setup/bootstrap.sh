@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Check for bash shell
-if [[ -z $BASH ]] || [[ "$BASH" != "/bin/bash" ]] ;then
+if [[ -z $BASH ]] || [[ "$(basename "$BASH")" != "bash" ]] ;then
 	echo
 	echo "${LRED}Please run this script $0 with bash.${NOCOLOR}"
 	echo
