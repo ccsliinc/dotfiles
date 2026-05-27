@@ -6,9 +6,11 @@
 #          to detect silent disk corruption ("bit rot"). Picker is oldest-
 #          first, so a full library pass completes in ~50 weeks while the
 #          per-tick load stays cheap (~15 min for ~800 files).
-# Schedule: Wednesday 04:00 — spread away from encode-cron (0 */6 * * *)
-#           and refetch-cron, and well clear of the nightly backup window.
-# CRON: 0 4 * * 3
+# Schedule: Wednesday 04:30 — offset 30 min off the 04:00 encode-cron wave
+#           (encode runs `0 */6 * * *` and was colliding at 04:00, causing the
+#           integrity gate `no_other_pipeline` to defer). Still clear of
+#           refetch-cron (`0 */3 * * *`) and the nightly backup window.
+# CRON: 30 4 * * 3
 # ============================================================================
 
 # Set HOME for root user (QNAP default when invoked by crond)
