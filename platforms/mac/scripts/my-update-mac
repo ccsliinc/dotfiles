@@ -3,12 +3,40 @@
 # Purpose: Comprehensive macOS system update (Homebrew, npm, composer, App Store) with LLM analysis
 # Usage: my-update-mac [options]
 # Platform: macOS (requires Homebrew, npm, composer, mas)
-# Dependencies: brew, npm, composer, mas, apm (optional), llm (optional for analysis)
-# Version: 2.0
+# Dependencies: brew, npm, composer, mas, afm-cli (Apple on-device model, optional for analysis)
+# Version: 2.5
+# Changelog (2.5):
+#   - npm: prune leftover @anthropic-ai/.claude-code-* staging dirs that abort
+#     `npm update -g` with EINVALIDPACKAGENAME (was failing every run)
+#   - Cellar permission fix now blanket-chowns /opt/homebrew/Cellar (was php-only),
+#     eliminating brew cleanup "Permission denied" on nginx/other kegs
+#   - Unlinked kegs surfaced in the end-of-run summary with the brew link fix
+# Changelog (2.4):
+#   - export HOMEBREW_ACCEPT_EULA=Y before brew upgrade so vendor EULA prompts
+#     (e.g. Microsoft msodbcsql) auto-accept instead of silently hanging the run
+# Changelog (2.3):
+#   - LLM summary now uses Apple's on-device Foundation model via afm-cli
+#     (Ollama + the `llm` dependency removed). Log is pre-reduced to fit the
+#     4096-token on-device context cap. On failure: warns, no fallback, dumps raw log.
+# Changelog (2.2):
+#   - composer global update now runs --no-interaction so an expired GitHub
+#     token can never hang the run at an auth prompt (warns + moves on instead)
+# Changelog (2.1):
+#   - Backup dirs auto-created; per-backup success/failure visible
+#   - Timestamp now bumped only on success (failures retry next run)
+#   - pipefail + failure counter + conditional success/warning banner
+#   - Gogs remote (10.0.10.70 IP) verification; pushes current branch explicitly
+#   - Colored section headers; mas/brew/npm "none" messages; sudo warning
+#   - LLM-down fallback prints raw log; TTY-guarded confirm prompt
+#   - Removed dead Atom apm block
+#   - NEW: Composer GitHub token pre-flight check
+#   - NEW: macOS system update listing (softwareupdate -l, list-only)
+#   - NEW: deterministic end-of-run change summary
 
 my_update_mac() {
+    set -o pipefail
     local SCRIPT_NAME=$(basename "$0")
-    local VERSION='2.0'
+    local VERSION='2.5'
 
     # Configuration
     local force_update=false
@@ -59,19 +87,9 @@ EXAMPLES:
 EOF
     }
 
-    # Check if LLM is available
-    has_llm() {
-        command -v llm &>/dev/null
-    }
-
-    # Check if Ollama is available
-    check_ollama() {
-        if ! ollama list &>/dev/null; then
-            echo -e "${RED}Ollama not running${NC}"
-            echo -e "${YELLOW}Start with: brew services start ollama${NC}"
-            return 1
-        fi
-        return 0
+    # Check if Apple's on-device model CLI is available
+    has_afm() {
+        command -v afm-cli &>/dev/null
     }
 
     # Run LLM analysis on output
@@ -81,17 +99,18 @@ EOF
             return 1
         fi
 
-        if ! has_llm; then
-            echo -e "${YELLOW}LLM not installed - skipping analysis${NC}"
-            echo -e "Install with: ${CYAN}my-setup-ollama${NC}"
-            return 0
+        if ! has_afm; then
+            echo -e "${YELLOW}⚠️  afm-cli not installed — cannot summarize via Apple's on-device model.${NC}"
+            echo -e "${YELLOW}    Install: brew install CreevekCZ/tap/afm-cli  (needs Apple Intelligence enabled)${NC}"
+            echo -e "${YELLOW}Showing raw update log instead:${NC}"
+            tail -60 "$output_file"
+            return 1
         fi
 
-        # Verify Ollama is running (for local models)
-        check_ollama || return 1
-
-        # Clear screen before showing summary
-        clear
+        # Separator so the summary appends below the live log (no screen clear)
+        echo ""
+        echo -e "${CYAN}───────────────────────────────────────────────────────────${NC}"
+        echo "(full live log above; raw log at $output_file)"
 
         echo ""
         echo -e "${BOLD}${CYAN}═══════════════════════════════════════════════════════════${NC}"
@@ -135,25 +154,31 @@ For each warning/error, provide a specific fix command. Be specific - look up wh
 
 Keep it concise. Use the color codes exactly as shown - they will be interpreted by the terminal.'
 
-        # Run LLM analysis
-        echo -e "${YELLOW}Analyzing update output...${NC}"
+        # Run analysis via Apple's on-device Foundation model (afm-cli)
+        echo -e "${YELLOW}Analyzing update output (Apple on-device model)...${NC}"
         echo ""
 
         # Analysis summary file
         local summary_file="$HOME/.update_mac_summary.txt"
 
-        # Run LLM and save output
+        # The on-device model is hard-capped at 4096 tokens (input+output combined).
+        # The raw log is far too big, so pre-reduce to the meaningful lines only:
+        # section headers, per-item ✓/✗/-, warnings/errors, version arrows, summary.
+        local reduced
+        reduced=$(grep -iE '^##|^  ✓|^  ✗|^  -|warning|error|deprecat|outdated|expired|unlinked|→|completed (successfully|with)|Updated at' "$output_file" | head -200)
+        reduced=$(printf '%s\n' "$reduced" | head -c 10000)
+
+        # Format prompt as system prompt; reduced log piped in as stdin
         local llm_result
-        llm_result=$(llm "$prompt" < "$output_file" 2>&1)
+        llm_result=$(printf '%s\n' "$reduced" | afm-cli --system-prompt "$prompt" 2>&1)
         local llm_exit=$?
 
-        # Check for errors
-        if [[ $llm_exit -ne 0 ]] || [[ "$llm_result" == Error:* ]]; then
-            echo -e "${RED}LLM error: ${llm_result}${NC}"
-            echo ""
-            echo -e "${YELLOW}Tip: Start Ollama or set OpenAI model:${NC}"
-            echo "  open -a Ollama"
-            echo "  llm models default gpt-4o-mini"
+        # Warn (no fallback, by design) on failure — show raw log so nothing is lost
+        if [[ $llm_exit -ne 0 ]] || [[ -z "$llm_result" ]]; then
+            echo -e "${RED}⚠️  Apple on-device model failed (exit $llm_exit). No fallback configured.${NC}"
+            echo -e "${YELLOW}    Check: Apple Intelligence enabled (Settings); model may be busy/initializing.${NC}"
+            echo -e "${YELLOW}Showing raw update log instead:${NC}"
+            tail -80 "$output_file"
             return 1
         fi
 
@@ -168,37 +193,68 @@ Keep it concise. Use the color codes exactly as shown - they will be interpreted
         echo ""
     }
 
-    # The actual update function
+    # The actual update function. Returns number of step failures via global UPDATE_FAILURES.
     run_updates() {
+        # Failure tracking (deterministic recap consumes these too)
+        UPDATE_FAILURES=0
+        UPDATE_FAILED_STEPS=""
+        BREW_OUTDATED_COUNT=0
+        NPM_RESULT="not run"
+        COMPOSER_RESULT="not run"
+        MACOS_PENDING="unknown"
+        APPSTORE_PENDING="unknown"
+        UNLINKED_KEGS=""
+
+        # Mark a major step as failed (name, ...)
+        mark_failure() {
+            UPDATE_FAILURES=$((UPDATE_FAILURES + 1))
+            UPDATE_FAILED_STEPS="${UPDATE_FAILED_STEPS}${UPDATE_FAILED_STEPS:+, }$1"
+        }
+
         echo "macOS System Update Starting..."
         echo "=============================="
 
         # Backup system settings
-        echo "## Backing up system settings..."
+        echo -e "${BOLD}${CYAN}## Backing up system settings...${NC}"
         local backup_dir="$HOME/Library/Mobile Documents/com~apple~CloudDocs/Apps"
 
         if [[ -d "$backup_dir" ]]; then
+            # Ensure target subdirs exist (iCloud may have evicted/never-created them)
+            mkdir -p "$backup_dir"/{hosts,brew,npm,composer}
+
             echo "Backing up hosts file..."
-            cp -f /etc/hosts "$backup_dir/hosts/" 2>/dev/null || true
+            if cp -f /etc/hosts "$backup_dir/hosts/"; then echo "  ✓ hosts"; else echo "  ✗ hosts failed"; fi
 
             echo "Backing up Homebrew bundle..."
-            brew bundle dump --force --file="$backup_dir/brew/Brewfile"
+            if brew bundle dump --force --file="$backup_dir/brew/Brewfile"; then echo "  ✓ Brewfile"; else echo "  ✗ Brewfile failed"; fi
 
             echo "Backing up global npm packages..."
-            npm list --global --parseable --depth=0 2>/dev/null | sed '1d' | awk '{gsub(/\/.*\//,"",$1); print}' > "$backup_dir/npm/npm.txt" 2>/dev/null || true
+            if npm list --global --parseable --depth=0 2>/dev/null | sed '1d' | awk '{gsub(/\/.*\//,"",$1); print}' > "$backup_dir/npm/npm.txt"; then echo "  ✓ npm list"; else echo "  ✗ npm list failed"; fi
 
             echo "Backing up global composer packages..."
-            composer global show > "$backup_dir/composer/composer.txt" 2>/dev/null || true
+            if command -v composer &>/dev/null; then
+                if composer global show > "$backup_dir/composer/composer.txt" 2>/dev/null; then echo "  ✓ composer list"; else echo "  ✗ composer list failed"; fi
+            else
+                echo "  - composer not installed (skipped)"
+            fi
 
             echo "Backing up Claude Code config to Gogs..."
             if [[ -d "$HOME/.claude/.git" ]]; then
                 (
                     cd "$HOME/.claude"
+                    # Verify gogs remote uses the direct IP (hostname is Authentik-blocked)
+                    local gogs_url
+                    gogs_url=$(git remote get-url gogs 2>/dev/null)
+                    if [[ -n "$gogs_url" && "$gogs_url" != *"10.0.10.70"* ]]; then
+                        echo "⚠️  gogs remote does not point at 10.0.10.70 (got: $gogs_url) — push may hit Authentik-blocked hostname gogs.home.sugamele.com"
+                    fi
                     # Only commit and push if there are changes
                     if [[ -n $(git status --porcelain 2>/dev/null) ]]; then
                         git add -A
                         git commit -m "Auto-backup $(date '+%Y-%m-%d %H:%M')" 2>/dev/null || true
-                        git push gogs HEAD 2>&1 || echo "⚠️  Failed to push to Gogs - check remote: git -C ~/.claude remote -v"
+                        local cur_branch
+                        cur_branch=$(git branch --show-current)
+                        git push gogs "$cur_branch" 2>&1 || echo "⚠️  Failed to push to Gogs - check remote: git -C ~/.claude remote -v"
                     else
                         echo "No changes to backup"
                     fi
@@ -207,53 +263,137 @@ Keep it concise. Use the color codes exactly as shown - they will be interpreted
         fi
 
         echo ""
-        echo "## Updating Homebrew..."
-        brew update
-        brew upgrade
+        echo -e "${BOLD}${CYAN}## Updating Homebrew...${NC}"
+        # Auto-accept vendor EULAs (e.g. Microsoft msodbcsql) so brew upgrade never
+        # hangs on a hidden interactive license prompt that doesn't flush to screen.
+        export HOMEBREW_ACCEPT_EULA=Y
+        echo "Fetching latest formulae (may take a minute)..."
+        brew update || mark_failure "brew update"
 
-        # Fix PHP permissions before cleanup (php-fpm runs as root and changes ownership)
-        if [[ -d "/opt/homebrew/Cellar/php" ]]; then
-            echo "Fixing PHP Cellar permissions..."
-            sudo chown -R $(whoami):admin /opt/homebrew/Cellar/php 2>/dev/null || true
-            sudo chmod -R u+rw /opt/homebrew/Cellar/php 2>/dev/null || true
+        # Show what's outdated before upgrading
+        local brew_outdated
+        brew_outdated=$(brew outdated 2>/dev/null)
+        if [[ -n "$brew_outdated" ]]; then
+            BREW_OUTDATED_COUNT=$(printf '%s\n' "$brew_outdated" | grep -c .)
+            echo "Outdated formulae ($BREW_OUTDATED_COUNT):"
+            printf '%s\n' "$brew_outdated"
+        else
+            echo "All formulae current"
+        fi
+        brew upgrade || mark_failure "brew upgrade"
+
+        # Fix Cellar permissions before cleanup. php-fpm/nginx run as root and can
+        # leave root-owned files that break `brew cleanup`. Blanket-chown the whole
+        # Cellar to the current user (single-user Mac; Homebrew is user-owned anyway).
+        if [[ -d "/opt/homebrew/Cellar" ]]; then
+            echo "→ Need sudo to fix Homebrew Cellar permissions (may prompt for password)..."
+            sudo chown -R "$(whoami)" /opt/homebrew/Cellar 2>/dev/null || true
         fi
 
         brew cleanup -s
 
         echo ""
-        echo "## Running Homebrew diagnostics..."
-        brew doctor
-        brew missing 2>/dev/null || true
-
-        # Update Atom packages if available
-        if command -v apm &> /dev/null; then
-            echo ""
-            echo "## Updating Atom packages..."
-            apm upgrade -c false
+        echo -e "${BOLD}${CYAN}## Running Homebrew diagnostics...${NC}"
+        local brew_doctor_out
+        brew_doctor_out=$(brew doctor 2>&1)
+        printf '%s\n' "$brew_doctor_out"
+        # Surface unlinked kegs in the final summary (don't auto-link — let user decide)
+        UNLINKED_KEGS=$(printf '%s\n' "$brew_doctor_out" | awk '/brew link.* on these/{g=1;next} g&&/^  +[^ ]/{sub(/^ +/,"");print $1;next} g&&/^[^ ]/{g=0}' | tr '\n' ' ' | sed 's/ *$//')
+        local brew_missing
+        brew_missing=$(brew missing 2>/dev/null)
+        if [[ -n "$brew_missing" ]]; then
+            printf '%s\n' "$brew_missing"
+        else
+            echo "No missing dependencies"
         fi
 
         echo ""
-        echo "## Checking App Store updates..."
+        echo -e "${BOLD}${CYAN}## Checking macOS system updates...${NC}"
+        local sw_out
+        sw_out=$(softwareupdate -l 2>&1)
+        if echo "$sw_out" | grep -qi "No new software available"; then
+            echo "  ✓ macOS up to date"
+            MACOS_PENDING="none"
+        else
+            echo "$sw_out" | grep -E "\*|Title|Version" || echo "$sw_out"
+            echo -e "${YELLOW}  To install: softwareupdate -i -a  (may require reboot)${NC}"
+            MACOS_PENDING="pending"
+        fi
+
+        echo ""
+        echo -e "${BOLD}${CYAN}## Checking App Store updates...${NC}"
         if command -v mas &> /dev/null; then
-            echo "Available App Store updates:"
-            mas outdated
-            echo ""
-            echo "Run 'mas upgrade' to install App Store updates"
+            local mas_out
+            mas_out=$(mas outdated 2>/dev/null)
+            if [[ -z "$mas_out" ]]; then
+                echo "All App Store apps up to date"
+                APPSTORE_PENDING="none"
+            else
+                echo "Available App Store updates:"
+                printf '%s\n' "$mas_out"
+                echo ""
+                echo "Run 'mas upgrade' to install App Store updates"
+                APPSTORE_PENDING="pending"
+            fi
         else
             echo "mas not installed - install with: brew install mas"
         fi
 
         echo ""
-        echo "## Updating npm packages..."
-        npm update -g 2>/dev/null || echo "npm update failed or not available"
+        echo -e "${BOLD}${CYAN}## Updating npm packages...${NC}"
+        # Prune leftover install-staging dirs (e.g. Claude Code's @anthropic-ai/.claude-code-XXXX)
+        # whose dot-prefixed names make `npm update -g` abort with EINVALIDPACKAGENAME.
+        rm -rf "$(npm root -g)"/@anthropic-ai/.claude-code-* 2>/dev/null
+        local npm_outdated
+        npm_outdated=$(npm outdated -g 2>/dev/null)
+        if [[ -n "$npm_outdated" ]]; then
+            echo "Outdated global npm packages:"
+            printf '%s\n' "$npm_outdated"
+        else
+            echo "npm globals current"
+        fi
+        if npm update -g; then
+            NPM_RESULT="ok"
+            echo "  ✓ npm globals updated"
+        else
+            NPM_RESULT="failed"
+            mark_failure "npm update"
+            echo "  ✗ npm update failed"
+        fi
 
         echo ""
-        echo "## Updating Composer packages..."
+        echo -e "${BOLD}${CYAN}## Checking Composer GitHub token...${NC}"
+        local gh_token
+        gh_token=$(composer config --global --no-interaction github-oauth.github.com 2>/dev/null)
+        if [[ -n "$gh_token" ]]; then
+            local gh_status
+            gh_status=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: token $gh_token" https://api.github.com/user 2>/dev/null)
+            if [[ "$gh_status" == "200" ]]; then
+                echo "  ✓ GitHub token valid"
+            elif [[ "$gh_status" == "401" ]]; then
+                echo -e "${RED}  ✗ GitHub token EXPIRED/INVALID (HTTP 401)${NC}"
+                echo -e "${YELLOW}  Fix: composer config --global --unset github-oauth.github.com${NC}"
+                echo -e "${YELLOW}       composer config --global github-oauth.github.com YOUR_NEW_TOKEN${NC}"
+                echo -e "${YELLOW}  New token: https://github.com/settings/tokens (scope: repo, read:packages)${NC}"
+            else
+                echo -e "${YELLOW}  ? GitHub token check inconclusive (HTTP $gh_status)${NC}"
+            fi
+        else
+            echo "  (no composer github-oauth token configured)"
+        fi
+
+        echo ""
+        echo -e "${BOLD}${CYAN}## Updating Composer packages...${NC}"
         local composer_output
-        composer_output=$(composer global update 2>&1)
+        # --no-interaction: never block on an auth prompt (expired GitHub token
+        # would otherwise hang the whole run indefinitely). Fails fast instead;
+        # the token pre-check above already warned, giving time to regenerate.
+        composer_output=$(composer global update --no-interaction 2>&1)
         local composer_exit=$?
         if [[ $composer_exit -ne 0 ]]; then
             echo "$composer_output"
+            COMPOSER_RESULT="failed"
+            mark_failure "composer update"
             if echo "$composer_output" | grep -qi "authentication\|token\|oauth\|unauthorized\|403"; then
                 echo ""
                 echo -e "⚠️  Composer authentication error detected!"
@@ -265,10 +405,27 @@ Keep it concise. Use the color codes exactly as shown - they will be interpreted
             fi
         else
             echo "$composer_output"
+            COMPOSER_RESULT="ok"
+        fi
+
+        # Deterministic ground-truth recap (LLM analysis runs separately afterward)
+        echo ""
+        echo -e "${BOLD}${CYAN}## Summary${NC}"
+        echo "- Homebrew: $BREW_OUTDATED_COUNT formula(e) were outdated before upgrade"
+        echo "- npm globals: $NPM_RESULT"
+        echo "- Composer: $COMPOSER_RESULT"
+        echo "- macOS system updates: $MACOS_PENDING"
+        echo "- App Store updates: $APPSTORE_PENDING"
+        if [[ -n "$UNLINKED_KEGS" ]]; then
+            echo -e "- ${YELLOW}Unlinked kegs:${NC} $UNLINKED_KEGS  (fix: brew link $UNLINKED_KEGS)"
         fi
 
         echo ""
-        echo "## Update completed successfully!"
+        if [[ $UPDATE_FAILURES -eq 0 ]]; then
+            echo -e "${BOLD}${GREEN}## Update completed successfully!${NC}"
+        else
+            echo -e "${BOLD}${YELLOW}## Update completed with $UPDATE_FAILURES warning(s)/error(s): ${UPDATE_FAILED_STEPS}${NC}"
+        fi
         echo "================================"
         echo "Updated at: $(date)"
         echo ""
@@ -276,6 +433,8 @@ Keep it concise. Use the color codes exactly as shown - they will be interpreted
         echo "- App Store: mas upgrade"
         echo "- Ruby gems: gem update --system && gem update"
         echo "- Python packages: pip list --outdated"
+
+        return $UPDATE_FAILURES
     }
 
     # Parse arguments
@@ -315,29 +474,50 @@ Keep it concise. Use the color codes exactly as shown - they will be interpreted
         return $?
     fi
 
-    # Check if update is needed
+    # Check if update is needed, and whether this is a stale interactive run
+    # that should prompt. Capture the real last-update string now, because the
+    # reservation step below overwrites the stamp before we print the prompt.
+    local need_prompt=false
+    local last_update_str=""
     if [[ -f "$update_file" ]]; then
         local last_modified=$(stat -f %m "$update_file")
         local time_difference=$((current - last_modified))
+        last_update_str=$(stat -f "%Sm" "$update_file")
 
         if [[ $force_update == false && $time_difference -le $time_threshold ]]; then
-            echo "Last update was $(stat -f "%Sm" "$update_file")"
+            echo "Last update was $last_update_str"
             echo "Update not needed (use --force to override)"
             return 0
         fi
 
-        if [[ $force_update == false ]]; then
-            echo "Last update: $(stat -f "%Sm" "$update_file")"
+        [[ $force_update == false ]] && need_prompt=true
+    fi
+
+    # Claim a 1-day reservation NOW -- BEFORE any prompt -- by stamping the file to
+    # (now - threshold + 1d). The first tab to reach here locks instantly, so a
+    # second tab opened while this one is still prompting or running sees a
+    # fresh-enough timestamp and skips silently: no duplicate prompt, no parallel
+    # updaters clobbering the shared log (that combo is what broke new tabs).
+    # On success we extend it to the full window; if this run is declined, fails,
+    # or is killed, the short reservation makes it retry in ~1 day, not every launch.
+    local reserve=$(( current - time_threshold + 86400 ))
+    touch -t "$(date -r "$reserve" +%Y%m%d%H%M.%S)" "$update_file"
+
+    # Prompt only on a stale interactive run. The reservation is already claimed,
+    # so other tabs won't pile up behind this prompt.
+    if [[ $need_prompt == true ]]; then
+        echo "Last update: $last_update_str"
+        if [[ -t 0 ]]; then
             read -p "Do you want to update? [y/N] " -n 1 -r
             echo ""
             if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+                # Declined: keep the 1-day reservation so we ask again tomorrow, not every tab.
                 return 0
             fi
+        else
+            echo "Non-interactive shell (no TTY) — proceeding with update automatically."
         fi
     fi
-
-    # Update timestamp
-    touch "$update_file"
 
     # Run updates with tee to capture output while showing live
     echo -e "${CYAN}Starting system update...${NC}"
@@ -346,15 +526,26 @@ Keep it concise. Use the color codes exactly as shown - they will be interpreted
     # Clear previous output file
     > "$output_file"
 
-    # Run updates and capture output with tee
+    # Run updates and capture output with tee; grab run_updates' real exit, not tee's
     run_updates 2>&1 | tee "$output_file"
+    local run_status=${PIPESTATUS[0]}
+
+    # Success -> extend to the full window. Failure -> keep the 1-day reservation
+    # (set above) so the next run retries tomorrow instead of every shell launch.
+    if [[ $run_status -eq 0 ]]; then
+        touch "$update_file"
+    else
+        echo -e "${YELLOW}Update reported $run_status warning(s)/error(s) — 1-day reservation kept; retries tomorrow.${NC}"
+    fi
 
     # Run LLM analysis if not disabled
     if [[ "$no_analyze" == false ]]; then
-        # Small pause before clearing screen
+        # Small pause so live output flushes before the analysis section
         sleep 1
         run_llm_analysis
     fi
+
+    return $run_status
 }
 
 # Execute if called directly (not sourced)
