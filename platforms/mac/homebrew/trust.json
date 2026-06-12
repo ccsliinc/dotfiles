@@ -1,0 +1,17 @@
+{
+  "trustedtaps": [
+    "antoniorodr/memo",
+    "creevekcz/tap",
+    "elastic/tap",
+    "majd/repo",
+    "microsoft/mssql-release",
+    "nicoverbruggen/cask",
+    "nikitabobko/tap",
+    "openclaw/tap",
+    "opencode-ai/tap",
+    "shivammathur/extensions",
+    "shivammathur/php",
+    "steipete/tap",
+    "yakitrak/yakitrak"
+  ]
+}
