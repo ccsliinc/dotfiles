@@ -47,6 +47,13 @@ my_update_mac() {
     local current=$(date +%s)
     local time_threshold=345600  # 4 days in seconds
 
+    # Quiet Homebrew's noise for self-updating apps:
+    # - self-updating casks (Chrome, Slack, VS Code, VLC, iTerm2, etc.) update themselves,
+    #   so skip them instead of emitting "cannot be upgraded as-is" warnings every run.
+    # - drop the "Hide these hints"/greedy-cask env hints.
+    export HOMEBREW_NO_UPGRADE_AUTO_UPDATES_CASKS=1
+    export HOMEBREW_NO_ENV_HINTS=1
+
     # Colors
     local RED='\033[0;31m'
     local GREEN='\033[0;32m'
