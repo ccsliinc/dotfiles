@@ -32,7 +32,7 @@ fi
 # =============================================================================
 
 # Directory navigation
-cd() { builtin cd "$@" || return; [[ -t 1 ]] && ll; }    # cd:       Change directory and list contents (auto-ll only in interactive TTY)
+cd() { builtin cd "$@" || return; [[ -t 1 ]] && ll; return 0; }    # cd:       Change directory and list contents (auto-ll only in interactive TTY)
 alias cd.='cd `pwd -LP`'                   # cd.:      Go to symlink's actual directory
 alias cd..='cd ../'                        # cd..:     Go back 1 directory level (typo helper)
 alias ..='cd ../'                          # ..:       Go back 1 directory level
