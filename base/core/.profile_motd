@@ -36,6 +36,15 @@ source "$DOTFILESLOC/base/shared/bash_colors.sh"
     # Last login (skip current session)
     LAST_LOGIN=$(last -2 "$USER" 2>/dev/null | sed -n '2p' | awk '{print $3, $4, $5, $6}')
     echo -e "Last Login     : ${LAST_LOGIN:-unknown}"
+    # Last REAL successful update (my-update-mac writes ~/.update_last_success only
+    # on a clean success — never on a reservation/failed run; macOS only)
+    if [[ -f "$HOME/.update_last_success" ]]; then
+        LAST_UPDATE=$(stat -f "%Sm" -t "%b %d %H:%M" "$HOME/.update_last_success" 2>/dev/null)
+        UPD_AGE=$(( ( $(date +%s) - $(stat -f %m "$HOME/.update_last_success") ) / 86400 ))
+        echo -e "Last Update    : ${LAST_UPDATE} (${UPD_AGE}d ago)"
+    elif [[ -f "$HOME/.update_brew" ]]; then
+        echo -e "Last Update    : none recorded yet (run: my-update-mac --force)"
+    fi
     # Dotfiles sync status (from cache - non-blocking)
     if [[ -d "$DOTFILESLOC/.git" ]]; then
         local dotfiles_status=$(my-git-status-cache check dotfiles "$DOTFILESLOC" 2>/dev/null)

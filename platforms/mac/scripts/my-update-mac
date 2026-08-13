@@ -287,7 +287,15 @@ Keep it concise. Use the color codes exactly as shown - they will be interpreted
         else
             echo "All formulae current"
         fi
-        brew upgrade || mark_failure "brew upgrade"
+        # brew upgrade exits non-zero for BENIGN warnings (unbottled dependents like
+        # camsnap, outdated Xcode) — not just real failures. Treating every non-zero as
+        # a failure kept the run perpetually "failed", so the success timestamp never
+        # advanced and the updater stayed frozen in the "fresh/not-needed" state forever.
+        # Fix: stream live (tee) but only count a genuine "Error:" line as a failure.
+        local _brew_up_log; _brew_up_log="$(mktemp)"
+        brew upgrade 2>&1 | tee "$_brew_up_log"
+        grep -qE "^Error:" "$_brew_up_log" && mark_failure "brew upgrade"
+        rm -f "$_brew_up_log"
 
         # Fix Cellar permissions before cleanup. php-fpm/nginx run as root and can
         # leave root-owned files that break `brew cleanup`. Blanket-chown the whole
@@ -541,6 +549,11 @@ Keep it concise. Use the color codes exactly as shown - they will be interpreted
     # (set above) so the next run retries tomorrow instead of every shell launch.
     if [[ $run_status -eq 0 ]]; then
         touch "$update_file"
+        # Dedicated marker for the LAST REAL SUCCESSFUL update. Unlike $update_file
+        # (which also carries the start-of-run reservation), this file is touched
+        # ONLY on a clean success — so the MOTD "Last Update" line never shows a
+        # reservation/failed-run date, only genuine completed updates.
+        touch "$HOME/.update_last_success"
     else
         echo -e "${YELLOW}Update reported $run_status warning(s)/error(s) — 1-day reservation kept; retries tomorrow.${NC}"
     fi
