@@ -173,7 +173,14 @@ Keep it concise. Use the color codes exactly as shown - they will be interpreted
         # section headers, per-item ✓/✗/-, warnings/errors, version arrows, summary.
         local reduced
         reduced=$(grep -iE '^##|^  ✓|^  ✗|^  -|warning|error|deprecat|outdated|expired|unlinked|→|completed (successfully|with)|Updated at' "$output_file" | head -200)
-        reduced=$(printf '%s\n' "$reduced" | head -c 10000)
+        # Sanitize before sending to Apple's on-device model: strip ANSI color codes
+        # and drop non-ASCII (emoji 🍺, box-drawing, arrows →). FoundationModels rejects
+        # such input with "unsupported language or locale" (error 4) — this was the sole
+        # reason the analysis step failed. LC_ALL=C makes tr operate byte-wise.
+        reduced=$(printf '%s\n' "$reduced" \
+            | sed $'s/\x1b\\[[0-9;]*m//g' \
+            | LC_ALL=C tr -cd '[:print:]\t\n' \
+            | head -c 10000)
 
         # Format prompt as system prompt; reduced log piped in as stdin
         local llm_result
