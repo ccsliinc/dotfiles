@@ -77,7 +77,7 @@ The system uses automatic OS detection with hierarchical configuration loading:
 ## Working with This Repository
 
 ### Development Guidelines
-- Use `builtin cd` instead of `cd` when navigating directories
+- `cd` is safe in scripts and non-interactive shells — the wrapper in `base/.aliases` returns 0 on success (a failed `cd` still returns non-zero), so `cd path && cmd` works; `builtin cd` is no longer required
 - All scripts follow `my-` prefix naming convention for discoverability
 - Include Purpose, Usage, and Example headers in all new scripts
 - Follow hierarchical configuration: base → platform → local overrides
