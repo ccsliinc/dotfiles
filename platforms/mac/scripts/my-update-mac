@@ -501,13 +501,20 @@ Keep it concise. Use the color codes exactly as shown - they will be interpreted
     # reservation step below overwrites the stamp before we print the prompt.
     local need_prompt=false
     local last_update_str=""
+    # Real last-success display string, sourced from .update_last_success (NOT
+    # .update_brew, which is a back-dated reservation stamp and would print
+    # phantom dates). Falls back to "never" if no success has landed yet.
+    local last_success_str="never"
+    if [[ -f "$HOME/.update_last_success" ]]; then
+        last_success_str=$(stat -f "%Sm" "$HOME/.update_last_success")
+    fi
     if [[ -f "$update_file" ]]; then
         local last_modified=$(stat -f %m "$update_file")
         local time_difference=$((current - last_modified))
         last_update_str=$(stat -f "%Sm" "$update_file")
 
         if [[ $force_update == false && $time_difference -le $time_threshold ]]; then
-            echo "Last update was $last_update_str"
+            echo "Last successful update: $last_success_str"
             echo "Update not needed (use --force to override)"
             return 0
         fi
@@ -528,7 +535,7 @@ Keep it concise. Use the color codes exactly as shown - they will be interpreted
     # Prompt only on a stale interactive run. The reservation is already claimed,
     # so other tabs won't pile up behind this prompt.
     if [[ $need_prompt == true ]]; then
-        echo "Last update: $last_update_str"
+        echo "Last successful update: $last_success_str"
         if [[ -t 0 ]]; then
             read -p "Do you want to update? [y/N] " -n 1 -r
             echo ""
@@ -548,9 +555,14 @@ Keep it concise. Use the color codes exactly as shown - they will be interpreted
     # Clear previous output file
     > "$output_file"
 
-    # Run updates and capture output with tee; grab run_updates' real exit, not tee's
+    # Run updates and capture output with tee; grab run_updates' real exit, not tee's.
+    # Ignore SIGHUP for the duration: closing/switching the terminal tab mid-run was
+    # killing the updater before .update_last_success could ever be touched. Ctrl-C
+    # (SIGINT) is left untouched so the user can still abort manually.
+    trap '' HUP
     run_updates 2>&1 | tee "$output_file"
     local run_status=${PIPESTATUS[0]}
+    trap - HUP
 
     # Success -> extend to the full window. Failure -> keep the 1-day reservation
     # (set above) so the next run retries tomorrow instead of every shell launch.
