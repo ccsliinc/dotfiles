@@ -52,15 +52,20 @@ alias lr='ls -R | grep ":$" | sed -e '\''s/:$//'\'' -e '\''s/[^-][^\/]*\//--/g'\
 
 # File operations
 alias mkdir='mkdir -pv'                    # mkdir:    Create directories with parents and verbose
-alias cp='cp -iv'                          # cp:       Copy with interactive and verbose
-alias rm='rm -iv'                          # rm:       Remove with interactive and verbose
-alias del='rm -iv'                         # del:      Alternative for rm
 alias rclone='rclone --progress'           # rclone:   Show progress for rclone operations
 
-# Disk usage
-alias df='sudo df -h'                      # df:       Show disk usage in human readable format
-alias du='sudo du -h'                     # du:       Show directory usage in human readable format
-alias du1='sudo du -h --max-depth=1 | sort -h'  # du1: Show directory usage 1 level deep, sorted
+# Prompting aliases are for humans only. Claude Code marks its own shells with
+# CLAUDECODE=1 and copies these aliases into every agent shell; an agent cannot
+# answer "overwrite?" or a sudo password prompt, so the command waits forever.
+# Measured 2026-09-24: cp -iv hangs of 1.5 to 11 days in three sessions.
+if [[ -z "$CLAUDECODE" ]]; then
+  alias cp='cp -iv'                        # cp:       Copy with interactive and verbose
+  alias rm='rm -iv'                        # rm:       Remove with interactive and verbose
+  alias del='rm -iv'                       # del:      Alternative for rm
+  alias df='sudo df -h'                    # df:       Show disk usage in human readable format
+  alias du='sudo du -h'                    # du:       Show directory usage in human readable format
+  alias du1='sudo du -h --max-depth=1 | sort -h'  # du1: Show directory usage 1 level deep, sorted
+fi
 
 # Permission fixing
 alias fix-perms='sudo find ./ -type f -exec chmod 0664 {} \; && sudo find ./ -type d -exec chmod 0775 {} \;'
