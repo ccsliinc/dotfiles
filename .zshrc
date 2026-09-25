@@ -94,7 +94,9 @@ plugins=(
 )
 
 # Conditionally add plugins that error when their tool is missing
-(( $+commands[tmux] )) && plugins+=(tmux)
+# Not in Claude Code agent shells (CLAUDECODE=1): the plugin wraps tmux in
+# _zsh_tmux_plugin_run, which is undefined there and breaks every tmux call.
+(( $+commands[tmux] )) && [[ -z "$CLAUDECODE" ]] && plugins+=(tmux)
 (( $+commands[screen] )) && plugins+=(screen)
 (( $+commands[docker] )) && plugins+=(docker)
 
@@ -188,3 +190,20 @@ fi
 # opencode
 export PATH=/Users/jsugamele/.opencode/bin:$PATH
 export PATH="$PATH:/Applications/010 Editor.app/Contents/CmdLine" #ADDED BY 010 EDITOR
+
+# CloudeCode launcher functions.
+# CloudeCode hardcodes `cld` / `cldor` (see its src/config.py get_agent_command);
+# CLAUDE_CLI_PATH and agents.claude_command are legacy and bypassed for claude.
+# Upstream assumes the author`s own OAuth/OpenRouter Keychain wrappers. This box
+# is already logged in via claude auth, so these are thin pass-throughs.
+cld() { command claude "$@"; }
+cldor() { local m="$1"; shift; command claude --model "$m" "$@"; }
+export PATH="$HOME/.local/bin:$PATH"
+
+# Fixed 2026-08-25: claude alias pointed at removed Homebrew cask path; native install lives at ~/.local/bin/claude
+alias claude="security unlock-keychain ~/Library/Keychains/login.keychain-db && $HOME/.local/bin/claude"
+
+# Added by LM Studio CLI (lms)
+export PATH="$PATH:/Users/jsugamele/.lmstudio/bin"
+# End of LM Studio CLI section
+
