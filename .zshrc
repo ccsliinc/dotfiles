@@ -201,7 +201,9 @@ cldor() { local m="$1"; shift; command claude --model "$m" "$@"; }
 export PATH="$HOME/.local/bin:$PATH"
 
 # Fixed 2026-08-25: claude alias pointed at removed Homebrew cask path; native install lives at ~/.local/bin/claude
-alias claude="security unlock-keychain ~/Library/Keychains/login.keychain-db && $HOME/.local/bin/claude"
+# Disabled 2026-10-01: ran `security unlock-keychain` before every claude, prompting for the
+# keychain password each time. ~/.local/bin is on PATH (above), so plain `claude` resolves there.
+# alias claude="security unlock-keychain ~/Library/Keychains/login.keychain-db && $HOME/.local/bin/claude"
 
 # Added by LM Studio CLI (lms)
 export PATH="$PATH:/Users/jsugamele/.lmstudio/bin"
