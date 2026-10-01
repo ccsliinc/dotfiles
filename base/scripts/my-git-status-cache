@@ -37,6 +37,39 @@ _cache_age() {
     echo $((now - mtime))
 }
 
+# Description: Compare local HEAD with its upstream using only refs already on disk (no network).
+# Inputs     : $1 repo_path (string)
+# Outputs    : prints one of up_to_date | pull_available | push_needed | diverged | no_upstream
+_compute_status() {
+    local repo_path="$1"
+    local LOCAL=$(git -C "$repo_path" rev-parse @ 2>/dev/null)
+    local REMOTE=$(git -C "$repo_path" rev-parse @{u} 2>/dev/null)
+    local BASE=$(git -C "$repo_path" merge-base @ @{u} 2>/dev/null)
+
+    if [[ -z "$LOCAL" || -z "$REMOTE" ]]; then
+        echo "no_upstream"
+    elif [[ "$LOCAL" == "$REMOTE" ]]; then
+        echo "up_to_date"
+    elif [[ "$BASE" == "$LOCAL" ]]; then
+        echo "pull_available"
+    elif [[ "$BASE" == "$REMOTE" ]]; then
+        echo "push_needed"
+    else
+        echo "diverged"
+    fi
+}
+
+# Description: True when the repo's HEAD or remote-tracking refs changed after the cache was written
+#              (a pull, push, fetch, commit or checkout), meaning the cached status may be stale.
+# Inputs     : $1 repo_path (string), $2 cache_file (string)
+# Outputs    : exit 0 if changed since the cache, 1 otherwise
+_repo_changed_since() {
+    local git_dir="$1/.git"
+    [[ -f "$2" ]] || return 0
+    [[ -n "$(find "$git_dir/logs/HEAD" "$git_dir/FETCH_HEAD" "$git_dir/packed-refs" "$git_dir/refs/remotes" \
+            -newer "$2" 2>/dev/null | head -1)" ]]
+}
+
 _update_cache() {
     local repo_name="$1"
     local repo_path="$2"
@@ -65,26 +98,8 @@ _update_cache() {
     # Fetch remote info (the slow part)
     git -C "$repo_path" remote update &>/dev/null
 
-    # Get status
-    local LOCAL=$(git -C "$repo_path" rev-parse @ 2>/dev/null)
-    local REMOTE=$(git -C "$repo_path" rev-parse @{u} 2>/dev/null)
-    local BASE=$(git -C "$repo_path" merge-base @ @{u} 2>/dev/null)
-
-    local status="unknown"
-    if [[ -z "$LOCAL" || -z "$REMOTE" ]]; then
-        status="no_upstream"
-    elif [[ "$LOCAL" == "$REMOTE" ]]; then
-        status="up_to_date"
-    elif [[ "$BASE" == "$LOCAL" ]]; then
-        status="pull_available"
-    elif [[ "$BASE" == "$REMOTE" ]]; then
-        status="push_needed"
-    else
-        status="diverged"
-    fi
-
     # Write cache
-    echo "$status" > "$cache_file"
+    _compute_status "$repo_path" > "$cache_file"
     rm -f "$lock_file"
 }
 
@@ -105,8 +120,13 @@ _check_and_update() {
     local cache_file=$(_get_cache_file "$repo_name")
     local age=$(_cache_age "$cache_file")
 
-    # If cache is fresh, just return cached value
+    # If cache is fresh, return it -- but first re-derive the status from local refs when
+    # the repo changed since it was written, so a pull/push clears "pull available" at once
+    # instead of up to CACHE_MAX_AGE later. No network: the 2-day fetch cadence is unchanged.
     if [[ $age -lt $CACHE_MAX_AGE ]]; then
+        if [[ -d "$repo_path/.git" ]] && _repo_changed_since "$repo_path" "$cache_file"; then
+            _compute_status "$repo_path" > "$cache_file"
+        fi
         _read_cache "$repo_name"
         return 0
     fi

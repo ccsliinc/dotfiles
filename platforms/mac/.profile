@@ -23,7 +23,12 @@ my-claude-sync-check
 # RE-ARMED 2026-06-12: my-update-mac now claims a 1-day timestamp reservation
 # BEFORE prompting, so the first tab locks and any other tabs opened while it runs
 # see a fresh stamp and skip silently. The thundering-herd that broke tabs is gone.
-my-update-mac
+# GUARDED 2026-10-01: run only from a real interactive terminal. Carnivore and agent
+# shells source this file with no TTY and discard output, where the updater would
+# run a full upgrade invisibly and stall the session launch.
+if [[ $- == *i* && -t 0 && -t 1 && -z "$CLAUDECODE" ]]; then
+    my-update-mac
+fi
 # Push both dotfiles repos (main + _reference.local)
 dotpush() {
     echo "Pushing main dotfiles repo..."
