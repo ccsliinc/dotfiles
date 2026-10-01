@@ -14,7 +14,15 @@ source "$DOTFILESLOC/platforms/mac/iterm2_functions.sh"
 source "$DOTFILESLOC/platforms/mac/iterm2_tui.sh"
 
 # Check if Claude config needs syncing
-my-claude-sync-check
+# DISABLED 2026-08-30: superseded by CloudeCode's own corpus ingest, which runs
+# inside the app on every start and keeps a byte-exact archive current. This
+# check pushed ~/.claude to Gogs and PROMPTED INTERACTIVELY on every new shell,
+# which is both a papercut and a real test-isolation hazard - the prompt was
+# captured inside a tmux pane and produced a false failure in
+# test_the_old_prefix_produces_a_completely_blank_pane. The 72 transcripts that
+# only ever existed in that Gogs history are archived to archive-nas as of the
+# same date, so nothing is lost by retiring it. Re-enable by uncommenting.
+# my-claude-sync-check
 
 # Check for system updates on shell load (prompts if > 4 days since last update).
 # DISABLED 2026-05-21: the updater ran on EVERY shell launch with no concurrency
