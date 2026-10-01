@@ -8,10 +8,12 @@ if [[ "$OSTYPE" == *"darwin"* ]] ; then
     OS="mac"
     export OS
     
-    MODEL=$(system_profiler SPHardwareDataType | grep "Model Identifier" | awk -F ":" '{print $NF}' | awk '{$1=$1};1')
+    # sysctl/sw_vers give the same values as system_profiler without its ~0.3-1s
+    # cost per shell and the "hw.cpufamily" line it prints to stderr over ssh.
+    MODEL=$(sysctl -n hw.model)
     export MODEL 
     
-    OS_VERSION="$(system_profiler SPSoftwareDataType | grep 'System Version' | awk -F ":" '{print $NF}' | awk '{$1=$1};1')"
+    OS_VERSION="$(sw_vers -productName) $(sw_vers -productVersion) ($(sw_vers -buildVersion))"
     export OS_VERSION
 
     ARCH=$(uname -m)
