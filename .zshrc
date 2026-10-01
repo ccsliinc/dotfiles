@@ -196,8 +196,8 @@ export PATH="$PATH:/Applications/010 Editor.app/Contents/CmdLine" #ADDED BY 010 
 # CLAUDE_CLI_PATH and agents.claude_command are legacy and bypassed for claude.
 # Upstream assumes the author`s own OAuth/OpenRouter Keychain wrappers. This box
 # is already logged in via claude auth, so these are thin pass-throughs.
-cld() { command claude "$@"; }
-cldor() { local m="$1"; shift; command claude --model "$m" "$@"; }
+function cld { command claude "$@"; }
+function cldor { local m="$1"; shift; command claude --model "$m" "$@"; }
 export PATH="$HOME/.local/bin:$PATH"
 
 # Fixed 2026-08-25: claude alias pointed at removed Homebrew cask path; native install lives at ~/.local/bin/claude
