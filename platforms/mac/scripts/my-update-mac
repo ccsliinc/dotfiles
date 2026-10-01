@@ -197,7 +197,8 @@ Keep it concise. Use the color codes exactly as shown - they will be interpreted
         fi
 
         # Save and display
-        echo "$llm_result" > "$summary_file"
+        # Save with escapes interpreted so `cat` on the file shows colors, not raw \033 text
+        printf '%b\n' "$llm_result" > "$summary_file"
         printf '%b\n' "$llm_result"
 
         echo ""
@@ -247,7 +248,9 @@ Keep it concise. Use the color codes exactly as shown - they will be interpreted
 
             echo "Backing up global composer packages..."
             if command -v composer &>/dev/null; then
-                if composer global show > "$backup_dir/composer/composer.txt" 2>/dev/null; then echo "  ✓ composer list"; else echo "  ✗ composer list failed"; fi
+                if [[ ! -f "$(composer config --global home --no-interaction 2>/dev/null)/composer.json" ]]; then
+                    echo "  - composer list: no global packages (skipped)"
+                elif composer global show > "$backup_dir/composer/composer.txt" 2>/dev/null; then echo "  ✓ composer list"; else echo "  ✗ composer list failed"; fi
             else
                 echo "  - composer not installed (skipped)"
             fi
@@ -406,28 +409,36 @@ Keep it concise. Use the color codes exactly as shown - they will be interpreted
 
         echo ""
         echo -e "${BOLD}${CYAN}## Updating Composer packages...${NC}"
-        local composer_output
-        # --no-interaction: never block on an auth prompt (expired GitHub token
-        # would otherwise hang the whole run indefinitely). Fails fast instead;
-        # the token pre-check above already warned, giving time to regenerate.
-        composer_output=$(composer global update --no-interaction 2>&1)
-        local composer_exit=$?
-        if [[ $composer_exit -ne 0 ]]; then
-            echo "$composer_output"
-            COMPOSER_RESULT="failed"
-            mark_failure "composer update"
-            if echo "$composer_output" | grep -qi "authentication\|token\|oauth\|unauthorized\|403"; then
-                echo ""
-                echo -e "⚠️  Composer authentication error detected!"
-                echo "Fix with: composer config --global --unset github-oauth.github.com"
-                echo "Then add new token: composer config --global github-oauth.github.com YOUR_TOKEN"
-                echo "Get token at: https://github.com/settings/tokens"
-            else
-                echo "composer update failed (exit code: $composer_exit)"
-            fi
+        local composer_home
+        composer_home=$(composer config --global home --no-interaction 2>/dev/null)
+        if [[ ! -f "$composer_home/composer.json" ]]; then
+            # No global composer.json means no global packages: nothing to update.
+            echo "  - no global Composer packages (no composer.json in ${composer_home:-composer home}), skipped"
+            COMPOSER_RESULT="skipped"
         else
-            echo "$composer_output"
-            COMPOSER_RESULT="ok"
+            local composer_output
+            # --no-interaction: never block on an auth prompt (expired GitHub token
+            # would otherwise hang the whole run indefinitely). Fails fast instead;
+            # the token pre-check above already warned, giving time to regenerate.
+            composer_output=$(composer global update --no-interaction 2>&1)
+            local composer_exit=$?
+            if [[ $composer_exit -ne 0 ]]; then
+                echo "$composer_output"
+                COMPOSER_RESULT="failed"
+                mark_failure "composer update"
+                if echo "$composer_output" | grep -qi "authentication\|token\|oauth\|unauthorized\|403"; then
+                    echo ""
+                    echo -e "⚠️  Composer authentication error detected!"
+                    echo "Fix with: composer config --global --unset github-oauth.github.com"
+                    echo "Then add new token: composer config --global github-oauth.github.com YOUR_TOKEN"
+                    echo "Get token at: https://github.com/settings/tokens"
+                else
+                    echo "composer update failed (exit code: $composer_exit)"
+                fi
+            else
+                echo "$composer_output"
+                COMPOSER_RESULT="ok"
+            fi
         fi
 
         # Deterministic ground-truth recap (LLM analysis runs separately afterward)
