@@ -11,4 +11,4 @@
 HOME=/root
 
 # Run docker backup script
-/share/Container/my-docker/backup/scripts/backup-docker-containers.sh
+/share/Container/docker-management/devices/qnap-office/my-docker/backup/scripts/backup-docker-containers.sh
