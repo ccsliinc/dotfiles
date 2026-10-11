@@ -10,6 +10,11 @@ CONTAINER_STATION="$(getcfg SHARE_DEF defVolMP -f /etc/config/def_share.info 2>/
 # Prepend QNAP system paths, append Container Station
 export PATH="$QNAP_PATHS:$PATH:$CONTAINER_STATION"
 
+# QTS ships no default locale, so shells start in C and zsh cannot print
+# non-ASCII ("character not in range" from the prompt's Nerd Font icons).
+# en_US.utf8 is installed on the box; select it unless already set.
+[ -z "$LANG" ] && export LANG=en_US.UTF-8
+
 # .bashrc
 USER=$(id -un); export USER
 export LOGNAME=$USER
