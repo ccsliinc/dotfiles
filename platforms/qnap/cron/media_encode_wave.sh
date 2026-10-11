@@ -14,6 +14,7 @@
 
 # Set HOME for root user (QNAP default when invoked by crond)
 HOME=/root
+export PATH="/share/CACHEDEV1_DATA/.qpkg/container-station/bin:$PATH"
 
 # Dispatch to the deployed runner. The runner owns gates, locking, logging.
 /share/Media/.media-tools/encode-wave-fire.sh
