@@ -111,29 +111,19 @@ my_profile_update_check() {
             fi
             ;;
         push_needed)
-            if [[ -t 0 ]]; then
-                echo "[dotfiles] Local changes need to be pushed"
-                printf "Push changes now? [y/N]: "
-                local REPLY=""
-                if ! read -r -t "$PROMPT_TIMEOUT" REPLY; then
-                    echo
-                    _mute_update_prompt
-                    return 0
-                fi
-                if [[ $REPLY =~ ^[Yy]$ ]]; then
-                    echo "Pushing dotfiles..."
-                    if git -C "$DOTFILESLOC" push; then
-                        my-git-status-cache update dotfiles "$DOTFILESLOC"
-                        echo "Push successful."
-                    else
-                        echo "[dotfiles] Push failed - not asking again for $(( COOLDOWN / 3600 ))h."
-                        _mute_update_prompt
-                    fi
+            # Never a question at login: an unpushed commit is not urgent, and a prompt here is
+            # just another thing to answer in every new tab. The banner already shows the state.
+            if [[ "$force" == true ]]; then
+                echo "Pushing dotfiles..."
+                if git -C "$DOTFILESLOC" push; then
+                    my-git-status-cache update dotfiles "$DOTFILESLOC"
+                    echo "Push successful."
                 else
-                    _mute_update_prompt
+                    echo "[dotfiles] Push failed - see the error above."
                 fi
             else
-                echo "[dotfiles] Local changes need to be pushed"
+                _update_prompt_muted || echo "[dotfiles] Local commits not pushed - run 'my-profile-update-check --force' to push"
+                _mute_update_prompt
             fi
             ;;
         diverged)
