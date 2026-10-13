@@ -1,9 +1,47 @@
 #!/bin/bash
 # Function: my-profile-update-check
-# Purpose: Check if dotfiles repository has updates (non-blocking with cache)
+# Purpose: Offer a dotfiles pull at login, at most once, and never nag when it cannot succeed
 # Usage: my-profile-update-check [--force]
 # Platform: All (requires git)
 # Dependencies: git, my-git-status-cache
+#
+# Design note (why the cooldown and the dirty check exist):
+#   This prompt runs in every new shell. If the answer "y" cannot actually clear the
+#   condition -- a pull that aborts on local edits, a network that is down -- the same
+#   question comes back in the next tab and the next, which is the login loop this
+#   guards against. So: a pull that fails says why and goes quiet for COOLDOWN seconds,
+#   and a tree with local edits to tracked files is reported, not prompted, because
+#   git would refuse the merge anyway.
+
+COOLDOWN=${DOTFILES_PROMPT_COOLDOWN:-21600}   # 6 hours of silence after a failed or declined pull
+PROMPT_TIMEOUT=${DOTFILES_PROMPT_TIMEOUT:-20} # seconds to wait for an answer before assuming "no"
+QUIET_FILE="${XDG_CACHE_HOME:-$HOME/.cache}/dotfiles/dotfiles.quiet"
+
+# Description: True while the prompt is in its cooldown window AND the upstream has not moved since.
+#              A new commit upstream is new information, so it ends the silence early.
+# Inputs     : none (reads $QUIET_FILE)
+# Outputs    : exit 0 when the prompt should stay silent
+_update_prompt_muted() {
+    [[ -f "$QUIET_FILE" ]] || return 1
+    local mtime muted_remote
+    mtime=$(stat -f %m "$QUIET_FILE" 2>/dev/null || stat -c %Y "$QUIET_FILE" 2>/dev/null)
+    [[ $(( $(date +%s) - ${mtime:-0} )) -lt $COOLDOWN ]] || return 1
+    muted_remote=$(cat "$QUIET_FILE" 2>/dev/null)
+    [[ "$muted_remote" == "$(git -C "$DOTFILESLOC" rev-parse @{u} 2>/dev/null)" ]]
+}
+
+# Description: Silence the prompt for COOLDOWN seconds, remembering which upstream commit was declined.
+# Inputs     : none
+# Outputs    : writes $QUIET_FILE
+_mute_update_prompt() {
+    mkdir -p "$(dirname "$QUIET_FILE")" 2>/dev/null
+    git -C "$DOTFILESLOC" rev-parse @{u} 2>/dev/null > "$QUIET_FILE"
+}
+
+# Description: Names of tracked files with uncommitted edits, which make a merge abort.
+# Inputs     : $1 repo_path (string)
+# Outputs    : prints the file names, one per line (empty when the tree is clean)
+_dirty_tracked_files() { git -C "$1" diff --name-only 2>/dev/null; }
 
 my_profile_update_check() {
     # Guard against re-running during shell restart
@@ -12,7 +50,6 @@ my_profile_update_check() {
     fi
     export DOTFILES_UPDATE_CHECKED=1
 
-    # Verify dotfiles directory exists
     if [[ ! -d "$DOTFILESLOC/.git" ]]; then
         return 1
     fi
@@ -20,48 +57,80 @@ my_profile_update_check() {
     local force=false
     [[ "$1" == "--force" ]] && force=true
 
-    # Get cached status (instant) - spawns background update if stale
     local status
     if [[ "$force" == true ]]; then
-        # Force: run blocking update
+        rm -f "$QUIET_FILE"
         my-git-status-cache update dotfiles "$DOTFILESLOC"
         status=$(my-git-status-cache read dotfiles)
     else
-        # Normal: use cache, background refresh if stale
+        _update_prompt_muted && return 0
         status=$(my-git-status-cache check dotfiles "$DOTFILESLOC")
     fi
 
-    # Only prompt if updates are available AND we have a TTY
     case "$status" in
         pull_available)
-            if [[ -t 0 ]]; then
-                # Interactive: prompt user
-                echo "Dotfiles update available!"
-                printf "Do you want to update the profile? [y/N]: "
-                read -r REPLY
-                if [[ $REPLY =~ ^[Yy]$ ]]; then
-                    echo "Updating dotfiles..."
-                    git -C "$DOTFILESLOC" pull
-                    # Refresh cache after pull
-                    my-git-status-cache update dotfiles "$DOTFILESLOC" &>/dev/null &
+            local dirty; dirty=$(_dirty_tracked_files "$DOTFILESLOC")
+            if [[ -n "$dirty" ]]; then
+                echo "[dotfiles] Update available, but these tracked files have local edits, so a pull would abort:"
+                echo "$dirty" | sed 's/^/           /'
+                echo "           Commit or stash them, then run: my-profile-update-check --force"
+                _mute_update_prompt
+                return 0
+            fi
+
+            if [[ ! -t 0 ]]; then
+                echo "[dotfiles] Update available - run 'my-profile-update-check --force' to update"
+                return 0
+            fi
+
+            echo "Dotfiles update available!"
+            printf "Do you want to update the profile? [y/N]: "
+            local REPLY=""
+            if ! read -r -t "$PROMPT_TIMEOUT" REPLY; then
+                echo    # the prompt timed out: never hold a login shell open waiting
+                echo "Update skipped (no answer in ${PROMPT_TIMEOUT}s). Run 'my-profile-update-check --force' when you want it."
+                _mute_update_prompt
+                return 0
+            fi
+
+            if [[ $REPLY =~ ^[Yy]$ ]]; then
+                echo "Updating dotfiles..."
+                local out
+                if out=$(git -C "$DOTFILESLOC" pull 2>&1); then
+                    echo "$out"
+                    my-git-status-cache update dotfiles "$DOTFILESLOC"   # synchronous: the answer must be true before the next shell asks
                     echo "Changes applied. Open a new terminal to use updated config."
                 else
-                    echo "Update skipped."
+                    echo "$out"
+                    echo "[dotfiles] Pull failed - not asking again for $(( COOLDOWN / 3600 ))h. Fix the above, then: my-profile-update-check --force"
+                    _mute_update_prompt
                 fi
             else
-                # Non-interactive (SSH/cron): just notify, don't block
-                echo "[dotfiles] Update available - run 'my-profile-update-check --force' to update"
+                echo "Update skipped."
+                _mute_update_prompt
             fi
             ;;
         push_needed)
             if [[ -t 0 ]]; then
                 echo "[dotfiles] Local changes need to be pushed"
                 printf "Push changes now? [y/N]: "
-                read -r REPLY
+                local REPLY=""
+                if ! read -r -t "$PROMPT_TIMEOUT" REPLY; then
+                    echo
+                    _mute_update_prompt
+                    return 0
+                fi
                 if [[ $REPLY =~ ^[Yy]$ ]]; then
                     echo "Pushing dotfiles..."
-                    git -C "$DOTFILESLOC" push && echo "Push successful." || echo "Push failed - check remote configuration."
-                    my-git-status-cache update dotfiles "$DOTFILESLOC" &>/dev/null &
+                    if git -C "$DOTFILESLOC" push; then
+                        my-git-status-cache update dotfiles "$DOTFILESLOC"
+                        echo "Push successful."
+                    else
+                        echo "[dotfiles] Push failed - not asking again for $(( COOLDOWN / 3600 ))h."
+                        _mute_update_prompt
+                    fi
+                else
+                    _mute_update_prompt
                 fi
             else
                 echo "[dotfiles] Local changes need to be pushed"
@@ -70,7 +139,7 @@ my_profile_update_check() {
         diverged)
             echo "[dotfiles] Repository has diverged from remote"
             ;;
-        # up_to_date, uncached, no_upstream - silent
+        # up_to_date, uncached, no_upstream, no_repo - silent
     esac
 }
 

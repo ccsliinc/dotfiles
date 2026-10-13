@@ -47,7 +47,7 @@ source "$DOTFILESLOC/base/shared/bash_colors.sh"
     fi
     # Dotfiles sync status (from cache - non-blocking)
     if [[ -d "$DOTFILESLOC/.git" ]]; then
-        local dotfiles_status=$(my-git-status-cache check dotfiles "$DOTFILESLOC" 2>/dev/null)
+        dotfiles_status=$(my-git-status-cache check dotfiles "$DOTFILESLOC" 2>/dev/null)
         case "$dotfiles_status" in
             up_to_date)     DOTFILES_STATUS="${LGREEN}✓ synced${LWHITE}" ;;
             pull_available) DOTFILES_STATUS="${LYELLOW}↓ pull available${LWHITE}" ;;
@@ -62,7 +62,7 @@ source "$DOTFILESLOC/base/shared/bash_colors.sh"
     # Claude config sync status (from cache - non-blocking)
     if [[ -d "$HOME/.claude/.git" ]]; then
         # Use cached status (spawns background check if stale)
-        local claude_status=$(my-git-status-cache check claude "$HOME/.claude" 2>/dev/null)
+        claude_status=$(my-git-status-cache check claude "$HOME/.claude" 2>/dev/null)
         case "$claude_status" in
             up_to_date)    CLAUDE_STATUS="${LGREEN}✓ synced${LWHITE}" ;;
             pull_available) CLAUDE_STATUS="${LYELLOW}↓ pull available${LWHITE}" ;;

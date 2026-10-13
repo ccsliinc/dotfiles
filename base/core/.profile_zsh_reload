@@ -1,0 +1,25 @@
+# shellcheck shell=bash
+# zsh ONLY: bash cannot parse `function \~()` or `function ./()`.
+# Sourced from base/.profile_interactive behind a $ZSH_VERSION guard.
+
+# ~ as command = go home + reload shell config
+# ./ as command (no args) = reload shell config in current dir
+
+# Override ~ to go home and reload
+function \~() {
+    cd ~
+    source ~/.zshrc
+    echo "🏠 Home + reloaded"
+}
+
+# ./ with no args reloads, with args runs normally
+function ./() {
+    if [[ $# -eq 0 ]]; then
+        source ~/.zshrc
+        echo -e "\U0f0450 Reloaded"
+        echo ""
+    else
+        command ./"$@"
+    fi
+}
+

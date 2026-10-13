@@ -1,50 +1,62 @@
 #!/bin/bash
 # Function: my-git-status-cache
-# Purpose: Cache git repository status for non-blocking login checks
-# Usage: my-git-status-cache [check|update|read] [repo_name] [repo_path]
+# Purpose: Report a repo's sync status at login without ever blocking on the network
+# Usage: my-git-status-cache [check|update|read|fetch-age] [repo_name] [repo_path]
 # Platform: All (requires git)
 # Dependencies: git
 #
+# Design note (why this is not a plain cache):
+#   The status itself is derived from refs already on disk, which costs a few
+#   milliseconds, so it is recomputed on every call and can never go stale.
+#   What IS cached is the expensive part -- the network fetch -- and the cache
+#   file records which commits the answer came from, so a wrong answer cannot
+#   survive a pull, a push, or a commit the way a bare cached word could.
+#
 # Examples:
-#   my-git-status-cache check dotfiles ~/.dotfiles    # Check if cache is fresh, spawn bg update if stale
-#   my-git-status-cache update dotfiles ~/.dotfiles   # Force update cache (runs git remote update)
-#   my-git-status-cache read dotfiles                 # Read cached status (instant)
+#   my-git-status-cache check dotfiles ~/.dotfiles    # Status now; background fetch if the last one is old
+#   my-git-status-cache update dotfiles ~/.dotfiles   # Fetch first, then report (blocking, for --force)
+#   my-git-status-cache read dotfiles                 # Last recorded status, no git at all
 
 CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/dotfiles"
-CACHE_MAX_AGE=${DOTFILES_CACHE_AGE:-172800}  # 2 days in seconds
+FETCH_MAX_AGE=${DOTFILES_CACHE_AGE:-172800}  # 2 days in seconds
 
-# Ensure cache directory exists
 mkdir -p "$CACHE_DIR" 2>/dev/null
 
-_get_cache_file() {
-    local repo_name="$1"
-    echo "$CACHE_DIR/${repo_name}.status"
-}
+# Description: Path of the file holding a repo's last computed status record.
+# Inputs     : $1 repo_name (string)
+# Outputs    : prints the path
+_get_cache_file() { echo "$CACHE_DIR/${1}.status"; }
 
-_get_lock_file() {
-    local repo_name="$1"
-    echo "$CACHE_DIR/${repo_name}.lock"
-}
+# Description: Path of the stamp file whose mtime is the last successful fetch.
+# Inputs     : $1 repo_name (string)
+# Outputs    : prints the path
+_get_fetch_file() { echo "$CACHE_DIR/${1}.fetch"; }
 
-_cache_age() {
-    local cache_file="$1"
-    if [[ ! -f "$cache_file" ]]; then
-        echo "999999"
-        return
-    fi
-    local now=$(date +%s)
-    local mtime=$(stat -f %m "$cache_file" 2>/dev/null || stat -c %Y "$cache_file" 2>/dev/null)
-    echo $((now - mtime))
+# Description: Path of the lock file held while a fetch runs.
+# Inputs     : $1 repo_name (string)
+# Outputs    : prints the path
+_get_lock_file() { echo "$CACHE_DIR/${1}.lock"; }
+
+# Description: Seconds since a file was last written; a huge number when it does not exist.
+# Inputs     : $1 file path (string)
+# Outputs    : prints an integer
+_file_age() {
+    [[ -f "$1" ]] || { echo 999999; return; }
+    local mtime
+    mtime=$(stat -f %m "$1" 2>/dev/null || stat -c %Y "$1" 2>/dev/null)
+    echo $(( $(date +%s) - ${mtime:-0} ))
 }
 
 # Description: Compare local HEAD with its upstream using only refs already on disk (no network).
 # Inputs     : $1 repo_path (string)
-# Outputs    : prints one of up_to_date | pull_available | push_needed | diverged | no_upstream
+# Outputs    : prints one of up_to_date | pull_available | push_needed | diverged | no_upstream | no_repo
 _compute_status() {
     local repo_path="$1"
-    local LOCAL=$(git -C "$repo_path" rev-parse @ 2>/dev/null)
-    local REMOTE=$(git -C "$repo_path" rev-parse @{u} 2>/dev/null)
-    local BASE=$(git -C "$repo_path" merge-base @ @{u} 2>/dev/null)
+    [[ -d "$repo_path/.git" ]] || { echo "no_repo"; return; }
+    local LOCAL REMOTE BASE
+    LOCAL=$(git -C "$repo_path" rev-parse @ 2>/dev/null)
+    REMOTE=$(git -C "$repo_path" rev-parse @{u} 2>/dev/null)
+    BASE=$(git -C "$repo_path" merge-base @ @{u} 2>/dev/null)
 
     if [[ -z "$LOCAL" || -z "$REMOTE" ]]; then
         echo "no_upstream"
@@ -59,103 +71,76 @@ _compute_status() {
     fi
 }
 
-# Description: True when the repo's HEAD or remote-tracking refs changed after the cache was written
-#              (a pull, push, fetch, commit or checkout), meaning the cached status may be stale.
-# Inputs     : $1 repo_path (string), $2 cache_file (string)
-# Outputs    : exit 0 if changed since the cache, 1 otherwise
-_repo_changed_since() {
-    local git_dir="$1/.git"
-    [[ -f "$2" ]] || return 0
-    [[ -n "$(find "$git_dir/logs/HEAD" "$git_dir/FETCH_HEAD" "$git_dir/packed-refs" "$git_dir/refs/remotes" \
-            -newer "$2" 2>/dev/null | head -1)" ]]
+# Description: Record a status with the commits it was derived from, so later reads are auditable.
+# Inputs     : $1 repo_name (string), $2 repo_path (string), $3 status (string)
+# Outputs    : writes the cache file; prints nothing
+_write_status() {
+    local repo_name="$1" repo_path="$2" status="$3"
+    printf '%s\t%s\t%s\t%s\n' \
+        "$status" \
+        "$(git -C "$repo_path" rev-parse @ 2>/dev/null)" \
+        "$(git -C "$repo_path" rev-parse @{u} 2>/dev/null)" \
+        "$(date +%s)" > "$(_get_cache_file "$repo_name")"
 }
 
+# Description: Fetch from the remote, then recompute and record the status. Never run at login.
+# Inputs     : $1 repo_name (string), $2 repo_path (string)
+# Outputs    : exit 0 on a completed refresh, 2 when another fetch holds the lock, 1 when there is no repo
 _update_cache() {
-    local repo_name="$1"
-    local repo_path="$2"
-    local cache_file=$(_get_cache_file "$repo_name")
-    local lock_file=$(_get_lock_file "$repo_name")
+    local repo_name="$1" repo_path="$2"
+    local lock_file; lock_file=$(_get_lock_file "$repo_name")
 
-    # Skip if another update is running
-    if [[ -f "$lock_file" ]]; then
-        local lock_age=$(_cache_age "$lock_file")
-        if [[ $lock_age -lt 300 ]]; then  # Lock younger than 5 min
-            return 0
-        fi
-        rm -f "$lock_file"  # Stale lock
+    # Another fetch is already running: say so rather than reporting success
+    if [[ -f "$lock_file" ]] && [[ $(_file_age "$lock_file") -lt 300 ]]; then
+        return 2
     fi
+    rm -f "$lock_file"
 
-    # Create lock
-    echo $$ > "$lock_file"
-
-    # Verify repo exists
     if [[ ! -d "$repo_path/.git" ]]; then
-        echo "no_repo" > "$cache_file"
-        rm -f "$lock_file"
+        _write_status "$repo_name" "$repo_path" "no_repo"
         return 1
     fi
 
-    # Fetch remote info (the slow part)
-    git -C "$repo_path" remote update &>/dev/null
-
-    # Write cache
-    _compute_status "$repo_path" > "$cache_file"
+    echo $$ > "$lock_file"
+    if git -C "$repo_path" remote update &>/dev/null; then
+        : > "$(_get_fetch_file "$repo_name")"   # stamp only a fetch that actually worked
+    fi
+    _write_status "$repo_name" "$repo_path" "$(_compute_status "$repo_path")"
     rm -f "$lock_file"
+    return 0
 }
 
+# Description: Print the last recorded status word (first field), or "uncached".
+# Inputs     : $1 repo_name (string)
+# Outputs    : prints the status word
 _read_cache() {
-    local repo_name="$1"
-    local cache_file=$(_get_cache_file "$repo_name")
-
-    if [[ -f "$cache_file" ]]; then
-        cat "$cache_file"
-    else
-        echo "uncached"
-    fi
+    local cache_file; cache_file=$(_get_cache_file "$1")
+    [[ -f "$cache_file" ]] || { echo "uncached"; return; }
+    cut -f1 "$cache_file" | head -1
 }
 
+# Description: The login path. Answers from local refs immediately and, when the last fetch is old,
+#              starts one in the background -- it never waits on the network, in any shell.
+# Inputs     : $1 repo_name (string), $2 repo_path (string)
+# Outputs    : prints the status word
 _check_and_update() {
-    local repo_name="$1"
-    local repo_path="$2"
-    local cache_file=$(_get_cache_file "$repo_name")
-    local age=$(_cache_age "$cache_file")
+    local repo_name="$1" repo_path="$2"
+    local status; status=$(_compute_status "$repo_path")
+    _write_status "$repo_name" "$repo_path" "$status"
 
-    # If cache is fresh, return it -- but first re-derive the status from local refs when
-    # the repo changed since it was written, so a pull/push clears "pull available" at once
-    # instead of up to CACHE_MAX_AGE later. No network: the 2-day fetch cadence is unchanged.
-    if [[ $age -lt $CACHE_MAX_AGE ]]; then
-        if [[ -d "$repo_path/.git" ]] && _repo_changed_since "$repo_path" "$cache_file"; then
-            _compute_status "$repo_path" > "$cache_file"
-        fi
-        _read_cache "$repo_name"
-        return 0
+    if [[ $(_file_age "$(_get_fetch_file "$repo_name")") -ge $FETCH_MAX_AGE ]]; then
+        ( _update_cache "$repo_name" "$repo_path" >/dev/null 2>&1 & ) 2>/dev/null
     fi
-
-    # Cache is stale - do synchronous refresh for accurate status
-    if [[ -t 0 ]]; then
-        # Interactive shell: fetch fresh status (brief delay is acceptable)
-        _update_cache "$repo_name" "$repo_path"
-        _read_cache "$repo_name"
-    else
-        # Non-interactive: background refresh, return stale cache
-        ( _update_cache "$repo_name" "$repo_path" & ) 2>/dev/null
-        _read_cache "$repo_name"
-    fi
+    echo "$status"
 }
 
-# Main command dispatcher
 case "${1:-check}" in
-    check)
-        _check_and_update "${2:-dotfiles}" "${3:-$DOTFILESLOC}"
-        ;;
-    update)
-        _update_cache "${2:-dotfiles}" "${3:-$DOTFILESLOC}"
-        ;;
-    read)
-        _read_cache "${2:-dotfiles}"
-        ;;
+    check)  _check_and_update "${2:-dotfiles}" "${3:-$DOTFILESLOC}" ;;
+    update) _update_cache "${2:-dotfiles}" "${3:-$DOTFILESLOC}" ;;
+    read)   _read_cache "${2:-dotfiles}" ;;
+    fetch-age) _file_age "$(_get_fetch_file "${2:-dotfiles}")" ;;
     *)
-        echo "Usage: my-git-status-cache [check|update|read] [repo_name] [repo_path]"
+        echo "Usage: my-git-status-cache [check|update|read|fetch-age] [repo_name] [repo_path]"
         exit 1
         ;;
 esac
