@@ -26,29 +26,10 @@ fi
 # shellcheck source=core/.profile_motd
 source "$DOTFILESLOC/base/core/.profile_motd"
 
-# ==============================================================================
-# Quick Shell Reload Shortcuts
-# ==============================================================================
-# ~ as command = go home + reload shell config
-# ./ as command (no args) = reload shell config in current dir
-
-# Override ~ to go home and reload
-function \~() {
-    cd ~
-    source ~/.zshrc
-    echo "🏠 Home + reloaded"
-}
-
-# ./ with no args reloads, with args runs normally
-function ./() {
-    if [[ $# -eq 0 ]]; then
-        source ~/.zshrc
-        echo -e "\U0f0450 Reloaded"
-        echo ""
-    else
-        command ./"$@"
-    fi
-}
+# Quick shell reload shortcuts (~ and ./ as commands). Their syntax is zsh-only --
+# bash cannot parse it -- so they live in their own file and load only under zsh.
+# shellcheck source=core/.profile_zsh_reload
+[[ -n "$ZSH_VERSION" ]] && source "$DOTFILESLOC/base/core/.profile_zsh_reload"
 
 # Load any local overwrites if needed
 # shellcheck source=/dev/null
