@@ -35,8 +35,15 @@ ZSH_THEME="maran-enhanced"
 # Case-sensitive completion must be off. _ and - will be interchangeable.
 # HYPHEN_INSENSITIVE="true"
 
-# Uncomment the following line to disable bi-weekly auto-update checks.
-# DISABLE_AUTO_UPDATE="true"
+# Oh My Zsh self-update: do it, never ask. In the default "prompt" mode omz asks
+# "Would you like to update? [Y/n]" in every interactive shell once the 13-day
+# timer is up, and it only clears that timer after the question is answered, so
+# an unanswered tab keeps asking. "reminder" mode is no better: it prints a
+# line in every shell until omz is updated by hand. auto + silent updates in
+# place when due, stamps the timer, and says nothing.
+zstyle ':omz:update' mode auto
+zstyle ':omz:update' verbose silent
+
 
 # Uncomment the following line to change how often to auto-update (in days).
 # export UPDATE_ZSH_DAYS=13
@@ -83,7 +90,9 @@ plugins=(
     colored-man-pages
     colorize
     command-not-found
-    github
+    # gh, not github: the old github plugin wrapped the retired hub CLI and now
+    # prints a deprecation warning in every shell.
+    gh
     laravel
     sudo
     node
