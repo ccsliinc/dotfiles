@@ -9,3 +9,6 @@ _docs/
 
 # Private local reference files (nested repo syncs to Gogs)
 _reference.local/
+
+# Claude Code project notes live in the Claude-side home (Org/Tooling/dotfiles), not this public repo
+CLAUDE.md
