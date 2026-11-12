@@ -12,3 +12,6 @@ _reference.local/
 
 # Claude Code project notes live in the Claude-side home (Org/Tooling/dotfiles), not this public repo
 CLAUDE.md
+
+# Employer tool: kept as a local file on each host, not published
+base/bin/imc-tools
