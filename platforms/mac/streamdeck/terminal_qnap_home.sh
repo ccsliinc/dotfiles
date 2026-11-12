@@ -1,7 +1,7 @@
 ##!/usr/bin/env bash
 
-#open -a Terminal "ssh admin@192.0.2.1"
+#open -a Terminal "ssh admin@qnap-home"
 osascript -e 'tell app "Terminal"
-    do script "ssh admin@192.0.2.1"
+    do script "ssh admin@qnap-home"
 end tell'
 #zsh

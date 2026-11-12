@@ -14,12 +14,12 @@
 # Usage (from this Mac):
 #   bash scripts/qnap-ops/install-incremental-cron.sh [user@host]
 #
-# Default host: admin@192.0.2.1 (Home QNAP)
+# Default host: admin@qnap-home (Home QNAP, an alias in ~/.ssh/config)
 # ============================================================================
 
 set -uo pipefail
 
-QNAP_HOST=${1:-admin@192.0.2.1}
+QNAP_HOST=${1:-admin@qnap-home}
 LOCAL_SCRIPT=$(cd "$(dirname "$0")" && pwd)/incremental-cron.sh
 REMOTE_DIR=/share/Media/.media-tools
 REMOTE_SCRIPT=$REMOTE_DIR/incremental-cron.sh

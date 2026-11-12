@@ -25,7 +25,7 @@
 #   - Backup dirs auto-created; per-backup success/failure visible
 #   - Timestamp now bumped only on success (failures retry next run)
 #   - pipefail + failure counter + conditional success/warning banner
-#   - Gogs remote (192.0.2.1 IP) verification; pushes current branch explicitly
+#   - Gogs remote direct-IP verification; pushes current branch explicitly
 #   - Colored section headers; mas/brew/npm "none" messages; sudo warning
 #   - LLM-down fallback prints raw log; TTY-guarded confirm prompt
 #   - Removed dead Atom apm block
@@ -259,11 +259,12 @@ Keep it concise. Use the color codes exactly as shown - they will be interpreted
             if [[ -d "$HOME/.claude/.git" ]]; then
                 (
                     cd "$HOME/.claude"
-                    # Verify gogs remote uses the direct IP (hostname is Authentik-blocked)
+                    # Verify the gogs remote uses the server's direct IP: its hostname sits behind
+                    # the SSO proxy, which blocks git. Matching any IPv4 keeps the address out of the repo.
                     local gogs_url
                     gogs_url=$(git remote get-url gogs 2>/dev/null)
-                    if [[ -n "$gogs_url" && "$gogs_url" != *"192.0.2.1"* ]]; then
-                        echo "⚠️  gogs remote does not point at 192.0.2.1 (got: $gogs_url) — push may hit Authentik-blocked hostname host.example.invalid"
+                    if [[ -n "$gogs_url" && ! "$gogs_url" =~ ://([^/@]+@)?[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+                        echo "⚠️  gogs remote does not use the server's direct IP (got: $gogs_url) — the hostname is blocked by the SSO proxy, so the push may fail"
                     fi
                     # Only commit and push if there are changes
                     if [[ -n $(git status --porcelain 2>/dev/null) ]]; then

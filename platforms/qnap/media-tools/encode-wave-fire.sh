@@ -54,7 +54,10 @@ LOCK_FILE=$DATA_HOST/encode/encode-wave-fire.lock
 # resolve once the local image is pruned (Watchtower / registry GC) — a bare
 # `docker run` then errors, the error is swallowed, and the gates mis-read the
 # empty output. Always use the registry path and pull-if-missing below.
-IMAGE=192.0.2.1:5000/media-pipeline:latest
+# The registry address lives on the box, not in the public repo:
+# /share/Media/.media-tools/media-tools.conf sets MEDIA_PIPELINE_IMAGE=<registry>/media-pipeline:latest
+[ -f /share/Media/.media-tools/media-tools.conf ] && . /share/Media/.media-tools/media-tools.conf
+IMAGE=${MEDIA_PIPELINE_IMAGE:?set MEDIA_PIPELINE_IMAGE in /share/Media/.media-tools/media-tools.conf}
 # Host path for the encode work dirs (.scratch / .staging). Migrated off the
 # Expansion external onto the qBT SSD (CACHEDEV3) 2026-06-15. The container
 # still sees these at /expansion (mount target unchanged) — only the host side

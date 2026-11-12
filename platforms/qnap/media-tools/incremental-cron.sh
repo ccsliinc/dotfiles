@@ -20,7 +20,10 @@ LOG_DIR=$DATA_HOST/inventory/logs
 LOCK_FILE=$DATA_HOST/inventory/incremental.lock
 HEARTBEAT_HOST=$DATA_HOST/inventory/incremental.heartbeat
 ROOTS_CONTAINER="/media/Movies /media/TV"
-IMAGE=192.0.2.1:5000/media-pipeline:latest
+# The registry address lives on the box, not in the public repo:
+# /share/Media/.media-tools/media-tools.conf sets MEDIA_PIPELINE_IMAGE=<registry>/media-pipeline:latest
+[ -f /share/Media/.media-tools/media-tools.conf ] && . /share/Media/.media-tools/media-tools.conf
+IMAGE=${MEDIA_PIPELINE_IMAGE:?set MEDIA_PIPELINE_IMAGE in /share/Media/.media-tools/media-tools.conf}
 MAX_FPS=10
 
 # ---- setup -----------------------------------------------------------------

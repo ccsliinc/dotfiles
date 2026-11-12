@@ -43,7 +43,10 @@ DATA_HOST=/share/Media/.media-tools
 INV_DB=$DATA_HOST/inventory/inventory.sqlite
 LOG_DIR=$DATA_HOST/inventory/logs
 LOCK_FILE=$DATA_HOST/inventory/integrity.lock
-IMAGE=192.0.2.1:5000/media-pipeline:latest
+# The registry address lives on the box, not in the public repo:
+# /share/Media/.media-tools/media-tools.conf sets MEDIA_PIPELINE_IMAGE=<registry>/media-pipeline:latest
+[ -f /share/Media/.media-tools/media-tools.conf ] && . /share/Media/.media-tools/media-tools.conf
+IMAGE=${MEDIA_PIPELINE_IMAGE:?set MEDIA_PIPELINE_IMAGE in /share/Media/.media-tools/media-tools.conf}
 
 BATCH_PCT="${INTEGRITY_BATCH_PCT:-2}"
 MIN_AGE_DAYS="${INTEGRITY_MIN_AGE_DAYS:-30}"

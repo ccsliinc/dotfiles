@@ -40,7 +40,10 @@ set -uo pipefail
 DATA_HOST=/share/Media/.media-tools
 LOG_DIR=$DATA_HOST/encode/logs
 LOCK_FILE=$DATA_HOST/encode/remux-sweep-fire.lock
-IMAGE=192.0.2.1:5000/media-pipeline:latest
+# The registry address lives on the box, not in the public repo:
+# /share/Media/.media-tools/media-tools.conf sets MEDIA_PIPELINE_IMAGE=<registry>/media-pipeline:latest
+[ -f /share/Media/.media-tools/media-tools.conf ] && . /share/Media/.media-tools/media-tools.conf
+IMAGE=${MEDIA_PIPELINE_IMAGE:?set MEDIA_PIPELINE_IMAGE in /share/Media/.media-tools/media-tools.conf}
 ENCODE_FILTER=container_swap
 WAVE_LIMIT=40
 MIN_PENDING=0
