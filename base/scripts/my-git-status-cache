@@ -43,7 +43,9 @@ _get_lock_file() { echo "$CACHE_DIR/${1}.lock"; }
 _file_age() {
     [[ -f "$1" ]] || { echo 999999; return; }
     local mtime
-    mtime=$(stat -f %m "$1" 2>/dev/null || stat -c %Y "$1" 2>/dev/null)
+    # GNU first: GNU `stat -f` means "filesystem status" and succeeds with junk output,
+    # so trying the BSD form first breaks the age math on Linux. BSD stat rejects -c.
+    mtime=$(stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/null)
     echo $(( $(date +%s) - ${mtime:-0} ))
 }
 
