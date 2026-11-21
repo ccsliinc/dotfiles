@@ -7,6 +7,7 @@
 # Features:
 #   - System fixes (utmp, terminfo, BASH_ENV)
 #   - Sudoers configuration for primary user
+#   - Fleet Console fleetdeploy sudo rule restore (fleet-sudoers-restore.sh)
 #   - Cron job scheduling from platforms/qnap/cron/
 #   - Logging with rotation
 #   - Alert notifications (QNAP native + Pushover)
@@ -237,6 +238,74 @@ EOF
 }
 
 # ============================================================================
+# FLEET CONSOLE SUDOERS RESTORE
+# ============================================================================
+
+# Fleet Console's install keeps the fleetdeploy rule here; QTS wipes the live copy
+# in /usr/etc/sudoers.d at every boot (fleet-console deploy-host-wrapper.md section 6).
+# The names must match fleet-sudoers-restore.sh, which owns the copy and its checks.
+FLEET_ACCOUNT="fleetdeploy"
+FLEET_VOLUME="/share/CACHEDEV1_DATA"
+FLEET_ROOT="$FLEET_VOLUME/.fleet-console-deploy"
+FLEET_MASTER="$FLEET_ROOT/sudoers/$FLEET_ACCOUNT"
+FLEET_INCLUDE="/usr/etc/sudoers.d"
+FLEET_RESTORE="$DOTFILESLOC/platforms/qnap/boot/fleet-sudoers-restore.sh"
+
+# Description: Remove every fleetdeploy copy in sudo's include dir, so its sudo -n grants nothing.
+# Inputs     : none (FLEET_INCLUDE, FLEET_ACCOUNT)
+# Outputs    : none
+clear_fleet_sudoers() {
+    rm -f "$FLEET_INCLUDE/.$FLEET_ACCOUNT.new" "$FLEET_INCLUDE/$FLEET_ACCOUNT" \
+          "$FLEET_INCLUDE/.$FLEET_ACCOUNT.err"
+}
+
+# Description: Fail closed: clear any fleetdeploy copy and log why.
+# Inputs     : $1 reason (string)
+# Outputs    : exit status 1, always
+refuse_fleet_sudoers() {
+    clear_fleet_sudoers
+    log_error "sudoers-restore: $1; no copy left in $FLEET_INCLUDE"
+    return 1
+}
+
+# Description: Put Fleet Console's fleetdeploy sudo rule back, only from a root-only tree.
+# Inputs     : none (FLEET_* settings, QNAP_UID, QNAP_USER)
+# Outputs    : exit 0 when installed or Fleet Console is not installed, 1 on a refusal
+restore_fleet_sudoers() {
+    # QNAP's /bin/sh is busybox ash, which has local.
+    # shellcheck disable=SC3043
+    local p out
+    # An unmounted data volume would look like "not installed"; it must be a loud
+    # refusal instead, or a boot-order problem silently drops fleetdeploy's rule.
+    grep -q " $FLEET_VOLUME " /proc/mounts \
+        || { refuse_fleet_sudoers "$FLEET_VOLUME is not mounted"; return; }
+    # Before Fleet Console's install there is nothing to restore; that is not an error.
+    # Still clear any copy, so an uninstall never leaves a rule nothing checks.
+    if [ ! -e "$FLEET_ROOT" ] && [ ! -L "$FLEET_ROOT" ]; then
+        clear_fleet_sudoers
+        log "Fleet Console not installed ($FLEET_ROOT absent); no $FLEET_ACCOUNT rule to restore"
+        return 0
+    fi
+    # The restore runs as root and installs a sudo rule, so every step of the tree
+    # must be root's alone (uid 0 only), and the script must be one we trust.
+    for p in "$FLEET_ROOT" "$FLEET_ROOT/sudoers" "$FLEET_MASTER" "$FLEET_MASTER.sha256"; do
+        is_trusted_path "$p" 0 || { refuse_fleet_sudoers "$p is missing, a link, or not root-only"; return; }
+    done
+    is_trusted_path "$FLEET_RESTORE" "$QNAP_UID" || {
+        refuse_fleet_sudoers "$FLEET_RESTORE is not owned by $QNAP_USER or root, or others can write it"
+        return
+    }
+    if out=$(/bin/sh "$FLEET_RESTORE" 2>&1); then
+        log_success "$out"
+    else
+        # The script cleans up on its own refusals; this also covers a death mid-way.
+        clear_fleet_sudoers
+        log_error "$out"
+        return 1
+    fi
+}
+
+# ============================================================================
 # CRON SCHEDULING
 # ============================================================================
 
@@ -326,6 +395,10 @@ main() {
 
     # Configure sudoers
     configure_sudoers || errors=$((errors + 1))
+
+    # Restore Fleet Console's fleetdeploy rule (after our own rule, so sudo's
+    # listing check sees the whole policy as it will stand)
+    restore_fleet_sudoers || errors=$((errors + 1))
 
     # Install cron jobs
     install_cron_jobs || errors=$((errors + 1))
