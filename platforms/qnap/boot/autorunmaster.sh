@@ -16,25 +16,67 @@
 # CONFIGURATION
 # ============================================================================
 
-# Detect primary QNAP user (user with .dotfiles installed, not just first alphabetically)
-QNAP_USER=""
-for user in $(ls /share/homes 2>/dev/null | grep -v "^@" | grep -v "^lost+found"); do
-    if [ -d "/share/homes/$user/.dotfiles" ]; then
-        QNAP_USER="$user"
-        break
-    fi
-done
-# Fallback to first user if no dotfiles found
-if [ -z "$QNAP_USER" ]; then
-    QNAP_USER=$(ls /share/homes 2>/dev/null | grep -v "^@" | grep -v "^lost+found" | head -n 1)
-fi
-USER_HOME="/share/homes/$QNAP_USER"
+# Root runs this at boot (an @reboot line in /etc/config/crontab), so the user and
+# every file it reads must be ones only that user or root can change. /share/homes is
+# writable by every account, so the user is NOT found by scanning it (anyone could plant
+# a home that sorts first, or rename a home and put their own in its place). Instead the
+# user is the home this script itself lives in: <homes>/<user>/.dotfiles/platforms/qnap/boot/,
+# and that home, the repo and the script must be owned by that same user.
 
-# Get DOTFILESLOC from user's config or use standard location
-if [ -f "$USER_HOME/.dotfiles_location" ]; then
-    . "$USER_HOME/.dotfiles_location"
-else
-    DOTFILESLOC="$USER_HOME/.dotfiles"
+SCRIPT_REL="platforms/qnap/boot/autorunmaster.sh"
+
+# Description: True when a path is real (not a symlink), owned by the given uid or root,
+#              and writable by neither group nor others.
+# Inputs     : $1 path (string), $2 uid (integer)
+# Outputs    : exit status 0 when trusted, 1 otherwise
+# Example    : is_trusted_path "$USER_HOME/.exports.local" "$QNAP_UID" && . "$USER_HOME/.exports.local"
+is_trusted_path() {
+    [ -e "$1" ] && [ ! -L "$1" ] || return 1
+    owner=$(stat -c %u "$1" 2>/dev/null) || return 1
+    [ "$owner" = "$2" ] || [ "$owner" = 0 ] || return 1
+    mode=$(stat -c %a "$1" 2>/dev/null) || return 1
+    [ $(( 0$mode & 022 )) -eq 0 ]
+}
+
+# Description: Work out the user, home and repo from this script's own path, and check
+#              that the whole chain from the home down to the script belongs to that user.
+# Inputs     : $1 path this script was started by (string, normally "$0")
+# Outputs    : sets SCRIPT_PATH, DOTFILESLOC, USER_HOME, QNAP_USER, QNAP_UID; on failure
+#              sets RESOLVE_ERROR and returns 1
+resolve_user() {
+    RESOLVE_ERROR=""
+    SCRIPT_PATH=$(readlink -f "$1" 2>/dev/null)
+    DOTFILESLOC=${SCRIPT_PATH%/$SCRIPT_REL}
+    USER_HOME=${DOTFILESLOC%/.dotfiles}
+    if [ -z "$SCRIPT_PATH" ] || [ "$DOTFILESLOC" = "$SCRIPT_PATH" ] || [ "$USER_HOME" = "$DOTFILESLOC" ]; then
+        RESOLVE_ERROR="not run from <home>/.dotfiles/$SCRIPT_REL (got: ${SCRIPT_PATH:-$1})"
+        return 1
+    fi
+    QNAP_USER=$(basename "$USER_HOME")
+    QNAP_UID=$(id -u "$QNAP_USER" 2>/dev/null)
+    if [ -z "$QNAP_UID" ] || [ "$QNAP_UID" = 0 ]; then
+        RESOLVE_ERROR="home folder $USER_HOME does not belong to a regular account"
+        return 1
+    fi
+    # The home itself must be owned by the account it is named after, not merely by root.
+    if [ "$(stat -c %u "$USER_HOME" 2>/dev/null)" != "$QNAP_UID" ]; then
+        RESOLVE_ERROR="$USER_HOME is not owned by $QNAP_USER"
+        return 1
+    fi
+    for path in "$USER_HOME" "$DOTFILESLOC" "$DOTFILESLOC/platforms" "$DOTFILESLOC/platforms/qnap" \
+                "$DOTFILESLOC/platforms/qnap/boot" "$SCRIPT_PATH"; do
+        if ! is_trusted_path "$path" "$QNAP_UID"; then
+            RESOLVE_ERROR="$path is not owned by $QNAP_USER or root, or others can write it"
+            return 1
+        fi
+    done
+}
+
+if ! resolve_user "$0"; then
+    # Nothing under the home can be trusted yet, so report only to the QNAP system log.
+    /sbin/log_tool --append "[autorunmaster] REFUSED to run: $RESOLVE_ERROR" --type=2 2>/dev/null
+    echo "autorunmaster: refused to run: $RESOLVE_ERROR" >&2
+    exit 1
 fi
 
 CRON_DIR="$DOTFILESLOC/platforms/qnap/cron"
@@ -78,9 +120,13 @@ log_success() {
 # ============================================================================
 
 send_pushover() {
-    # Read Pushover credentials from user's exports.local
+    # Read Pushover credentials from user's exports.local (sourced as root, so it must be trusted)
     if [ -f "$USER_HOME/.exports.local" ]; then
-        . "$USER_HOME/.exports.local"
+        if is_trusted_path "$USER_HOME/.exports.local" "$QNAP_UID"; then
+            . "$USER_HOME/.exports.local"
+        else
+            log "ERROR: not reading $USER_HOME/.exports.local: not owned by $QNAP_USER or root, or others can write it"
+        fi
     fi
 
     # Skip if not configured
@@ -159,7 +205,7 @@ apply_system_fixes() {
 
 configure_sudoers() {
     if [ -z "$QNAP_USER" ]; then
-        log_error "No QNAP user detected in /share/homes"
+        log_error "No QNAP user resolved"
         return 1
     fi
 
@@ -199,6 +245,10 @@ install_cron_jobs() {
         log "Cron directory not found: $CRON_DIR"
         return 1
     fi
+    if ! is_trusted_path "$CRON_DIR" "$QNAP_UID"; then
+        log_error "Not installing cron jobs: $CRON_DIR is not owned by $QNAP_USER or root, or others can write it"
+        return 1
+    fi
 
     log "Installing cron jobs from $CRON_DIR"
 
@@ -218,6 +268,13 @@ install_cron_jobs() {
         [ ! -f "$script" ] && continue
 
         script_name=$(basename "$script")
+
+        # Root's crontab will run it, so only a script no other account can change gets in.
+        if ! is_trusted_path "$script" "$QNAP_UID"; then
+            log_error "  REFUSED: $script_name (not owned by $QNAP_USER or root, or others can write it)"
+            jobs_skipped=$((jobs_skipped + 1))
+            continue
+        fi
 
         # Extract CRON schedule from script header
         schedule=$(grep "^# CRON:" "$script" 2>/dev/null | sed 's/^# CRON: *//')
@@ -258,7 +315,7 @@ main() {
     log "========================================"
     log "AUTORUNMASTER STARTING"
     log "========================================"
-    log "Detected user: ${QNAP_USER:-NONE}"
+    log "User: ${QNAP_USER:-NONE} (uid ${QNAP_UID:-?}, from the script's own path)"
     log "User home: $USER_HOME"
     log "Dotfiles: $DOTFILESLOC"
 
