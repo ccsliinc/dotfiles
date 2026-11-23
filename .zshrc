@@ -111,6 +111,28 @@ plugins=(
 
 export DEBUG=false
 
+# Completion cache: Oh My Zsh deletes and rebuilds it whenever this shell's fpath differs
+# from the fpath saved in it, and a shell killed mid-rebuild leaves a temp file behind
+# (hundreds piled up). So every shell must build the same fpath and use its own fixed file:
+# - Homebrew's completions only arrive via ~/.zprofile (login shells); add them here too
+#   so login and non-login shells match. They go first, where brew shellenv puts them,
+#   since the order counts too. No-op where Homebrew is not installed.
+# - A shell started from another shell inherits its exported FPATH, Oh My Zsh's own
+#   folders included, in places Oh My Zsh would not put them. Drop those and keep fpath
+#   unique, so Oh My Zsh lays the list out the same way in every shell. (So keep your own
+#   completion folders outside $ZSH; they would be dropped here.)
+# - Agent shells (CLAUDECODE=1) skip the tmux plugin above, so their fpath differs by
+#   design; they get their own cache instead of fighting the human one.
+# - No hostname in the name: each machine has its own home, and a leaked HOST value
+#   (e.g. 0.0.0.0) must not change the file.
+typeset -gU fpath
+fpath=(${fpath:#"${ZSH:?}"/*})
+() {
+    local brew_completions="${HOMEBREW_PREFIX:-/opt/homebrew}/share/zsh/site-functions"
+    [[ -d $brew_completions ]] && fpath=("$brew_completions" $fpath)
+}
+ZSH_COMPDUMP="${ZDOTDIR:-$HOME}/.zcompdump-${ZSH_VERSION}${CLAUDECODE:+-agent}"
+
 source "$ZSH/oh-my-zsh.sh"
 
 # Prepend tmux escape indicator to prompt
