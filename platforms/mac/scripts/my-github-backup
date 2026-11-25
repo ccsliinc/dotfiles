@@ -1,0 +1,101 @@
+#!/bin/bash
+# Function: my-github-backup
+# Purpose: Nightly backup copy of the Carnivore code to Joe's private GitHub repo
+# Usage: my-github-backup [--dry-run]
+# Platform: macOS (run nightly by ~/Library/LaunchAgents/com.jsugamele.github-backup.plist)
+# Dependencies: git, ssh access to github.com as ccsliinc
+# Version: 1.0
+#
+# What it copies, add-only, to ccsliinc/CloudeCode (a backup; Adoom666/CarnivoreAIDev stays the main repo):
+#   1. Every branch and tag of Adoom666/CarnivoreAIDev, under the same name. A name whose
+#      copy on the backup has diverged (Joe's own older ref, or Adam rewrote the branch)
+#      is never overwritten: Adam's version goes to carnivoreaidev/<name> instead.
+#   2. Every local branch of the mini's main clone, under local/<name> (forced: that
+#      namespace is only ever written by this script).
+# It never deletes a ref on the backup and never changes any remote or push setting
+# of the working clones.
+
+set -uo pipefail
+
+SOURCE_URL="git@github.com:Adoom666/CarnivoreAIDev.git"
+BACKUP_URL="git@github.com:ccsliinc/CloudeCode.git"
+LOCAL_CLONE="$HOME/Library/Mobile Documents/com~apple~CloudDocs/Sync/Development/Org/Tooling/CloudeCode"
+MIRROR="$HOME/Library/Application Support/github-backup/carnivoreaidev.git"
+STATUS_FILE="$HOME/Library/Logs/github-backup/last-run.txt"
+DIVERGED_PREFIX="carnivoreaidev"
+LOCAL_PREFIX="local"
+DRY_RUN=false
+
+# Description: print a timestamped log line
+# Inputs: $* message
+# Outputs: line on stdout
+log() { printf '%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*"; }
+
+# Description: run git push, or print what it would push in dry-run mode
+# Inputs: $1 repo dir, $2.. push arguments after the URL
+# Outputs: porcelain push output on stdout; git's exit status
+push() {
+    local dir="$1"; shift
+    if $DRY_RUN; then
+        git -C "$dir" push --dry-run --porcelain "$BACKUP_URL" "$@" 2>&1
+    else
+        git -C "$dir" push --porcelain "$BACKUP_URL" "$@" 2>&1
+    fi
+}
+
+# Description: list the source refs that a porcelain push rejected
+# Inputs: porcelain push output on stdin
+# Outputs: one rejected source ref per line
+rejected_sources() { awk -F'\t' '/^!/ {split($2, a, ":"); print a[1]}'; }
+
+# Description: count porcelain lines of a given flag ("*" new, " " updated, "=" same, "!" rejected)
+# Inputs: $1 flag char, porcelain output on stdin
+# Outputs: count
+count_flag() { grep -c "^$1" || true; }
+
+main() {
+    [[ "${1:-}" == "--dry-run" || "${1:-}" == "-d" ]] && DRY_RUN=true
+    mkdir -p "$(dirname "$STATUS_FILE")" "$(dirname "$MIRROR")"
+    local failed=0
+
+    if [[ ! -d "$MIRROR" ]]; then
+        log "creating mirror of the source repo"
+        git clone --quiet --mirror "$SOURCE_URL" "$MIRROR" || { log "ERROR: mirror clone failed"; echo "FAIL $(date) mirror clone" > "$STATUS_FILE"; return 1; }
+    fi
+    log "fetching the source repo"
+    git -C "$MIRROR" fetch --quiet --prune --tags "$SOURCE_URL" '+refs/heads/*:refs/heads/*' '+refs/tags/*:refs/tags/*' \
+        || { log "ERROR: fetch failed"; echo "FAIL $(date) fetch" > "$STATUS_FILE"; return 1; }
+
+    # 1. Source branches and tags, same names, never forced.
+    local specs=() out rej
+    while IFS= read -r r; do specs+=("$r:$r"); done < <(git -C "$MIRROR" for-each-ref --format='%(refname)' refs/heads refs/tags)
+    out=$(push "$MIRROR" "${specs[@]}")
+    log "source refs: new $(count_flag '\*' <<<"$out"), updated $(count_flag ' ' <<<"$out"), unchanged $(count_flag '=' <<<"$out"), diverged $(count_flag '!' <<<"$out")"
+    rej=$(rejected_sources <<<"$out")
+    if [[ -n "$rej" ]]; then
+        local side=()
+        while IFS= read -r r; do
+            case "$r" in
+                refs/heads/*) side+=("+$r:refs/heads/$DIVERGED_PREFIX/${r#refs/heads/}") ;;
+                refs/tags/*)  side+=("+$r:refs/tags/$DIVERGED_PREFIX/${r#refs/tags/}") ;;
+            esac
+        done <<<"$rej"
+        out=$(push "$MIRROR" "${side[@]}")
+        if grep -q '^!' <<<"$out" || grep -q '^error' <<<"$out"; then log "ERROR: side copies of diverged refs failed"; failed=1; fi
+        log "diverged refs copied under $DIVERGED_PREFIX/: ${#side[@]}"
+    fi
+    grep -qE '^(fatal|error):' <<<"$out" && failed=1
+
+    # 2. The mini's local branches under local/.
+    local lspecs=()
+    while IFS= read -r b; do lspecs+=("+refs/heads/$b:refs/heads/$LOCAL_PREFIX/$b"); done \
+        < <(git -C "$LOCAL_CLONE" for-each-ref --format='%(refname:lstrip=2)' refs/heads)
+    out=$(push "$LOCAL_CLONE" --no-verify "${lspecs[@]}")
+    if grep -qE '^(!|fatal|error)' <<<"$out"; then log "ERROR: local branch push had failures"; grep -E '^(!|fatal|error)' <<<"$out" | head -5; failed=1; fi
+    log "local branches: ${#lspecs[@]} pushed under $LOCAL_PREFIX/ (new $(count_flag '\*' <<<"$out"), updated $(count_flag ' ' <<<"$out"))"
+
+    if (( failed )); then echo "FAIL $(date)" > "$STATUS_FILE"; log "done with errors"; return 1; fi
+    echo "OK $(date)" > "$STATUS_FILE"; log "done"
+}
+
+main "$@"
