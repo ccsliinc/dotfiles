@@ -4,7 +4,7 @@
 # Usage: my-github-backup [--dry-run]
 # Platform: macOS (run nightly by ~/Library/LaunchAgents/com.jsugamele.github-backup.plist)
 # Dependencies: git, ssh access to github.com as ccsliinc
-# Version: 1.0
+# Version: 1.1
 #
 # What it copies, add-only, to ccsliinc/CloudeCode (a backup; Adoom666/CarnivoreAIDev stays the main repo):
 #   1. Every branch and tag of Adoom666/CarnivoreAIDev, under the same name. A name whose
@@ -14,22 +14,49 @@
 #      namespace is only ever written by this script).
 # It never deletes a ref on the backup and never changes any remote or push setting
 # of the working clones.
+#
+# Outcome: the last log line is "done" and last-run.txt says OK only when every step
+# succeeded. Any failed step logs "ERROR: <step> FAILED: <why>", the run ends with
+# "ERROR: run FAILED: <steps>", last-run.txt says FAIL and the exit status is 1.
+# Fleet Monitoring (devices/mac-mini-m4/backup-freshness.conf) parses these lines.
 
 set -uo pipefail
 
 SOURCE_URL="git@github.com:Adoom666/CarnivoreAIDev.git"
 BACKUP_URL="git@github.com:ccsliinc/CloudeCode.git"
-LOCAL_CLONE="$HOME/Library/Mobile Documents/com~apple~CloudDocs/Sync/Development/Org/Tooling/CloudeCode"
+# The mini's main working clone of the Carnivore repo. It moved out of the iCloud Sync
+# folder to here on 2026-10-19 (Development/_reorg/LOG.md). The only place it is named.
+LOCAL_CLONE="$HOME/Development/Org/Tooling/CloudeCode"
 MIRROR="$HOME/Library/Application Support/github-backup/carnivoreaidev.git"
 STATUS_FILE="$HOME/Library/Logs/github-backup/last-run.txt"
 DIVERGED_PREFIX="carnivoreaidev"
 LOCAL_PREFIX="local"
 DRY_RUN=false
+FAILED_STEPS=""
+# A porcelain push line that means something went wrong: a rejected ref, or git's own error.
+GIT_ERR_RE='^(!|fatal|error)'
+# The summary git adds whenever any ref was rejected; expected when diverged refs exist.
+PUSH_REJECTED_SUMMARY_RE='^error: failed to push some refs'
+# How many git error lines to copy under an ERROR line.
+MAX_ERR_LINES=5
 
 # Description: print a timestamped log line
 # Inputs: $* message
 # Outputs: line on stdout
 log() { printf '%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*"; }
+
+# Description: record a failed step and log it in the format the monitor matches
+# Inputs: $1 step name, $2 reason
+# Outputs: ERROR line on stdout; appends $1 to FAILED_STEPS
+fail_step() {
+    log "ERROR: $1 FAILED: $2"
+    FAILED_STEPS="${FAILED_STEPS:+$FAILED_STEPS, }$1"
+}
+
+# Description: show the first git error lines of a push, untimestamped, under the ERROR line
+# Inputs: $1 porcelain push output
+# Outputs: up to 5 lines on stdout
+show_push_errors() { grep -E "$GIT_ERR_RE" <<<"$1" | head -"$MAX_ERR_LINES"; }
 
 # Description: run git push, or print what it would push in dry-run mode
 # Inputs: $1 repo dir, $2.. push arguments after the URL
@@ -53,49 +80,124 @@ rejected_sources() { awk -F'\t' '/^!/ {split($2, a, ":"); print a[1]}'; }
 # Outputs: count
 count_flag() { grep -c "^$1" || true; }
 
-main() {
-    [[ "${1:-}" == "--dry-run" || "${1:-}" == "-d" ]] && DRY_RUN=true
-    mkdir -p "$(dirname "$STATUS_FILE")" "$(dirname "$MIRROR")"
-    local failed=0
-
+# Description: create the mirror if needed and fetch the source repo into it
+# Inputs: none (SOURCE_URL, MIRROR)
+# Outputs: log lines; 0 on success, 1 after fail_step
+refresh_mirror() {
     if [[ ! -d "$MIRROR" ]]; then
         log "creating mirror of the source repo"
-        git clone --quiet --mirror "$SOURCE_URL" "$MIRROR" || { log "ERROR: mirror clone failed"; echo "FAIL $(date) mirror clone" > "$STATUS_FILE"; return 1; }
+        git clone --quiet --mirror "$SOURCE_URL" "$MIRROR" || { fail_step "mirror clone" "git clone of the source repo failed"; return 1; }
     fi
     log "fetching the source repo"
     git -C "$MIRROR" fetch --quiet --prune --tags "$SOURCE_URL" '+refs/heads/*:refs/heads/*' '+refs/tags/*:refs/tags/*' \
-        || { log "ERROR: fetch failed"; echo "FAIL $(date) fetch" > "$STATUS_FILE"; return 1; }
+        || { fail_step "fetch" "git fetch of the source repo failed"; return 1; }
+}
 
-    # 1. Source branches and tags, same names, never forced.
-    local specs=() out rej
-    while IFS= read -r r; do specs+=("$r:$r"); done < <(git -C "$MIRROR" for-each-ref --format='%(refname)' refs/heads refs/tags)
-    out=$(push "$MIRROR" "${specs[@]}")
-    log "source refs: new $(count_flag '\*' <<<"$out"), updated $(count_flag ' ' <<<"$out"), unchanged $(count_flag '=' <<<"$out"), diverged $(count_flag '!' <<<"$out")"
-    rej=$(rejected_sources <<<"$out")
-    if [[ -n "$rej" ]]; then
-        local side=()
-        while IFS= read -r r; do
-            case "$r" in
-                refs/heads/*) side+=("+$r:refs/heads/$DIVERGED_PREFIX/${r#refs/heads/}") ;;
-                refs/tags/*)  side+=("+$r:refs/tags/$DIVERGED_PREFIX/${r#refs/tags/}") ;;
-            esac
-        done <<<"$rej"
-        out=$(push "$MIRROR" "${side[@]}")
-        if grep -q '^!' <<<"$out" || grep -q '^error' <<<"$out"; then log "ERROR: side copies of diverged refs failed"; failed=1; fi
-        log "diverged refs copied under $DIVERGED_PREFIX/: ${#side[@]}"
+# Description: push the diverged source refs under DIVERGED_PREFIX/, forced
+# Inputs: $1 rejected source refs, one per line
+# Outputs: log lines; 0 on success, 1 after fail_step
+push_diverged() {
+    local r out rc
+    local side=()
+    while IFS= read -r r; do
+        case "$r" in
+            refs/heads/*) side+=("+$r:refs/heads/$DIVERGED_PREFIX/${r#refs/heads/}") ;;
+            refs/tags/*)  side+=("+$r:refs/tags/$DIVERGED_PREFIX/${r#refs/tags/}") ;;
+        esac
+    done <<<"$1"
+    # bash 3.2 treats an empty array expansion as unbound under set -u: count first.
+    if (( ${#side[@]} == 0 )); then fail_step "diverged refs" "rejected refs were neither branches nor tags: $(head -1 <<<"$1")"; return 1; fi
+    out=$(push "$MIRROR" "${side[@]}"); rc=$?
+    if (( rc != 0 )) || grep -qE "$GIT_ERR_RE" <<<"$out"; then
+        fail_step "diverged refs" "side copies under $DIVERGED_PREFIX/ failed (git push exit $rc)"; show_push_errors "$out"; return 1
     fi
-    grep -qE '^(fatal|error):' <<<"$out" && failed=1
+    log "diverged refs copied under $DIVERGED_PREFIX/: ${#side[@]}"
+}
 
-    # 2. The mini's local branches under local/.
+# Description: push every source branch and tag under its own name, never forced
+# Inputs: none (MIRROR)
+# Outputs: log lines; 0 on success, 1 after fail_step
+backup_source_refs() {
+    local refs r out rc rej errs
+    local specs=()
+    refs=$(git -C "$MIRROR" for-each-ref --format='%(refname)' refs/heads refs/tags) \
+        || { fail_step "source refs" "cannot list the refs of the mirror"; return 1; }
+    while IFS= read -r r; do [[ -n "$r" ]] && specs+=("$r:$r"); done <<<"$refs"
+    if (( ${#specs[@]} == 0 )); then fail_step "source refs" "the mirror has no branches or tags"; return 1; fi
+    out=$(push "$MIRROR" "${specs[@]}"); rc=$?
+    rej=$(rejected_sources <<<"$out")
+    # Rejections are expected (diverged names): they make git push exit non-zero and add
+    # its "failed to push some refs" summary, so those two are set aside. Any OTHER error
+    # line fails the step even when rejections exist; the side push is judged on its own.
+    errs=$(grep -E "$GIT_ERR_RE" <<<"$out" | grep -v '^!' | grep -vE "$PUSH_REJECTED_SUMMARY_RE")
+    if [[ -n "$errs" ]] || { [[ -z "$rej" ]] && (( rc != 0 )); }; then
+        fail_step "source refs" "git push exited $rc"; show_push_errors "$out"; return 1
+    fi
+    log "source refs: new $(count_flag '\*' <<<"$out"), updated $(count_flag ' ' <<<"$out"), unchanged $(count_flag '=' <<<"$out"), diverged $(count_flag '!' <<<"$out")"
+    if [[ -n "$rej" ]]; then push_diverged "$rej"; fi
+}
+
+# Description: push every local branch of LOCAL_CLONE under LOCAL_PREFIX/, forced
+# Inputs: none (LOCAL_CLONE)
+# Outputs: log lines; 0 on success, 1 after fail_step. A missing clone is a failure.
+backup_local_branches() {
+    local top real refs b out rc
     local lspecs=()
-    while IFS= read -r b; do lspecs+=("+refs/heads/$b:refs/heads/$LOCAL_PREFIX/$b"); done \
-        < <(git -C "$LOCAL_CLONE" for-each-ref --format='%(refname:lstrip=2)' refs/heads)
-    out=$(push "$LOCAL_CLONE" --no-verify "${lspecs[@]}")
-    if grep -qE '^(!|fatal|error)' <<<"$out"; then log "ERROR: local branch push had failures"; grep -E '^(!|fatal|error)' <<<"$out" | head -5; failed=1; fi
+    if [[ ! -d "$LOCAL_CLONE" ]]; then fail_step "local branches" "clone not found: $LOCAL_CLONE"; return 1; fi
+    # git -C walks up to an enclosing repo, so prove LOCAL_CLONE is itself the top of a work tree.
+    top=$(git -C "$LOCAL_CLONE" rev-parse --show-toplevel) || { fail_step "local branches" "not a git work tree: $LOCAL_CLONE"; return 1; }
+    real=$(cd "$LOCAL_CLONE" && pwd -P)
+    if [[ "$(cd "$top" && pwd -P)" != "$real" ]]; then fail_step "local branches" "$LOCAL_CLONE is inside $top, not a clone of its own"; return 1; fi
+    refs=$(git -C "$LOCAL_CLONE" for-each-ref --format='%(refname:lstrip=2)' refs/heads) \
+        || { fail_step "local branches" "cannot list the branches of $LOCAL_CLONE"; return 1; }
+    while IFS= read -r b; do [[ -n "$b" ]] && lspecs+=("+refs/heads/$b:refs/heads/$LOCAL_PREFIX/$b"); done <<<"$refs"
+    if (( ${#lspecs[@]} == 0 )); then fail_step "local branches" "no branches in $LOCAL_CLONE"; return 1; fi
+    out=$(push "$LOCAL_CLONE" --no-verify "${lspecs[@]}"); rc=$?
+    if (( rc != 0 )) || grep -qE "$GIT_ERR_RE" <<<"$out"; then
+        fail_step "local branches" "git push exited $rc"; show_push_errors "$out"; return 1
+    fi
     log "local branches: ${#lspecs[@]} pushed under $LOCAL_PREFIX/ (new $(count_flag '\*' <<<"$out"), updated $(count_flag ' ' <<<"$out"))"
+}
 
-    if (( failed )); then echo "FAIL $(date)" > "$STATUS_FILE"; log "done with errors"; return 1; fi
-    echo "OK $(date)" > "$STATUS_FILE"; log "done"
+# Description: overwrite the status file with one line
+# Inputs: $* the line
+# Outputs: 0, or 1 after logging an ERROR line when the write failed
+write_status() {
+    { echo "$*" > "$STATUS_FILE"; } 2>/dev/null && return 0
+    log "ERROR: status file write FAILED: $STATUS_FILE"
+    return 1
+}
+
+# Description: write the status file and the final log line for the run
+# Inputs: none (FAILED_STEPS, DRY_RUN)
+# Outputs: "done" + OK and 0 for a real run; "dry run finished" + DRYRUN and 0 for a
+#          dry run (never "done", so a manual dry run can never pass for a backup);
+#          "ERROR: run FAILED: ..." + FAIL and 1 when a step or the status write failed
+finish() {
+    if [[ -n "$FAILED_STEPS" ]]; then
+        write_status "FAIL $(date) $FAILED_STEPS"
+        log "ERROR: run FAILED: $FAILED_STEPS"
+        return 1
+    fi
+    if $DRY_RUN; then
+        write_status "DRYRUN $(date)" || { log "ERROR: run FAILED: status file"; return 1; }
+        log "dry run finished, nothing pushed"; return 0
+    fi
+    write_status "OK $(date)" || { log "ERROR: run FAILED: status file"; return 1; }
+    log "done"
+}
+
+# Description: run the whole backup: refresh the mirror, push source refs, push local branches
+# Inputs: $1 optional --dry-run or -d (push --dry-run, status DRYRUN)
+# Outputs: log lines on stdout; exit status 0 only when every step and the status write succeeded
+main() {
+    [[ "${1:-}" == "--dry-run" || "${1:-}" == "-d" ]] && DRY_RUN=true
+    mkdir -p "$(dirname "$STATUS_FILE")" "$(dirname "$MIRROR")"
+    # Without a fresh mirror there is nothing trustworthy to push for step 1; step 2
+    # does not depend on it and still runs.
+    refresh_mirror && backup_source_refs
+    backup_local_branches
+    finish
 }
 
 main "$@"
