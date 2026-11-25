@@ -240,3 +240,6 @@ export PATH="$HOME/.local/bin:$PATH"
 export PATH="$PATH:/Users/jsugamele/.lmstudio/bin"
 # End of LM Studio CLI section
 
+
+# 1Password CLI: over ssh, sign in with the account password in the terminal instead of the desktop app's Touch ID window (Joe, 2026-11-25)
+[ -n "$SSH_CONNECTION" ] && export OP_BIOMETRIC_UNLOCK_ENABLED=false
